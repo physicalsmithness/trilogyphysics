@@ -1,0 +1,1963 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Trilogy Quiz — Magnetism & electromagnetism</title>
+<style>
+:root{
+  --bg:#070b16;
+  --ink:#eef2ff;
+  --muted:#a8b3d6;
+  --line:rgba(255,255,255,.10);
+  --good:#21c07a;
+  --bad:#ff5a6a;
+  --warn:#ffcc66;
+  --accent:#3b6cff;
+  --card: rgba(255,255,255,.02);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: radial-gradient(1200px 900px at 15% -10%, #14224a 0%, rgba(20,34,74,0) 50%),
+              radial-gradient(1200px 900px at 95% 0%, #1a2a58 0%, rgba(26,42,88,0) 45%),
+              var(--bg);
+  color:var(--ink);
+  background-attachment: fixed;
+}
+a{color:inherit}
+.topbar{
+  background: rgba(7,11,22,.86);
+
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  backdrop-filter: blur(10px);
+
+  display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  padding:16px 18px;
+  max-width:1200px; margin:0 auto;
+}
+.brandTitle{font-weight:1000; font-size:18px; letter-spacing:.2px}
+.brandSub{color:var(--muted); font-size:12px; margin-top:2px}
+.wrap{max-width:1200px; margin:0 auto; padding:0 18px 26px; display:grid; gap:14px}
+
+.panel{
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+}
+.panelTop{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:12px}
+.panelTitle{font-weight:1000; font-size:15px}
+.panelMeta{display:flex; gap:8px; flex-wrap:wrap}
+
+.pill{
+  display:inline-flex; align-items:center;
+  padding:6px 10px; border-radius:999px;
+  border:1px solid var(--line);
+  color:var(--muted);
+  font-size:12px;
+  background: rgba(255,255,255,.02);
+}
+
+.btn{
+  appearance:none;
+  border:1px solid var(--line);
+  background: rgba(255,255,255,.04);
+  color:var(--ink);
+  background-attachment: fixed;
+  padding:10px 12px;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:800;
+}
+.btn:hover{border-color:rgba(255,255,255,.22)}
+.btn.primary{
+  background: linear-gradient(180deg, rgba(59,108,255,.20), rgba(59,108,255,.12));
+  border-color: rgba(59,108,255,.55);
+}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+
+.controls{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap:12px;
+}
+@media (max-width: 980px){
+  .controls{grid-template-columns:1fr}
+}
+.control label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+.control input, .control select{
+  width:100%;
+  background: rgba(255,255,255,.03);
+  border:1px solid var(--line);
+  color:var(--ink);
+  background-attachment: fixed;
+  padding:10px 10px;
+  border-radius:12px;
+  outline:none;
+}
+.control.wide{grid-column: 1 / -1}
+.control.actions{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap}
+
+.topicGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:8px;
+}
+@media (max-width: 980px){ .topicGrid{grid-template-columns:1fr} }
+.topic{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  background: var(--card);
+  font-size:13px;
+  color: var(--ink);
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+.topic input{margin-top:2px}
+
+.hint{color:var(--muted); font-size:12px; margin-top:6px}
+
+.kpis{display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-top:6px}
+.kpi{border:1px solid var(--line); border-radius:14px; padding:10px; background: var(--card)}
+.kpiN{font-weight:1000; font-size:18px}
+.kpiL{color:var(--muted); font-size:12px; margin-top:3px}
+.scoreLine{margin-top:10px; font-weight:1000}
+
+.qcard{
+  margin-top:12px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+}
+.qhead{display:flex; justify-content:space-between; gap:12px; align-items:flex-start}
+.qnum{font-size:12px; color:var(--muted); margin-bottom:8px}
+.qtext{font-size:15px; font-weight:900}
+.tags{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end}
+.tag{
+  font-size:11px;
+  border:1px solid var(--line);
+  padding:4px 8px;
+  border-radius:999px;
+  color:var(--muted);
+  background: rgba(255,255,255,.02);
+}
+
+.choice{
+  display:flex; gap:10px; align-items:flex-start;
+  padding:10px 10px; border-radius:12px;
+  border:1px solid var(--line);
+  margin-top:8px; background: var(--card);
+  cursor:pointer;
+}
+.choice:hover{border-color: rgba(255,255,255,.22)}
+.choice input{margin-top:2px}
+.choiceViz{margin-top:8px;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:8px;background:rgba(255,255,255,.015);display:inline-block}
+.choiceViz svg{display:block}
+
+.answerbox{display:flex; gap:10px; margin-top:10px}
+.answerbox input, .answerbox textarea{flex:1}
+.answerbox textarea{min-height: 92px; resize: vertical;}
+
+.feedback{
+  margin-top:12px;
+  border:1px dashed rgba(255,255,255,.20);
+  border-radius:14px;
+  padding:12px;
+  background: rgba(255,255,255,.02);
+}
+.feedback.good{border-color: rgba(33,192,122,.55); background: rgba(33,192,122,.07)}
+.feedback.bad{border-color: rgba(255,90,106,.55); background: rgba(255,90,106,.06)}
+.feedback .title{font-weight:1000; margin-bottom:8px}
+.explain{margin:0 0 10px; font-size:13px}
+details summary{cursor:pointer; color:var(--muted); font-weight:1000; margin-top:6px}
+details .model{
+  margin:10px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size:12.5px;
+  color:#dbe2ff;
+  white-space:pre-wrap;
+  line-height:1.4;
+}
+.autoWarn{
+  border:2px solid rgba(255,204,102,.65);
+  background: rgba(255,204,102,.14);
+  padding:12px;
+  border-radius:14px;
+  margin-top:10px;
+}
+.autoWarn .h{font-weight:1000; color:#ffe6b3; margin-bottom:6px}
+.autoWarn .b{color:#ffecc7; font-size:12.5px; line-height:1.35}
+
+.adjustRow{
+  display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap;
+  padding-top:8px; border-top:1px solid rgba(255,255,255,.10);
+}
+.adjustRow input{
+  width:120px;
+  background: rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.18);
+  color:var(--ink);
+  background-attachment: fixed;
+  padding:8px 10px;
+  border-radius:12px;
+  outline:none;
+}
+.adjustRow .note{color:var(--muted); font-size:12px}
+.small{font-size:12px; color:var(--muted)}
+/* Mini buttons (e.g., report) */
+.btn.mini{
+  padding:6px 10px;
+  border-radius:10px;
+  font-weight:800;
+  font-size:12px;
+}
+.reportBanner{
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  margin: 10px 0 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(59,108,255,.10);
+  color: #eaf0ff;
+  display:none;
+}
+.reportBanner .small{color:#cfe0ff}
+/* Sticky score bar (always visible) */
+.scoreBar{
+  position: sticky;
+  top: 10px;
+  z-index: 30;
+  max-width:1200px;
+  margin: 0 auto;
+  padding: 0 18px;
+}
+.scoreBar > div.scoreBarRow{
+  display:flex;
+  gap:14px;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.18);
+  border-radius:16px;
+  padding:10px 12px;
+}
+.scoreBar .small{color:var(--muted); font-size:12px; margin-top:6px}
+.scoreBar code{background:rgba(255,255,255,.08); padding:2px 6px; border-radius:8px}
+/* Compact always-visible stats row inside header */
+.topStats{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.statPill{
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.18);
+  font-size:12px;
+  color: rgba(235,242,255,.92);
+}
+.statPill b{font-weight:1000}
+.topicDetails{
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  background: rgba(255,255,255,.015);
+  padding:10px 10px;
+}
+.topicDetails > summary{
+  cursor:pointer;
+  list-style:none;
+  font-weight:900;
+  color:#dbe2ff;
+}
+.topicDetails > summary::-webkit-details-marker{display:none;}
+.topicDetails > summary::before{
+  content:"▸";
+  display:inline-block;
+  margin-right:8px;
+  color: rgba(255,255,255,.7);
+}
+.topicDetails[open] > summary::before{content:"▾";}
+.controls{gap:12px}
+.control label{margin-bottom:6px}
+.topicGrid{gap:10px}
+.topic{padding:10px 10px; font-size:13px}
+/* Fixed header so stats are always visible */
+.topbar{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 120;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(5,8,18,.78);
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+/* Push the main content down under the fixed header */
+.wrap{
+  padding-top: calc(var(--headerOffset, 0px) + 18px);
+}
+/* Report banner: in-flow, non-overlapping */
+.reportBanner{
+  position: relative !important;
+  top: auto !important;
+  z-index: auto !important;
+}
+.reportRow{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+.reportBox{
+  width:100%;
+  margin-top:8px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.22);
+  color: rgba(235,242,255,.95);
+  padding:10px;
+  min-height:84px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size: 12.5px;
+}
+.reportActions{
+  margin-top:8px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brandTitle" id="title">Trilogy Magnetism Quiz</div>
+    <div class="brandSub" id="subtitle">Magnetism & electromagnetism (Trilogy) • random sets • mark-scheme style feedback</div>
+  </div>
+  <div class="panelMeta">
+    <span class="pill" id="statusPill">Idle</span>
+    <span class="pill">Enter submits (Shift+Enter = new line)</span>
+    <span class="pill">Units are case‑sensitive</span>
+  </div>
+
+  <div class="topStats" id="topStats">
+    <span class="statPill"><b>Set</b> <span id="statSet">–</span></span>
+    <span class="statPill"><b>Overall</b> <span id="statOverall">–</span></span>
+    <button class="btn mini" id="resetOverallBtn" type="button" title="Reset overall stats (this device only)">Reset overall</button>
+    <button class="btn mini" id="resetDeckBtn" type="button" title="Reset shuffle-deck (this device only)">Reset deck</button>
+  </div>
+</header>
+
+    <div><b>Overall:</b> <span id="scoreBarOverall">–</span></div>
+    <button class="btn mini" id="resetOverallBtn" type="button" title="Reset overall stats (this device only)">Reset overall</button>
+    <button class="btn mini" id="resetDeckBtn" type="button" title="Reset shuffle-deck (this device only)">Reset deck</button>
+  </div>
+  <div class="small">Overall is stored on this device (browser local storage), not online.</div>
+</div>
+
+
+<main class="wrap">
+  <section class="panel">
+    <div class="panelTop">
+      <div class="panelTitle">Controls</div>
+      <div class="panelMeta">
+        <span class="pill" id="setPill">No set</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="numQ">Questions per set</label>
+        <input id="numQ" type="number" min="5" max="40" value="14" />
+      </div>
+      <div class="control">
+        <label for="diffMix">Difficulty mix</label>
+        <select id="diffMix">
+          <option value="all" selected>Mixed</option>
+          <option value="easy">Mostly easier</option>
+          <option value="med">Mostly medium</option>
+          <option value="hard">Harder</option>
+        </select>
+      </div>
+
+      <div class="control wide">
+        <details class="topicDetails" id="topicDetails">
+  <summary>Topics to include (click to expand/collapse)</summary>
+  <div class="topicGrid">
+    <label class="topic"><input class="topicCb" type="checkbox" value="units" checked /> Units & key quantities (A, V, W, N, T, m)</label>
+
+    <label class="topic"><input class="topicCb" type="checkbox" value="poles" checked /> Poles: attraction/repulsion, non‑contact force</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="induced" checked /> Permanent vs induced magnetism</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="fields" checked /> Magnetic fields & field lines</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="compass" checked /> Compasses & Earth’s magnetic field</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="plotting" checked /> Practical: plotting field patterns</label>
+
+    <label class="topic"><input class="topicCb" type="checkbox" value="wirefield" checked /> Field around a current‑carrying wire (RH grip rule)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="solenoid" checked /> Solenoids & electromagnets (iron core)</label>
+
+    <label class="topic"><input class="topicCb" type="checkbox" value="motoreffect" checked /> Motor effect (qualitative)</label>
+
+    <label class="topic"><input class="topicCb" type="checkbox" value="flhr" checked /> Fleming’s left‑hand rule (HT)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="bil" checked /> Motor‑effect force calculations: F = B I l (HT)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="motors" checked /> Electric motors (HT)</label>
+  </div>
+</details>
+        <div class="hint">
+          Notes: written answers are auto-checked for keywords only (not AI marking). “Start set” applies your current settings; “New random set” generates another set with the same settings. Overall stats are stored on this device only. (HT topics are included if you leave their boxes ticked.)
+        </div>
+      </div>
+
+      <div class="control actions">
+        <button class="btn primary" id="startBtn">Start set</button>
+        <button class="btn" id="newSetBtn" disabled>New random set</button>
+        <button class="btn" id="revealAllBtn" disabled>Reveal mark scheme</button>
+      </div>
+
+      <div class="control wide">
+        <div class="kpis">
+          <div class="kpi"><div class="kpiN" id="kpiChecked">0</div><div class="kpiL">checked</div></div>
+          <div class="kpi"><div class="kpiN" id="kpiFull">0</div><div class="kpiL">full</div></div>
+          <div class="kpi"><div class="kpiN" id="kpiPartial">0</div><div class="kpiL">partial</div></div>
+          <div class="kpi"><div class="kpiN" id="kpiWrong">0</div><div class="kpiL">wrong</div></div>
+        </div>
+        <div class="scoreLine" id="scoreLine">-</div>
+        <div class="hint" id="summaryLine">Start a set to begin.</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="reportBanner" class="reportBanner"></div>
+
+  <section class="panel">
+    <div class="panelTop">
+      <div class="panelTitle">Questions</div>
+      <div class="panelMeta">
+        <span class="pill">Mark scheme style explanations</span>
+      </div>
+    </div>
+    <div id="quiz"></div>
+  </section>
+</main>
+
+<script>
+window.TRILOGY_MAGEM_QUIZ_META = {
+  "title": "Trilogy Magnetism Quiz",
+  "subtitle": "Magnetism & electromagnetism (Trilogy) • random sets • mark-scheme style feedback"
+};
+
+window.TRILOGY_MAGEM_QUIZ_QUESTIONS = [
+  {"id": "u_flux", "tags": ["units", "bil"], "difficulty": "easy", "type": "mcq", "prompt": "Magnetic flux density B is measured in:", "choices": ["tesla (T)", "newton (N)", "watt (W)", "volt (V)"], "answerIndex": 0, "explanation": "B is measured in tesla (T)."},
+  {"id": "state_bil", "tags": ["units", "bil"], "difficulty": "med", "type": "short", "prompt": "State the motor-effect equation linking force, magnetic flux density, current and length.", "marks": 1, "markPoints": [{"any": ["f=bil", "bil"]}], "explanation": "F = B I l.", "expectedSymbolic": ["F=BIL", "F=BIl"]},
+  {"id": "field_define", "tags": ["fields"], "difficulty": "med", "type": "short", "prompt": "Define magnetic field.", "marks": 2, "markPoints": [{"any": ["region", "around", "where a force acts"]}, {"any": ["magnet", "magnetic material", "another magnet"]}], "explanation": "A magnetic field is the region around a magnet/current where it exerts a force on another magnet or on magnetic materials."},
+  {"id": "plot_compass_line", "tags": ["plotting"], "difficulty": "hard", "type": "short", "prompt": "Using a plotting compass, how do you draw ONE magnetic field line around a bar magnet?", "marks": 5, "markPoints": [{"any": ["paper", "card"]}, {"any": ["compass"]}, {"any": ["dot", "mark"]}, {"any": ["move", "tail"]}, {"any": ["repeat", "join", "arrows"]}], "explanation": "Place magnet under paper. Mark compass direction at points; move compass along; join dots; add arrow N→S."},
+  {"id": "motoreffect_explain", "tags": ["motoreffect"], "difficulty": "hard", "type": "short", "prompt": "Explain why a current-carrying wire in a magnetic field experiences a force (motor effect).", "marks": 4, "markPoints": [{"any": ["current"]}, {"any": ["magnetic field around", "produces a magnetic field"]}, {"any": ["interact", "interaction"]}, {"any": ["force", "exerted"]}], "explanation": "Current produces a magnetic field around the wire. This interacts with the external field, so a force acts on the wire."},
+  {"id": "u_current", "tags": ["units"], "difficulty": "easy", "type": "mcq", "prompt": "Unit of current is:", "choices": ["A", "V", "W", "T"], "answerIndex": 0, "explanation": "A"},
+  {"id": "u_force", "tags": ["units"], "difficulty": "easy", "type": "mcq", "prompt": "Unit of force is:", "choices": ["N", "T", "A", "V"], "answerIndex": 0, "explanation": "N"},
+  {"id": "u_length", "tags": ["units"], "difficulty": "easy", "type": "mcq", "prompt": "Unit of length in F=BIl is:", "choices": ["m", "cm", "mm", "no unit"], "answerIndex": 0, "explanation": "Length l is measured in metres (m)."},
+  {"id": "poles_pair_1", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_2", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_3", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_4", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_5", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_6", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_7", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_8", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_9", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_10", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_11", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_12", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_13", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_14", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_15", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_16", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_17", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_18", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_19", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_20", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_21", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 0, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_22", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_23", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A north pole is brought near a north pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "poles_pair_24", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "A south pole is brought near a south pole. They will:", "choices": ["attract", "repel", "do nothing", "become induced magnets"], "answerIndex": 1, "explanation": "Unlike poles attract; like poles repel."},
+  {"id": "non_contact", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "Attraction/repulsion between magnetic poles is:", "choices": ["contact", "non-contact", "friction", "upthrust"], "answerIndex": 1, "explanation": "Magnetic forces are non‑contact."},
+  {"id": "induced_always_attract", "tags": ["induced"], "difficulty": "easy", "type": "mcq", "prompt": "A magnet and a magnetic material (e.g. iron) exert a force that is always:", "choices": ["repulsion", "attraction", "zero", "random"], "answerIndex": 1, "explanation": "Magnet–magnetic material is always attraction."},
+  {"id": "induced_temporary", "tags": ["induced"], "difficulty": "easy", "type": "mcq", "prompt": "An induced magnet, when removed from the field, usually:", "choices": ["stays magnetic permanently", "loses most/all magnetism quickly", "becomes stronger", "reverses polarity"], "answerIndex": 1, "explanation": "Induced magnetism is temporary."},
+  {"id": "fieldlines_NS", "tags": ["fields"], "difficulty": "easy", "type": "mcq", "prompt": "Outside a bar magnet, field lines go:", "choices": ["N→S", "S→N", "in circles", "only inside"], "answerIndex": 0, "explanation": "Outside: N→S."},
+  {"id": "fieldlines_spacing", "tags": ["fields"], "difficulty": "easy", "type": "mcq", "prompt": "Where lines are closer together, the field is:", "choices": ["stronger", "weaker", "zero", "electric"], "answerIndex": 0, "explanation": "Closer spacing = stronger field."},
+  {"id": "fieldlines_cross", "tags": ["fields"], "difficulty": "med", "type": "mcq", "prompt": "Field lines must not cross because:", "choices": ["it makes the field weaker", "field would have two directions at a point", "magnets would melt", "it wastes field"], "answerIndex": 1, "explanation": "Crossing implies two directions at one point."},
+  {"id": "compass_needle", "tags": ["compass"], "difficulty": "easy", "type": "mcq", "prompt": "A compass needle is:", "choices": ["a small bar magnet", "an electromagnet", "a cell", "an iron filing"], "answerIndex": 0, "explanation": "Compass needle is a small bar magnet."},
+  {"id": "earth_field", "tags": ["compass"], "difficulty": "easy", "type": "mcq", "prompt": "A compass points because:", "choices": ["Earth has a magnetic field", "Earth has electric field", "gravity pulls needle", "air resistance"], "answerIndex": 0, "explanation": "Earth’s magnetic field aligns the needle."},
+  {"id": "earth_core", "tags": ["compass"], "difficulty": "hard", "type": "short", "prompt": "Explain how compass behaviour supports the idea that Earth’s core is magnetic.", "marks": 4, "markPoints": [{"any": ["earth has a magnetic field"]}, {"any": ["compass aligns", "needle aligns", "points"]}, {"any": ["north-seeking"]}, {"any": ["core", "earth must be magnetic"]}], "explanation": "Compass needles align with Earth’s magnetic field, so Earth must produce a magnetic field, consistent with a magnetic core."},
+  {"id": "wire_shape", "tags": ["wirefield"], "difficulty": "easy", "type": "mcq", "prompt": "Field around a straight current-carrying wire is:", "choices": ["concentric circles", "straight lines", "random", "uniform"], "answerIndex": 0, "explanation": "Concentric circles."},
+  {"id": "rh_grip", "tags": ["wirefield"], "difficulty": "med", "type": "short", "prompt": "State the right-hand grip rule for a straight wire.", "marks": 3, "markPoints": [{"any": ["thumb", "current"]}, {"any": ["fingers", "curl", "field"]}, {"any": ["right hand"]}], "explanation": "Right thumb = current, curled fingers = field direction."},
+  {"id": "wire_dot", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "Current is out of the page (•). The field circles are:", "choices": ["clockwise", "anticlockwise", "straight up", "straight down"], "answerIndex": 1, "explanation": "Right-hand rule: out of page gives anticlockwise."},
+  {"id": "wire_cross", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "Current is into the page (×). The field circles are:", "choices": ["clockwise", "anticlockwise", "left", "right"], "answerIndex": 0, "explanation": "Right-hand rule: into page gives clockwise."},
+  {"id": "wire_dir_1", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is out of the page (•). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 1, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_2", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is into the page (×). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 0, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_3", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is out of the page (•). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 1, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_4", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is into the page (×). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 0, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_5", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is out of the page (•). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 1, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_6", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is into the page (×). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 0, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_7", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is out of the page (•). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 1, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_8", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is into the page (×). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 0, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_9", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is out of the page (•). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 1, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_10", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is into the page (×). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 0, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_11", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is out of the page (•). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 1, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_12", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is into the page (×). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 0, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_13", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is out of the page (•). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 1, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_14", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is into the page (×). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 0, "explanation": "Use the right-hand grip rule."},
+  {"id": "wire_dir_15", "tags": ["wirefield"], "difficulty": "hard", "type": "mcq", "prompt": "A current is out of the page (•). Viewed from the front, the magnetic field direction is:", "choices": ["clockwise", "anticlockwise", "upwards", "downwards"], "answerIndex": 1, "explanation": "Use the right-hand grip rule."},
+  {"id": "solenoid_uniform", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Inside a solenoid the magnetic field is:", "choices": ["strong and uniform", "weak and random", "zero", "only at ends"], "answerIndex": 0, "explanation": "Inside is strong and uniform."},
+  {"id": "iron_core", "tags": ["solenoid"], "difficulty": "easy", "type": "mcq", "prompt": "Adding an iron core to a solenoid:", "choices": ["increases field strength", "decreases field", "reverses direction", "stops current"], "answerIndex": 0, "explanation": "Iron core increases field."},
+  {"id": "electromagnet_define", "tags": ["solenoid"], "difficulty": "easy", "type": "short", "prompt": "What is an electromagnet?", "marks": 2, "markPoints": [{"any": ["solenoid", "coil"]}, {"any": ["iron core", "iron"]}], "explanation": "A solenoid with an iron core."},
+  {"id": "solenoid_strength_1", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_2", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_3", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_4", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_5", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_6", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_7", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_8", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_9", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_10", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_11", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_12", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_13", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_14", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "solenoid_strength_15", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Which change makes an electromagnet stronger?", "choices": ["decrease current", "add more turns / coils", "remove iron core", "increase distance from core"], "answerIndex": 1, "explanation": "More turns and/or more current and/or an iron core increases strength."},
+  {"id": "flhr_fbi", "tags": ["flhr"], "difficulty": "easy", "type": "mcq", "prompt": "FBI means:", "choices": ["Force-Field-Current", "Force-Field-Current (thumb, first finger, second finger)", "Field-Force-Current", "Field-Current-Force"], "answerIndex": 1, "explanation": "Thumb=Force, first finger=Field, second finger=Current."},
+  {"id": "flhr_case_1", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current left. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 1, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_2", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current right. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_3", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field right, current up. Force is:", "choices": ["into the page", "out of the page", "left", "right"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_4", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field left, current into page (×). Force is:", "choices": ["up", "down", "left", "right"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_5", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field up, current out of page (•). Force is:", "choices": ["left", "right", "up", "down"], "answerIndex": 1, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_6", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current right. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_7", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current left. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 1, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_8", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current left. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 1, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_9", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current left. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 1, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_10", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field right, current up. Force is:", "choices": ["into the page", "out of the page", "left", "right"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_11", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current right. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_12", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current right. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_13", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current left. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 1, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_14", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field left, current into page (×). Force is:", "choices": ["up", "down", "left", "right"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_15", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current right. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_16", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field up, current out of page (•). Force is:", "choices": ["left", "right", "up", "down"], "answerIndex": 1, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_17", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field down, current left. Force is:", "choices": ["into the page", "out of the page", "up", "down"], "answerIndex": 1, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_18", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field left, current into page (×). Force is:", "choices": ["up", "down", "left", "right"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_19", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field right, current up. Force is:", "choices": ["into the page", "out of the page", "left", "right"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "flhr_case_20", "tags": ["flhr", "motoreffect"], "difficulty": "hard", "type": "mcq", "prompt": "Field left, current into page (×). Force is:", "choices": ["up", "down", "left", "right"], "answerIndex": 0, "explanation": "Use Fleming’s left-hand rule."},
+  {"id": "bil_calc_1", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 30 cm wire carries 2.00 A at right angles to a 0.40 T field. Calculate the force.", "answer": 0.24, "unitHint": "N", "explanation": "Convert length: l=0.30 m. F=BIl=0.40×2.00×0.30=0.24 N."},
+  {"id": "bil_calc_2", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 15 cm wire carries 3.50 A at right angles to a 0.20 T field. Calculate the force.", "answer": 0.10500000000000001, "unitHint": "N", "explanation": "Convert length: l=0.15 m. F=BIl=0.20×3.50×0.15=0.105 N."},
+  {"id": "bil_calc_3", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 5 cm wire carries 1.20 A at right angles to a 0.85 T field. Calculate the force.", "answer": 0.051000000000000004, "unitHint": "N", "explanation": "Convert length: l=0.05 m. F=BIl=0.85×1.20×0.05=0.051 N."},
+  {"id": "bil_calc_4", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 20 cm wire carries 1.50 A at right angles to a 0.30 T field. Calculate the force.", "answer": 0.09, "unitHint": "N", "explanation": "Convert length: l=0.20 m. F=BIl=0.30×1.50×0.20=0.09 N."},
+  {"id": "bil_calc_5", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 35 cm wire carries 0.80 A at right angles to a 0.50 T field. Calculate the force.", "answer": 0.13999999999999999, "unitHint": "N", "explanation": "Convert length: l=0.35 m. F=BIl=0.50×0.80×0.35=0.14 N."},
+  {"id": "bil_calc_6", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 10 cm wire carries 4.00 A at right angles to a 0.12 T field. Calculate the force.", "answer": 0.048, "unitHint": "N", "explanation": "Convert length: l=0.10 m. F=BIl=0.12×4.00×0.10=0.048 N."},
+  {"id": "bil_calc_7", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 18 cm wire carries 2.20 A at right angles to a 0.22 T field. Calculate the force.", "answer": 0.08712, "unitHint": "N", "explanation": "Convert length: l=0.18 m. F=BIl=0.22×2.20×0.18=0.0871 N."},
+  {"id": "bil_calc_8", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 40 cm wire carries 0.60 A at right angles to a 0.75 T field. Calculate the force.", "answer": 0.18, "unitHint": "N", "explanation": "Convert length: l=0.40 m. F=BIl=0.75×0.60×0.40=0.18 N."},
+  {"id": "bil_calc_9", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 12 cm wire carries 5.00 A at right angles to a 0.10 T field. Calculate the force.", "answer": 0.06, "unitHint": "N", "explanation": "Convert length: l=0.12 m. F=BIl=0.10×5.00×0.12=0.06 N."},
+  {"id": "bil_calc_10", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 25 cm wire carries 1.10 A at right angles to a 0.65 T field. Calculate the force.", "answer": 0.17875000000000002, "unitHint": "N", "explanation": "Convert length: l=0.25 m. F=BIl=0.65×1.10×0.25=0.179 N."},
+  {"id": "bil_find_B", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A force of 0.36 N acts on a 0.40 m wire carrying 2.0 A at right angles. Calculate B.", "answer": 0.44999999999999996, "unitHint": "T", "explanation": "B=F/(Il)=0.36/(2.0×0.40)=0.45 T."},
+  {"id": "bil_find_I", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A 0.25 m wire is in a 0.60 T field at right angles. The force is 0.15 N. Calculate the current.", "answer": 1.0, "unitHint": "A", "explanation": "I=F/(Bl)=0.15/(0.60×0.25)=1.0 A."},
+  {"id": "motor_rotate", "tags": ["motors", "motoreffect", "flhr"], "difficulty": "hard", "type": "short", "prompt": "Explain how the motor effect causes rotation of the coil in a d.c. motor.", "marks": 6, "markPoints": [{"any": ["forces on opposite sides", "opposite directions"]}, {"any": ["turning effect", "torque", "rotate"]}, {"any": ["commutator", "split-ring"]}, {"any": ["reverses current", "every half turn"]}, {"any": ["inertia", "momentum"]}, {"any": ["magnetic field", "field"]}], "explanation": "Opposite sides of the coil have forces in opposite directions, giving a turning effect. A split-ring commutator reverses the current every half-turn so the forces keep turning the coil; inertia carries it past vertical."},
+  {"id": "motor_commutator", "tags": ["motors"], "difficulty": "med", "type": "mcq", "prompt": "The split-ring commutator:", "choices": ["reverses current every half turn", "makes field uniform", "increases resistance", "turns d.c. into a.c."], "answerIndex": 0, "explanation": "It reverses the current in the coil every half-turn."},
+  {"id": "motor_speed", "tags": ["motors", "bil"], "difficulty": "med", "type": "mcq", "prompt": "Which change increases motor turning effect?", "choices": ["Decrease current", "Weaker magnet", "Increase current/field strength", "Make coil parallel to field"], "answerIndex": 2, "explanation": "Turning effect increases with current and field strength."},
+  {"id": "piv_bil_combo_1", "tags": ["bil", "units"], "difficulty": "hard", "type": "numeric", "prompt": "A wire of length 0.20 m is at right angles to a magnetic field of 0.45 T. The circuit delivers 6 W at 12 V. Calculate the force on the wire.", "answer": 0.045000000000000005, "unitHint": "N", "explanation": "Step 1: P = IV ⇒ I = P/V = 6/12 = 0.5 A.\nStep 2: F = B I l = 0.45 × 0.5 × 0.20 = 0.045 N."},
+  {"id": "piv_bil_combo_2", "tags": ["bil", "units"], "difficulty": "hard", "type": "numeric", "prompt": "A wire of length 0.35 m is at right angles to a magnetic field of 0.30 T. The circuit delivers 3.6 W at 9 V. Calculate the force on the wire.", "answer": 0.041999999999999996, "unitHint": "N", "explanation": "Step 1: P = IV ⇒ I = P/V = 3.6/9 = 0.4 A.\nStep 2: F = B I l = 0.30 × 0.4 × 0.35 = 0.042 N."},
+  {"id": "piv_bil_combo_3", "tags": ["bil", "units"], "difficulty": "hard", "type": "numeric", "prompt": "A wire of length 0.10 m is at right angles to a magnetic field of 0.80 T. The circuit delivers 1.2 W at 6 V. Calculate the force on the wire.", "answer": 0.016, "unitHint": "N", "explanation": "Step 1: P = IV ⇒ I = P/V = 1.2/6 = 0.2 A.\nStep 2: F = B I l = 0.80 × 0.2 × 0.10 = 0.016 N."},
+  {"id": "fields_rule_arrows", "tags": ["fields"], "difficulty": "easy", "type": "mcq", "prompt": "When drawing magnetic field lines, you should always include:", "choices": ["an arrow showing direction", "a label showing temperature", "a voltmeter symbol", "numbers on every line"], "answerIndex": 0, "explanation": "Field lines should have arrows to show direction."},
+  {"id": "fields_rule_crossing", "tags": ["fields"], "difficulty": "easy", "type": "mcq", "prompt": "A student draws two magnetic field lines that cross. The problem is that crossing implies:", "choices": ["the field is strongest there", "two field directions at one point", "the magnet has no poles", "a current must be flowing"], "answerIndex": 1, "explanation": "At a point, the field has a single direction. Crossing would suggest two directions."},
+  {"id": "fields_rule_touch", "tags": ["fields"], "difficulty": "med", "type": "mcq", "prompt": "In a correct field-line diagram around a bar magnet, field lines should:", "choices": ["stop in mid-air", "be continuous and meet the magnet", "cross at the poles", "all be equally spaced everywhere"], "answerIndex": 1, "explanation": "Lines should be continuous and meet the magnet (not broken)."},
+  {"id": "fields_rule_spacing", "tags": ["fields"], "difficulty": "easy", "type": "mcq", "prompt": "In a field-line diagram, the magnetic field is strongest where the lines are:", "choices": ["furthest apart", "closest together", "perfectly horizontal", "drawn in red"], "answerIndex": 1, "explanation": "Closer lines indicate a stronger field."},
+  {"id": "fields_rule_outside_dir", "tags": ["fields"], "difficulty": "med", "type": "mcq", "prompt": "Outside a bar magnet, the arrows on field lines point:", "choices": ["from S to N", "from N to S", "towards the nearest metal", "in circles around the magnet"], "answerIndex": 1, "explanation": "Outside the magnet, field lines go from north to south."},
+  {"id": "fields_rule_direction_def", "tags": ["fields"], "difficulty": "med", "type": "mcq", "prompt": "The direction of a magnetic field at a point is defined as the direction of the force on a:", "choices": ["south pole", "north pole", "electron", "mass"], "answerIndex": 1, "explanation": "Field direction is defined by the force on a north pole."},
+  {"id": "fields_rule_three_rules", "tags": ["fields"], "difficulty": "hard", "type": "short", "prompt": "Give three correct rules for drawing magnetic field lines around a bar magnet.", "marks": 3, "markPoints": [{"any": ["arrows", "direction", "n to s", "north to south"]}, {"any": ["not cross", "never cross"]}, {"any": ["continuous", "meet the magnet", "touch the magnet", "not broken"]}], "explanation": "Examples:\n• arrows show N→S outside the magnet\n• lines do not cross\n• lines are continuous and meet the magnet\n• closer spacing shows stronger field."},
+  {"id": "induced_polarity", "tags": ["induced"], "difficulty": "hard", "type": "mcq", "prompt": "A permanent magnet’s N pole is near a piece of iron. The end of the iron nearest the N pole becomes:", "choices": ["N", "S", "no pole forms", "alternating"], "answerIndex": 1, "explanation": "Induced magnetism makes the nearest end the opposite pole (S), giving attraction."},
+  {"id": "induced_repulsion", "tags": ["induced"], "difficulty": "med", "type": "mcq", "prompt": "Induced magnetism always causes a force of:", "choices": ["repulsion", "attraction", "zero", "friction"], "answerIndex": 1, "explanation": "Induced magnets are attracted to the magnet causing the induction."},
+  {"id": "induced_material", "tags": ["induced"], "difficulty": "easy", "type": "mcq", "prompt": "Which material is most likely to become an induced magnet?", "choices": ["iron", "plastic", "glass", "wood"], "answerIndex": 0, "explanation": "Iron is magnetic and becomes induced in a field."},
+  {"id": "perm_definition", "tags": ["induced", "poles"], "difficulty": "med", "type": "mcq", "prompt": "Which statement best describes a permanent magnet?", "choices": ["Only magnetic in a field", "Produces its own magnetic field", "Always loses magnetism quickly", "Only attracts unlike poles"], "answerIndex": 1, "explanation": "A permanent magnet produces its own magnetic field."},
+  {"id": "induced_vs_perm_short", "tags": ["induced"], "difficulty": "hard", "type": "short", "prompt": "In one sentence each, describe (i) a permanent magnet, and (ii) an induced magnet.", "marks": 4, "markPoints": [{"any": ["permanent", "own magnetic field", "produces its own"]}, {"any": ["induced", "becomes a magnet", "in a magnetic field"]}, {"any": ["temporary", "loses", "quickly when removed"]}, {"any": ["attraction", "always attracts"]}], "explanation": "Permanent magnet: produces its own magnetic field.\nInduced magnet: becomes magnetised in a magnetic field, is temporary, and gives attraction."},
+  {"id": "induced_force_reason", "tags": ["induced"], "difficulty": "med", "type": "mcq", "prompt": "A magnet always attracts a magnetic material because the material becomes:", "choices": ["electrically charged", "an induced magnet", "a permanent magnet", "a solenoid"], "answerIndex": 1, "explanation": "The material becomes an induced magnet, so the force is attraction."},
+  {"id": "ppq_field_arrows", "tags": ["fields", "plotting"], "difficulty": "easy", "type": "mcq", "prompt": "A student draws a field pattern around a bar magnet but forgets arrowheads. What information are the arrowheads supposed to show?", "choices": ["The strength of the field", "The direction of the magnetic field (N→S outside)", "The mass of the magnet", "The temperature of the magnet"], "answerIndex": 1, "explanation": "Arrowheads show the direction of the field (direction of force on a north pole). Outside a bar magnet: N → S."},
+  {"id": "ppq_field_strength_evidence", "tags": ["fields"], "difficulty": "med", "type": "mcq", "prompt": "In a diagram of field lines, how can you tell the field is not the same strength everywhere?", "choices": ["All lines are straight", "The spacing between lines changes from place to place", "There are arrows", "The magnet is labelled"], "answerIndex": 1, "explanation": "Changing spacing shows changing field strength (closer = stronger)."},
+  {"id": "ppq_draw_rules_markscheme", "tags": ["fields"], "difficulty": "hard", "type": "short", "prompt": "A bar magnet field-line diagram is marked out of 3. Give three marking-point rules that would earn marks.", "marks": 3, "markPoints": [{"any": ["pattern", "correct shape", "loops around"]}, {"any": ["arrows", "direction", "n to s", "north to south"]}, {"any": ["not cross", "never cross", "lines do not cross", "continuous", "touch the magnet"]}], "explanation": "Examples of marking points: correct overall pattern; arrows showing N→S outside; lines do not cross and are continuous/meet the magnet; closer spacing near poles."},
+  {"id": "ppq_attraction_inference", "tags": ["poles"], "difficulty": "easy", "type": "mcq", "prompt": "Two bar magnets are brought close and they ATTRACT. What can you conclude about the facing poles?", "choices": ["They must be like poles", "They must be opposite poles", "You cannot tell anything", "Both must be north"], "answerIndex": 1, "explanation": "Attraction between magnets occurs between unlike poles."},
+  {"id": "ppq_test_perm_magnet", "tags": ["induced", "poles"], "difficulty": "hard", "type": "short", "prompt": "You have an iron bar. Describe how to test whether it is a PERMANENT magnet using a known permanent magnet.", "marks": 3, "markPoints": [{"any": ["bring same end", "one end", "same end of iron"]}, {"any": ["to both poles", "each pole", "north and south"]}, {"any": ["repel", "repulsion proves permanent", "if repels"]}], "explanation": "Bring the same end of the bar to the N pole and then the S pole of a known magnet. If you ever get REPULSION, the bar is a permanent magnet. If it’s attracted to both poles, it’s just induced magnetism."},
+  {"id": "ppq_compass_same_direction", "tags": ["compass"], "difficulty": "med", "type": "short", "prompt": "Several plotting compasses on a desk all point the same way when there is no nearby magnet. Explain why.", "marks": 2, "markPoints": [{"any": ["earth", "earth's magnetic field"]}, {"any": ["align", "line up", "points north"]}], "explanation": "They align with Earth’s magnetic field, so they all point in the same direction (towards north)."},
+  {"id": "ppq_earth_evidence", "tags": ["compass"], "difficulty": "med", "type": "mcq", "prompt": "A compass provides evidence Earth has a magnetic field because the needle:", "choices": ["always points uphill", "always points the same way (north) because it aligns with Earth’s field", "is attracted by gravity", "is made of aluminium"], "answerIndex": 1, "explanation": "A compass needle is a magnet; it aligns with Earth’s magnetic field."},
+  {"id": "ppq_wire_field_shape", "tags": ["wirefield"], "difficulty": "easy", "type": "mcq", "prompt": "When a current flows in a straight wire, the magnetic field lines around it are:", "choices": ["circular", "square", "triangular", "straight lines from + to −"], "answerIndex": 0, "explanation": "Field lines around a straight wire are concentric circles."},
+  {"id": "ppq_reverse_current_compass", "tags": ["wirefield"], "difficulty": "med", "type": "mcq", "prompt": "Compasses around a straight wire change direction when current flows. If the current is reversed, the compass needles will:", "choices": ["stay the same", "reverse direction", "point north again", "stop moving"], "answerIndex": 1, "explanation": "Reversing the current reverses the magnetic field direction, so the compass directions reverse."},
+  {"id": "ppq_solenoid_inside_uniform", "tags": ["solenoid"], "difficulty": "med", "type": "mcq", "prompt": "Inside a solenoid carrying current, the magnetic field is best described as:", "choices": ["strong and uniform", "weak and random", "zero", "only at the ends"], "answerIndex": 0, "explanation": "Inside a solenoid the field is strong and approximately uniform."},
+  {"id": "ppq_solenoid_field_features", "tags": ["solenoid", "plotting"], "difficulty": "hard", "type": "short", "prompt": "When drawing the magnetic field around a solenoid, give three features you should include for full marks.", "marks": 3, "markPoints": [{"any": ["uniform", "straight", "equally spaced", "inside"]}, {"any": ["curving around", "loops", "outside"]}, {"any": ["arrows", "n to s", "north to south"]}], "explanation": "Inside: straight, evenly spaced (uniform) lines. Outside: curved lines forming loops. Add arrows showing N→S outside."},
+  {"id": "ppq_identify_three_blocks", "tags": ["induced", "poles"], "difficulty": "hard", "type": "short", "prompt": "Three unlabelled blocks are: a permanent magnet, iron, and aluminium. Describe how to identify each using a known permanent magnet.", "marks": 4, "markPoints": [{"any": ["repel", "repulsion"]}, {"any": ["permanent magnet", "the one that repels"]}, {"any": ["iron", "attracted"]}, {"any": ["aluminium", "no effect", "not attracted"]}], "explanation": "Bring a known magnet near each block. Any block that can REPEL must be the permanent magnet. A block that is attracted but never repels is iron (induced magnetism). A block with no effect is aluminium."},
+  {"id": "ppq_control_variable_current", "tags": ["plotting", "solenoid"], "difficulty": "easy", "type": "mcq", "prompt": "In an experiment measuring how force changes with distance from an electromagnet, the current is kept the same each time. The current is the:", "choices": ["independent variable", "dependent variable", "control variable", "random variable"], "answerIndex": 2, "explanation": "If it’s kept the same, it’s a control variable."},
+  {"id": "ppq_distance_force_trend", "tags": ["solenoid"], "difficulty": "easy", "type": "mcq", "prompt": "A paperclip is held by an electromagnet. If the distance between them increases, the magnetic force on the paperclip will usually:", "choices": ["increase", "decrease", "stay the same", "reverse direction"], "answerIndex": 1, "explanation": "Field strength decreases with distance, so the force decreases."},
+  {"id": "ppq_electromagnet_crane", "tags": ["solenoid"], "difficulty": "hard", "type": "short", "prompt": "Explain how an electromagnet on a toy crane can pick up and release blocks.", "marks": 6, "markPoints": [{"any": ["complete circuit", "switch on", "current"]}, {"any": ["coil", "solenoid"]}, {"any": ["magnetic field", "produced"]}, {"any": ["iron core", "becomes magnetised"]}, {"any": ["attract", "pick up"]}, {"any": ["switch off", "current off", "demagnetise", "release"]}], "explanation": "Switch on → current in coil → magnetic field → iron core becomes magnetised → attracts block. Move crane. Switch off → current stops → core demagnetises → block released."},
+  {"id": "ppq_reverse_force_two_ways", "tags": ["motoreffect", "flhr"], "difficulty": "med", "type": "short", "prompt": "Give TWO ways to reverse the direction of the force on a current‑carrying wire in a magnetic field.", "marks": 2, "markPoints": [{"any": ["reverse current", "swap connections"]}, {"any": ["reverse magnetic field", "swap poles", "turn magnet around"]}], "explanation": "Reverse the current OR reverse the magnetic field direction (swap poles)."},
+  {"id": "ppq_balance_reading_increase", "tags": ["motoreffect", "bil"], "difficulty": "hard", "type": "short", "prompt": "A magnet sits on a balance. A wire above it carries current and experiences an upward force. Explain why the balance reading increases.", "marks": 4, "markPoints": [{"any": ["motor effect", "force on wire"]}, {"any": ["equal and opposite", "newton's third"]}, {"any": ["force on magnet", "downwards"]}, {"any": ["balance reading increases", "extra downward force"]}], "explanation": "Motor effect gives a force on the wire. By Newton’s 3rd law, the wire/magnetic field exerts an equal and opposite force on the magnet. If the wire is pushed up, the magnet is pushed down more, increasing the balance reading."},
+  {"id": "ppq_graph_force_current", "tags": ["bil", "motoreffect"], "difficulty": "med", "type": "mcq", "prompt": "For a fixed magnet and fixed wire length, the motor-effect force on the wire is proportional to the current. The graph of force (y) vs current (x) is:", "choices": ["a straight line through the origin", "a straight line not through origin", "a curve", "a horizontal line"], "answerIndex": 0, "explanation": "F = B I l, so F ∝ I (line through origin)."},
+  {"id": "ppq_current_from_mT", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A wire of length 0.050 m experiences a force of 0.072 N in a field of 360 mT. Calculate the current.", "answer": 4.0, "unitHint": "A", "explanation": "Convert 360 mT = 0.360 T. Then I = F/(B l) = 0.072/(0.360×0.050) = 4.0 A."},
+  {"id": "ppq_B_from_mm", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A length of wire in the field is 120 mm. Current is 4.0 A. Force on the wire is 0.36 N. Calculate magnetic flux density B (give unit).", "answer": 0.75, "unitHint": "T", "explanation": "Convert 120 mm = 0.120 m. B = F/(I l) = 0.36/(4.0×0.120) = 0.75 T."},
+  {"id": "ppq_B_calc_variant1", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A wire of length 0.060 m carries 1.50 A at right angles to the field. The force is 0.180 N. Calculate B.", "answer": 2.0, "unitHint": "T", "explanation": "Use F=BIl ⇒ B=F/(Il) = 0.180/(1.50×0.060) = 2 T."},
+  {"id": "ppq_B_calc_variant2", "tags": ["bil"], "difficulty": "hard", "type": "numeric", "prompt": "A wire of length 0.048 m carries 0.80 A at right angles to the field. The force is 0.090 N. Calculate B.", "answer": 2.3437499999999996, "unitHint": "T", "explanation": "Use F=BIl ⇒ B=F/(Il) = 0.090/(0.80×0.048) = 2.34 T."},
+  {"id": "ppq_B_from_balance_zero", "tags": ["bil", "motoreffect"], "difficulty": "hard", "type": "numeric", "prompt": "A horizontal copper rod has mass 4.0×10⁻⁴ kg and length 0.070 m in the magnetic field. When current is 1.12 A, the resultant force on the rod is 0 N. Calculate B. (g = 9.8 N/kg)", "answer": 0.05, "unitHint": "T", "explanation": "Resultant 0 means magnetic force = weight.\nW = mg = 9.8×4.0×10⁻⁴ = 3.92×10⁻³ N.\nB = F/(I l) = 3.92×10⁻³ /(1.12×0.070) = 0.05 T."},
+  {"id": "ppq_which_metals_magnetic", "tags": ["induced"], "difficulty": "med", "type": "mcq", "prompt": "A student tests five metals with a magnet: iron, steel, aluminium, copper, tin. Which are attracted?", "choices": ["iron and steel only", "all five", "aluminium and copper", "iron only"], "answerIndex": 0, "explanation": "Iron and steel are magnetic; aluminium, copper and tin are not."},
+  {"id": "ppq_paperclip_south_pole", "tags": ["induced"], "difficulty": "hard", "type": "short", "prompt": "A paperclip is attracted to the NORTH pole of a permanent magnet. The paperclip is then removed and brought near the SOUTH pole. What happens and why?", "marks": 2, "markPoints": [{"any": ["attracted"]}, {"any": ["induced magnetism", "becomes an induced magnet", "temporary magnet"]}], "explanation": "It is still attracted. The paperclip becomes an induced magnet, so it is attracted to either pole."},
+  {"id": "ppq_max_force_paperclips", "tags": ["induced", "units"], "difficulty": "hard", "type": "numeric", "prompt": "A magnet can hold 20 paperclips. Each paperclip has mass 1.0 g. Calculate the maximum magnetic force (g = 9.8 N/kg).", "answer": 0.19600000000000004, "unitHint": "N", "explanation": "Convert 1.0 g = 0.0010 kg.\nWeight of one = mg = 0.0010×9.8 = 0.0098 N.\nTotal for 20 = 0.0098×20 = 0.196 N."},
+  {"id": "ppq_ring_float", "tags": ["poles"], "difficulty": "med", "type": "mcq", "prompt": "A ring magnet appears to float above another ring magnet on a rod. The most likely reason is:", "choices": ["unlike poles facing (attraction)", "like poles facing (repulsion)", "no magnetic field", "induced magnetism"], "answerIndex": 1, "explanation": "Floating happens when like poles face and repel."},
+  {"id": "ppq_ring_flip", "tags": ["poles"], "difficulty": "med", "type": "mcq", "prompt": "If the floating ring magnet is turned upside down, it will most likely:", "choices": ["still float the same", "be attracted and move towards the other magnet", "lose magnetism instantly", "spin forever"], "answerIndex": 1, "explanation": "Flipping swaps which pole faces, so like → unlike; attraction occurs."},
+  {"id": "ppq_flhr_labels", "tags": ["flhr"], "difficulty": "med", "type": "mcq", "prompt": "Fleming’s left-hand rule: which finger shows the direction of the magnetic field (N→S)?", "choices": ["thumb", "first/index finger", "second/middle finger", "little finger"], "answerIndex": 1, "explanation": "First (index) finger shows magnetic field direction."},
+  {"id": "ppq_flhr_labels_force", "tags": ["flhr"], "difficulty": "easy", "type": "mcq", "prompt": "In Fleming’s left-hand rule (FBI), the thumb represents:", "choices": ["field", "current", "force", "flux density"], "answerIndex": 2, "explanation": "Thumb = Force, First finger = Field, Second finger = Current."},
+  {"id": "ppq_motor_rotation_core", "tags": ["motors", "motoreffect", "flhr"], "difficulty": "hard", "type": "short", "prompt": "Explain why the coil in a simple d.c. motor rotates when current flows.", "marks": 4, "markPoints": [{"any": ["current produces magnetic field", "magnetic field around coil"]}, {"any": ["forces on opposite sides", "opposite directions"]}, {"any": ["turning effect", "rotates", "torque"]}, {"any": ["split ring", "commutator", "reverses current each half turn", "keeps direction"]}], "explanation": "Current in coil produces a field. In the external field, forces act on opposite sides in opposite directions, giving a turning effect. Split-ring commutator reverses current every half-turn so the turning continues."},
+  {"id": "ppq_motor_speed_increase", "tags": ["motors"], "difficulty": "med", "type": "short", "prompt": "Give one change to increase the speed of rotation of a simple motor and explain why it works.", "marks": 2, "markPoints": [{"any": ["increase current", "stronger magnet", "more turns", "move magnets closer"]}, {"any": ["increase force", "greater turning effect", "increase torque"]}], "explanation": "Increasing current/field strength/turns increases the motor-effect force, giving a larger turning effect so the motor spins faster."}
+];
+
+</script>
+<script>
+(function(){
+  const META = window.TRILOGY_MAGEM_QUIZ_META || {title:"Quiz", subtitle:""};
+  const BANK = window.TRILOGY_MAGEM_QUIZ_QUESTIONS || [];
+
+  const els = {
+    statusPill: document.getElementById("statusPill"),
+    setPill: document.getElementById("setPill"),
+    numQ: document.getElementById("numQ"),
+    diffMix: document.getElementById("diffMix"),
+    startBtn: document.getElementById("startBtn"),
+    newSetBtn: document.getElementById("newSetBtn"),
+    revealAllBtn: document.getElementById("revealAllBtn"),
+    quiz: document.getElementById("quiz"),
+    scoreLine: document.getElementById("scoreLine"),
+    summaryLine: document.getElementById("summaryLine"),
+    kpiChecked: document.getElementById("kpiChecked"),
+    kpiFull: document.getElementById("kpiFull"),
+    kpiPartial: document.getElementById("kpiPartial"),
+    kpiWrong: document.getElementById("kpiWrong"),
+    title: document.getElementById("title"),
+    subtitle: document.getElementById("subtitle"),
+        resetOverallBtn: document.getElementById("resetOverallBtn"),
+    resetDeckBtn: document.getElementById("resetDeckBtn"),
+    statSet: document.getElementById("statSet"),
+    statOverall: document.getElementById("statOverall"),
+  };
+  els.title.textContent = META.title || "Quiz";
+  els.subtitle.textContent = META.subtitle || "";
+
+  function applyHeaderOffset(){
+    const h = document.querySelector("header.topbar");
+    if(!h) return;
+    const px = h.offsetHeight || 0;
+    document.documentElement.style.setProperty("--headerOffset", px + "px");
+  }
+  applyHeaderOffset();
+  window.addEventListener("resize", applyHeaderOffset);
+
+  function escapeHtml(s){
+    return (s ?? "").toString()
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;").replaceAll("'","&#39;");
+  }
+  function norm(s){
+    return (s ?? "")
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[“”"]/g,'"')
+      .replace(/[’]/g,"'")
+      .replace(/\s+/g,' ');
+  }
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
+function prettyNum(a){
+  const abs = Math.abs(a);
+  let s = (abs >= 1000 || (abs > 0 && abs < 0.01)) ? a.toExponential(3) : a.toPrecision(4);
+  // trim trailing zeros
+  s = s.replace(/(\.\d*?[1-9])0+$/, '$1');
+  s = s.replace(/\.0+(e|$)/, '$1');
+  s = s.replace(/(\d)0+e/, '$1e');
+  return s;
+}
+  function rchoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function svgAxesIV(){
+    // 4-quadrant axes centered in the viewBox
+    return `
+      <line x1="120" y1="14" x2="120" y2="156" stroke="rgba(255,255,255,.35)"/>
+      <line x1="18" y1="85" x2="222" y2="85" stroke="rgba(255,255,255,.35)"/>
+      <text x="10" y="28" fill="rgba(255,255,255,.65)" font-size="11">I</text>
+      <text x="210" y="166" fill="rgba(255,255,255,.65)" font-size="11">V</text>
+    `;
+  }
+  function gOhmic4(){
+    return `<line x1="25" y1="150" x2="215" y2="20" stroke="rgba(255,255,255,.85)" stroke-width="3"/>`;
+  }
+  function gFilament4(){
+    // Filament lamp: I increases with V but NOT proportionally; slope decreases as |V| increases (curve flattens).
+    // Smooth concave-down curve (no S-shape / no knee), mirrored for negative V.
+    return `
+      <path d="M120 85 Q 125 55 215 45"
+            fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+      <path d="M120 85 Q 115 115 25 125"
+            fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+    `;
+  }
+  function gDiode4(){
+    // Diode/LED: ~zero current for reverse and small forward V, then steep rise after a threshold.
+    // (Used mainly as a distractor in this quiz.)
+    return `
+      <path d="M25 85 L 120 85" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="3"/>
+      <path d="M120 85 L 158 85" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+      <path d="M158 85 C 172 82, 188 66, 202 44 C 210 30, 214 24, 215 22"
+            fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+    `;
+  }
+  function gFlat4(){
+    return `<line x1="25" y1="85" x2="215" y2="85" stroke="rgba(255,255,255,.85)" stroke-width="3"/>`;
+  }
+  function gCurveUp4(){
+    // steeper as |V| increases, mirrored (distractor)
+    return `
+      <path d="M120 85 C 150 84, 180 70, 215 22" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+      <path d="M120 85 C 90 86, 60 100, 25 148" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+    `;
+  }
+
+  function graphSVG(kind){
+    let path = gOhmic4();
+    if(kind==="filament") path = gFilament4();
+    if(kind==="diode") path = gDiode4();
+    if(kind==="flat") path = gFlat4();
+    if(kind==="curveUp") path = gCurveUp4();
+    return `
+      <div class="choiceViz">
+        <svg viewBox="0 0 240 170" width="220" height="150">
+          ${svgAxesIV()}
+          ${path}
+        </svg>
+      </div>`;
+  }
+
+function symbolSVG(kind){
+    const stroke = 'stroke="rgba(255,255,255,.92)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+    const solid = 'fill="rgba(255,255,255,.92)"';
+
+    if(kind==="cell"){
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="92" y2="35" ${stroke}/>
+        <line x1="92" y1="18" x2="92" y2="52" ${stroke}/>
+        <line x1="112" y1="25" x2="112" y2="45" ${stroke}/>
+        <line x1="112" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="battery"){
+      // Add explicit joining wire between cells (between the middle plates)
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="70" y2="35" ${stroke}/>
+        <line x1="70" y1="18" x2="70" y2="52" ${stroke}/>
+        <line x1="90" y1="25" x2="90" y2="45" ${stroke}/>
+        <line x1="90" y1="35" x2="110" y2="35" ${stroke}/>
+        <line x1="110" y1="18" x2="110" y2="52" ${stroke}/>
+        <line x1="130" y1="25" x2="130" y2="45" ${stroke}/>
+        <line x1="130" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="lamp"){
+      // Extend wires slightly into the circle so it visually touches.
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="102" y2="35" ${stroke}/>
+        <circle cx="120" cy="35" r="22" ${stroke}/>
+        <path d="M108 27 L 132 43 M132 27 L108 43" ${stroke}/>
+        <line x1="138" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="resistor"){
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="70" y2="35" ${stroke}/>
+        <rect x="70" y="22" width="100" height="26" ${stroke}/>
+        <line x1="170" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="varres"){
+      // Full diagonal arrow across the resistor
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="70" y2="35" ${stroke}/>
+        <rect x="70" y="22" width="100" height="26" ${stroke}/>
+        <line x1="170" y1="35" x2="220" y2="35" ${stroke}/>
+        <line x1="64" y1="60" x2="176" y2="10" ${stroke}/>
+        <polyline points="170,12 176,10 173,16" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="led"){
+      // Diode + two arrows pointing OUTWARDS (light emission).
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="95" y2="35" ${stroke}/>
+        <polygon points="95,20 95,50 130,35" ${stroke}/>
+        <line x1="138" y1="20" x2="138" y2="50" ${stroke}/>
+        <line x1="138" y1="35" x2="220" y2="35" ${stroke}/>
+        <line x1="150" y1="18" x2="170" y2="6" ${stroke}/>
+        <polyline points="164,6 170,6 168,11" ${stroke}/>
+        <line x1="155" y1="32" x2="175" y2="20" ${stroke}/>
+        <polyline points="169,20 175,20 173,25" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="switch"){
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="90" y2="35" ${stroke}/>
+        <circle cx="90" cy="35" r="4" ${solid}/>
+        <circle cx="150" cy="35" r="4" ${solid}/>
+        <line x1="90" y1="35" x2="142" y2="15" ${stroke}/>
+        <line x1="150" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    // Custom SVGs for magnetism diagrams (used in MCQ choices via {svgKind: "..."}).
+  function customSVG(kind){
+    const stroke = 'stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+    const faint  = 'stroke="rgba(255,255,255,.35)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+    const txt    = 'fill="rgba(255,255,255,.85)" font-size="12" font-weight="700"';
+    const tmuted = 'fill="rgba(255,255,255,.65)" font-size="11"';
+    const box    = 'fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"';
+
+    if(kind==="barField_good"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
+        <text x="102" y="86" ${txt}>N</text>
+        <text x="160" y="86" ${txt}>S</text>
+
+        <!-- outer loops -->
+        <path d="M85 65 C 35 45, 35 20, 130 18 C 225 20, 225 45, 175 65" ${stroke}/>
+        <path d="M85 95 C 35 115, 35 140, 130 142 C 225 140, 225 115, 175 95" ${stroke}/>
+        <!-- inner loops -->
+        <path d="M95 65 C 70 55, 70 38, 130 36 C 190 38, 190 55, 165 65" ${faint}/>
+        <path d="M95 95 C 70 105, 70 122, 130 124 C 190 122, 190 105, 165 95" ${faint}/>
+
+        <!-- arrows N->S on the top and bottom loops -->
+        <polyline points="132,18 138,18 135,24" ${stroke}/>
+        <polyline points="132,142 138,142 135,136" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="barField_wrong_arrows"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
+        <text x="102" y="86" ${txt}>N</text>
+        <text x="160" y="86" ${txt}>S</text>
+        <path d="M85 65 C 35 45, 35 20, 130 18 C 225 20, 225 45, 175 65" ${stroke}/>
+        <path d="M85 95 C 35 115, 35 140, 130 142 C 225 140, 225 115, 175 95" ${stroke}/>
+        <!-- arrows wrongly S->N -->
+        <polyline points="128,18 122,18 125,24" ${stroke}/>
+        <polyline points="128,142 122,142 125,136" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="barField_wrong_cross"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
+        <text x="102" y="86" ${txt}>N</text>
+        <text x="160" y="86" ${txt}>S</text>
+        <path d="M85 65 C 35 45, 35 20, 130 18 C 225 20, 225 45, 175 65" ${stroke}/>
+        <path d="M85 95 C 35 115, 35 140, 130 142 C 225 140, 225 115, 175 95" ${stroke}/>
+        <!-- add a crossing line (invalid) -->
+        <path d="M70 30 L 190 130" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="barField_wrong_gaps"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
+        <text x="102" y="86" ${txt}>N</text>
+        <text x="160" y="86" ${txt}>S</text>
+        <!-- loops that do not reach the magnet (gaps) -->
+        <path d="M78 60 C 35 45, 35 20, 130 18 C 225 20, 225 45, 182 60" ${stroke}/>
+        <path d="M78 100 C 35 115, 35 140, 130 142 C 225 140, 225 115, 182 100" ${stroke}/>
+        <text x="18" y="152" ${tmuted}>Lines don't touch magnet</text>
+      </svg>`;
+    }
+
+    if(kind==="uniformField_good"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
+        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
+        <text x="45" y="85" ${txt}>N</text>
+        <text x="195" y="85" ${txt}>S</text>
+        <!-- straight parallel evenly spaced field lines -->
+        <line x1="90" y1="62" x2="170" y2="62" ${stroke}/>
+        <line x1="90" y1="80" x2="170" y2="80" ${stroke}/>
+        <line x1="90" y1="98" x2="170" y2="98" ${stroke}/>
+        <!-- arrows N->S -->
+        <polyline points="148,62 154,62 151,68" ${stroke}/>
+        <polyline points="148,80 154,80 151,86" ${stroke}/>
+        <polyline points="148,98 154,98 151,104" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="uniformField_wrong_curved"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
+        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
+        <text x="45" y="85" ${txt}>N</text>
+        <text x="195" y="85" ${txt}>S</text>
+        <path d="M90 62 C 120 40, 140 40, 170 62" ${stroke}/>
+        <path d="M90 80 C 120 80, 140 80, 170 80" ${stroke}/>
+        <path d="M90 98 C 120 120, 140 120, 170 98" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="uniformField_wrong_notParallel"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
+        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
+        <text x="45" y="85" ${txt}>N</text>
+        <text x="195" y="85" ${txt}>S</text>
+        <line x1="90" y1="62" x2="170" y2="62" ${stroke}/>
+        <line x1="90" y1="80" x2="165" y2="70" ${stroke}/>
+        <line x1="90" y1="98" x2="170" y2="108" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="uniformField_wrong_arrows"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
+        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
+        <text x="45" y="85" ${txt}>N</text>
+        <text x="195" y="85" ${txt}>S</text>
+        <line x1="90" y1="62" x2="170" y2="62" ${stroke}/>
+        <line x1="90" y1="80" x2="170" y2="80" ${stroke}/>
+        <line x1="90" y1="98" x2="170" y2="98" ${stroke}/>
+        <!-- arrows wrongly S->N -->
+        <polyline points="112,62 106,62 109,68" ${stroke}/>
+        <polyline points="112,80 106,80 109,86" ${stroke}/>
+        <polyline points="112,98 106,98 109,104" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="wire_circles"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <circle cx="130" cy="80" r="10" fill="rgba(255,255,255,.88)"/>
+        <circle cx="130" cy="80" r="28" ${faint}/>
+        <circle cx="130" cy="80" r="48" ${faint}/>
+        <circle cx="130" cy="80" r="68" ${faint}/>
+        <text x="16" y="24" ${tmuted}>Field around straight wire</text>
+      </svg>`;
+    }
+
+    if(kind==="wire_dot"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <circle cx="130" cy="80" r="30" ${faint}/>
+        <circle cx="130" cy="80" r="52" ${faint}/>
+        <circle cx="130" cy="80" r="74" ${faint}/>
+        <circle cx="130" cy="80" r="12" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        <circle cx="130" cy="80" r="4" fill="rgba(255,255,255,.88)"/>
+        <text x="96" y="140" ${tmuted}>• current out of page</text>
+      </svg>`;
+    }
+
+    if(kind==="wire_cross"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <circle cx="130" cy="80" r="30" ${faint}/>
+        <circle cx="130" cy="80" r="52" ${faint}/>
+        <circle cx="130" cy="80" r="74" ${faint}/>
+        <circle cx="130" cy="80" r="12" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        <line x1="124" y1="74" x2="136" y2="86" ${stroke}/>
+        <line x1="136" y1="74" x2="124" y2="86" ${stroke}/>
+        <text x="92" y="140" ${tmuted}>× current into page</text>
+      </svg>`;
+if(kind==="twoMagnets_attract"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
+        <rect x="160" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
+        <text x="46" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
+        <text x="84" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
+        <text x="186" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
+        <text x="224" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
+
+        <!-- Field lines connect across the gap (attraction) -->
+        <path d="M100 65 C 120 55, 140 55, 160 65" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M100 80 C 120 80, 140 80, 160 80" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M100 95 C 120 105, 140 105, 160 95" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polyline points="140,80 146,80 143,86" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    }
+
+    if(kind==="twoMagnets_repel"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
+        <rect x="160" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
+        <text x="46" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
+        <text x="84" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
+        <text x="186" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
+        <text x="224" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
+
+        <!-- Like poles facing: lines bow outward (repulsion) -->
+        <path d="M100 65 C 125 30, 135 30, 160 65" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M100 95 C 125 130, 135 130, 160 95" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <text x="92" y="150" fill="rgba(255,255,255,.65)" font-size="11">Weak field region in gap</text>
+      </svg>`;
+    }
+
+    }
+
+    return `<svg viewBox="0 0 260 160" width="240" height="150"><text x="20" y="80" ${txt}>[unknown svgKind]</text></svg>`;
+  }
+
+return "";
+  }
+
+  function numParts(raw){
+    if(raw === null || raw === undefined) return {ok:false};
+    let s = raw.toString().trim();
+    if(!s) return {ok:false};
+    s = s.replace(/×/g,'x');
+    let compact = s.replace(/\s+/g,'');
+    compact = compact.replace(/x10\^?\(?(-?\d+)\)?/i, 'e$1');
+    compact = compact.replace(/10\^\(?(-?\d+)\)?/i, 'e$1');
+    const m = compact.match(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/i);
+    if(!m) return {ok:false};
+    const num = Number(m[0]);
+    if(Number.isNaN(num)) return {ok:false};
+    return {ok:true, num, numStr:m[0]};
+  }
+  function tidyUnitToken(u){
+    if(!u) return null;
+    let t = u.trim();
+    if(!t) return null;
+    t = t.replace(/Ω/g,'ohm');
+    t = t.replace(/²/g,'^2').replace(/³/g,'^3');
+    t = t.replace(/\s+/g,'');
+    return t;
+  }
+  function unitInfo(raw){
+    if(!raw) return null;
+    const eq = (want) => raw === want;
+    const ieq = (want) => raw.toLowerCase() === want.toLowerCase();
+
+    if(ieq("A")) return {type:"current", canonical:"A", scale:1, caseOk:eq("A")};
+    if(ieq("mA")) return {type:"current", canonical:"mA", scale:1e-3, caseOk:eq("mA")};
+    if(ieq("V")) return {type:"voltage", canonical:"V", scale:1, caseOk:eq("V")};
+    if(ieq("ohm") || ieq("ohms")) return {type:"resistance", canonical:"Ω", scale:1, caseOk:true};
+    if(raw.includes("Ω")) return {type:"resistance", canonical:"Ω", scale:1, caseOk:true};
+    if(ieq("W")) return {type:"power", canonical:"W", scale:1, caseOk:eq("W")};
+    if(ieq("kW")) return {type:"power", canonical:"kW", scale:1e3, caseOk:eq("kW")};
+    if(ieq("C")) return {type:"charge", canonical:"C", scale:1, caseOk:eq("C")};
+    if(ieq("J")) return {type:"energy", canonical:"J", scale:1, caseOk:eq("J")};
+    if(ieq("s")) return {type:"time", canonical:"s", scale:1, caseOk:eq("s")};
+    if(ieq("T") || ieq("tesla") || ieq("teslas")) return {type:"flux", canonical:"T", scale:1, caseOk:eq("T")};
+    if(ieq("N") || ieq("newton") || ieq("newtons")) return {type:"force", canonical:"N", scale:1, caseOk:eq("N")};
+    if(ieq("m") || ieq("metre") || ieq("meter") || ieq("metres") || ieq("meters")) return {type:"length", canonical:"m", scale:1, caseOk:eq("m")};
+    return null;
+  }
+  function parseQuantity(raw){
+    const parts = numParts(raw);
+    if(!parts.ok) return {ok:false};
+    const rawStr = raw.toString().trim();
+    const m = rawStr.match(/[-+]?\d*\.?\d+(?:\s*(?:e|E|x\s*10\^?)\s*[-+]?\d+)?/);
+    let suffix = "";
+    if(m){ suffix = rawStr.slice(rawStr.indexOf(m[0]) + m[0].length).trim(); }
+    const token = tidyUnitToken(suffix);
+    const unitPresent = !!token;
+    const info = unitPresent ? unitInfo(token) : null;
+    return {ok:true, num:parts.num, numStr:(m ? m[0].replace(/\s+/g,'') : parts.numStr), unitPresent, unitToken:token, unitInfo:info};
+  }
+  function countDecimalPlaces(numStr){
+    const s = numStr.toLowerCase();
+    const base = s.split('e')[0];
+    const dot = base.indexOf('.');
+    return (dot === -1) ? 0 : (base.length - dot - 1);
+  }
+  function countSigFigs(numStr){
+    let s = numStr.toLowerCase();
+    s = s.replace(/^[-+]/,'');
+    s = s.split('e')[0];
+    if(s.includes('.')){
+      s = s.replace(/^0+/, '').replace('.','').replace(/^0+/, '');
+      return Math.max(1, s.length);
+    } else {
+      s = s.replace(/^0+/, '').replace(/0+$/,'');
+      return Math.max(1, s.length || 1);
+    }
+  }
+  function roundToDp(x, dp){
+    const f = Math.pow(10, dp);
+    return Math.round((x + Number.EPSILON) * f) / f;
+  }
+  function roundToSf(x, sf){
+    if(x === 0) return 0;
+    return Number(x.toPrecision(sf));
+  }
+  function nearlyEqual(a,b, rel=1e-4, abs=1e-9){
+    const diff = Math.abs(a-b);
+    if(diff <= abs) return true;
+    const scale = Math.max(Math.abs(a), Math.abs(b), 1e-12);
+    return diff/scale <= rel;
+  }
+  function roundingMatch(studentVal, trueVal, numStr){
+    if(nearlyEqual(studentVal, trueVal)) return {ok:true, basis:"exact"};
+    const dp = countDecimalPlaces(numStr);
+    const sf = countSigFigs(numStr);
+    const tDp = roundToDp(trueVal, dp);
+    if(nearlyEqual(studentVal, tDp, 1e-10, 1e-12)) return {ok:true, basis:`${dp} d.p.`};
+    const tSf = roundToSf(trueVal, sf);
+    if(nearlyEqual(studentVal, tSf, 1e-10, 1e-12)) return {ok:true, basis:`${sf} s.f.`};
+    return {ok:false};
+  }
+  function closeButBadRounding(studentVal, trueVal, numStr, relTolClose){
+    const diff = Math.abs(studentVal-trueVal);
+    const scale = Math.max(Math.abs(trueVal), 1e-12);
+    const rel = diff/scale;
+    const close = rel <= (relTolClose ?? 0.03);
+    if(!close) return null;
+    const dp = countDecimalPlaces(numStr);
+    const sf = countSigFigs(numStr);
+    const base = numStr.toLowerCase().split('e')[0];
+    const hasDot = base.includes('.');
+    const target = hasDot ? roundToDp(trueVal, dp) : roundToSf(trueVal, sf);
+    let hint = "";
+    if(target > studentVal) hint = "You needed to round up.";
+    if(target < studentVal) hint = "You needed to round down.";
+    return {basis: hasDot ? `${dp} d.p.` : `${sf} s.f.`, target, hint, dp: hasDot ? dp : null, sf: hasDot ? null : sf};
+  }
+  function fmtRounded(value, opts){
+    if(opts && Number.isInteger(opts.dp)) return Number(value).toFixed(opts.dp);
+    if(opts && Number.isInteger(opts.sf)) return Number(value).toPrecision(opts.sf);
+    const a = Number(value);
+    return (Math.abs(a) >= 1000 || Math.abs(a) < 0.01) ? a.toExponential(3) : a.toPrecision(4);
+  }
+
+  function qMaxMarks(q){
+    if(Number.isFinite(q.marks)) return q.marks;
+    if(Array.isArray(q.markPoints)) return q.markPoints.length;
+    return 1;
+  }
+  function textIncludesAny(t, arr){ return arr.some(x => t.includes(norm(x))); }
+
+  function genPIV_Current(){
+    const PkW = rchoice([0.6, 0.9, 1.2, 1.4, 1.8, 2.2, 2.8, 3.0]);
+    const V = 230;
+    const P = PkW*1000;
+    const I = P / V;
+    return {
+      prompt: `A device is rated ${PkW} kW on ${V} V mains. Calculate the current.`,
+      answer: I,
+      unitHint: "A",
+      explanation:
+`Mark scheme:
+Use P = IV, so I = P / V.
+Convert kW to W: P = ${PkW} kW = ${P} W.
+I = ${P} / ${V} = ${I.toPrecision(4)} A.`
+    };
+  }
+  function genPIV_Power(){
+    const V = rchoice([6, 9, 12, 24]);
+    const I = rchoice([0.25, 0.4, 0.6, 0.8, 1.2, 1.5]);
+    const P = V * I;
+    return {prompt:`A motor takes ${I} A from a ${V} V supply. Calculate the power.`, answer:P, unitHint:"W",
+            explanation:`Mark scheme:\nP = IV = ${I} × ${V} = ${P.toPrecision(4)} W.`};
+  }
+  function genOhms_Current(){
+    const V = rchoice([3, 4.5, 6, 9, 12]);
+    const R = rchoice([3.3, 4.7, 6.8, 10, 15, 22, 33]);
+    const I = V / R;
+    return {prompt:`A ${R} Ω resistor is connected to a ${V} V supply. Calculate the current.`, answer:I, unitHint:"A",
+            explanation:`Mark scheme:\nUse V = IR so I = V / R.\nI = ${V} / ${R} = ${I.toPrecision(4)} A.`};
+  }
+  function genOhms_Voltage(){
+    const I = rchoice([0.12, 0.18, 0.25, 0.30, 0.40, 0.55]);
+    const R = rchoice([5.6, 8.2, 10, 12, 15, 22, 47]);
+    const V = I * R;
+    return {prompt:`The current through a resistor is ${I} A and its resistance is ${R} Ω. Calculate the voltage across it.`, answer:V, unitHint:"V",
+            explanation:`Mark scheme:\nUse V = IR.\nV = ${I} × ${R} = ${V.toPrecision(4)} V.`};
+  }
+  function genSeriesTwoResistors(){
+    const R1 = rchoice([4.7, 6.8, 10, 12, 15, 22, 33, 47]);
+    const R2 = rchoice([5.6, 8.2, 10, 18, 27, 39, 56]);
+    const Vs = rchoice([6, 9, 12]);
+    const Rt = R1+R2;
+    const I = Vs/Rt;
+    const V1 = I*R1;
+    const V2 = I*R2;
+    const pick = rchoice(["current","V1","V2","Rt"]);
+    if(pick==="current"){
+      return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are connected in series to a ${Vs} V supply. Calculate the current in the circuit.`, answer:I, unitHint:"A",
+              explanation:`Mark scheme:\nR_total = ${R1} + ${R2} = ${Rt} Ω.\nI = V / R_total = ${Vs} / ${Rt} = ${I.toPrecision(4)} A.`};
+    }
+    if(pick==="V1"){
+      return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are in series on a ${Vs} V supply. Calculate the voltage across the ${R1} Ω resistor.`, answer:V1, unitHint:"V",
+              explanation:`Mark scheme:\nR_total = ${Rt} Ω, so I = ${Vs}/${Rt} = ${I.toPrecision(4)} A.\nV1 = IR1 = ${I.toPrecision(4)} × ${R1} = ${V1.toPrecision(4)} V.`};
+    }
+    if(pick==="V2"){
+      return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are in series on a ${Vs} V supply. Calculate the voltage across the ${R2} Ω resistor.`, answer:V2, unitHint:"V",
+              explanation:`Mark scheme:\nI = ${Vs}/${Rt} = ${I.toPrecision(4)} A.\nV2 = IR2 = ${I.toPrecision(4)} × ${R2} = ${V2.toPrecision(4)} V.`};
+    }
+    return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are connected in series. Calculate the total resistance.`, answer:Rt, unitHint:"Ω",
+            explanation:`Mark scheme:\nIn series, resistances add: R_total = ${R1} + ${R2} = ${Rt} Ω.`};
+  }
+  const GENERATORS = {genPIV_Current, genPIV_Power, genOhms_Current, genOhms_Voltage, genSeriesTwoResistors};
+
+  function expandQuestion(q){
+    if(q.generator && q.generator.name && GENERATORS[q.generator.name]){
+      const inst = GENERATORS[q.generator.name]();
+      return {...q, ...inst};
+    }
+    return {...q};
+  }
+
+  function expectedUnitInfo(unitHint){
+    if(!unitHint) return null;
+    if(unitHint==="Ω") return {type:"resistance", canonical:"Ω", scale:1, caseOk:true, token:"Ω"};
+    const info = unitInfo(unitHint);
+    if(!info) return null;
+    return {...info, token: unitHint};
+  }
+
+  function checkNumeric(q, raw){
+    const parsed = parseQuantity(raw);
+    if(!parsed.ok) return {checked:false, msg:"Enter a number (you can add units)."};
+    const exp = expectedUnitInfo(q.unitHint || "");
+    const unitNeeded = !!exp;
+    const max = qMaxMarks(q);
+
+    let usedScale = 1;
+    let unitOkForFull = true;
+    let unitMsg = "";
+
+    if(unitNeeded){
+      if(!parsed.unitPresent){
+        unitOkForFull = false;
+        unitMsg = "Unit missing.";
+        usedScale = exp.scale;
+      } else {
+        const info = parsed.unitInfo;
+        if(!info){
+          unitOkForFull = false;
+          unitMsg = "Unit not recognised.";
+        } else if(info.type !== exp.type){
+          unitOkForFull = false;
+          unitMsg = "Unit looks wrong for this quantity.";
+          usedScale = info.scale;
+        } else {
+          usedScale = info.scale;
+          if(info.caseOk === false){
+            unitOkForFull = false;
+            unitMsg = `Unit case matters: use ${info.canonical} exactly.`;
+          } else {
+            unitOkForFull = true;
+          }
+        }
+      }
+    }
+
+    const trueInStudentUnits = unitNeeded ? (q.answer / usedScale) : q.answer;
+    const rm = roundingMatch(parsed.num, trueInStudentUnits, parsed.numStr);
+    const okNumeric = rm.ok;
+
+    let status="wrong", score=0, reason="";
+    if(okNumeric && (!unitNeeded || unitOkForFull)){
+      status="full"; score=max;
+    } else if(okNumeric && unitNeeded){
+      status="partial"; score=max/2;
+      reason = unitMsg || "Number correct but unit not accepted.";
+    } else {
+      // partial for "close but wrong rounding" isn't included in this simplified rebuild
+      status="wrong"; score=0;
+    }
+    return {checked:true, status, score, max, reason, unitMsg, auto:false};
+  }
+
+  function checkShortMarkPoints(q, raw){
+    const rawTrim = (raw ?? "").toString().trim();
+    const t = norm(rawTrim);
+
+    // Special handling for "state the formula" style questions:
+    // Full marks if symbols are correct *and* case is correct (e.g. V=IR).
+    // Half marks if symbols are correct but case is wrong (e.g. v=ir).
+    // Worded statements can still earn full marks.
+    if(Array.isArray(q.expectedSymbolic) && q.expectedSymbolic.length){
+      const max = qMaxMarks(q);
+
+      // Full credit for a fully-correct worded statement (keyword-based).
+      if(Array.isArray(q.markPoints) && q.markPoints.length){
+        const gotWord = q.markPoints.every(mp => !mp.any || textIncludesAny(t, mp.any));
+        if(gotWord) return {score:max, max, status:"full", missing:[], auto:true};
+      }
+
+      // Normalise symbolic: remove spaces and multiplication dots/crosses.
+      const compact = rawTrim.replace(/\s+/g,'').replace(/[×*·]/g,'');
+
+      // Full (case-sensitive) match
+      if(q.expectedSymbolic.some(a => compact === a)){
+        return {score:max, max, status:"full", missing:[], auto:true};
+      }
+
+      // Partial (case-insensitive) match
+      const lower = compact.toLowerCase();
+      if(q.expectedSymbolic.some(a => lower === a.toLowerCase())){
+        return {score:max/2, max, status:"partial", missing:["Case matters for symbols (e.g. V, I, R)."], auto:true};
+      }
+      // Fall through to generic marking
+    }
+
+    const points = q.markPoints || [];
+    let got = 0;
+    const missing = [];
+    for(const mp of points){
+      if(mp.any){
+        const ok = textIncludesAny(t, mp.any);
+        if(ok) got += 1; else missing.push(mp.any[0]);
+      }
+    }
+    const max = qMaxMarks(q);
+    const status = (got===0) ? "wrong" : (got===max ? "full" : "partial");
+    return {score:got, max, status, missing, auto:true};
+  }
+
+  function getSelectedTopics(){
+    return Array.from(document.querySelectorAll(".topicCb")).filter(cb=>cb.checked).map(cb=>cb.value);
+  }
+  function applyDifficultyFilter(list, mix){
+    if(mix === "all") return list;
+    if(mix === "easy") return list.filter(q => q.difficulty==="easy" || q.difficulty==="med");
+    if(mix === "med") return list.filter(q => q.difficulty!=="easy");
+    if(mix === "hard") return list.filter(q => q.difficulty==="hard");
+    return list;
+  }
+
+  // ---------------- Overall stats across sets (this device only) ----------------
+  const OVERALL_KEY = "preibphysics_trilogy_mag_em_overall_v1";
+  function loadOverall(){
+    try{
+      const raw = localStorage.getItem(OVERALL_KEY);
+      if(!raw) return {items:{}, seen:{}};
+      const obj = JSON.parse(raw);
+      if(!obj || typeof obj !== "object") return {items:{}};
+      if(!obj.items || typeof obj.items !== "object") obj.items = {};
+      if(!obj.seen || typeof obj.seen !== "object") obj.seen = {};
+      return obj;
+    }catch(e){
+      return {items:{}, seen:{}};
+    }
+  }
+  function saveOverall(obj){
+    try{ localStorage.setItem(OVERALL_KEY, JSON.stringify(obj)); }catch(e){}
+  }
+  function computeOverallSeen(){
+    const o = loadOverall();
+    const seen = o.seen || {};
+    return {seenCount: Object.keys(seen).length};
+  }
+  function computeOverallTotals(){
+    const o = loadOverall();
+    let totalScore = 0;
+    let totalMax = 0;
+    for(const k of Object.keys(o.items)){
+      const it = o.items[k];
+      if(it && typeof it === "object" && Number.isFinite(it.score) && Number.isFinite(it.max)){
+        totalScore += it.score;
+        totalMax += it.max;
+      }
+    }
+    return {totalScore, totalMax, count:Object.keys(o.items).length};
+  }
+  function updateOverallForInstance(qid, baseId, score, max){
+    const o = loadOverall();
+    if(!o.items) o.items = {};
+    o.items[qid] = {score:Number(score)||0, max:Number(max)||0, t:Date.now()};
+    if(baseId){ if(!o.seen) o.seen = {}; o.seen[baseId] = 1; }
+    saveOverall(o);
+  }
+  function resetOverall(){
+    try{ localStorage.removeItem(OVERALL_KEY); }catch(e){}
+  }
+  function resetDeck(){
+    try{ localStorage.removeItem(DECK_KEY); }catch(e){}
+  }
+// ---------------- Shuffle-deck (no repeats until exhausted) ----------------
+  const DECK_KEY = "preibphysics_trilogy_mag_em_deck_v1";
+
+  function fnv1a(str){
+    let h = 2166136261;
+    for(let i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h>>>0).toString(16);
+  }
+
+  function loadDeck(){
+    try{
+      const raw = localStorage.getItem(DECK_KEY);
+      if(!raw) return null;
+      const obj = JSON.parse(raw);
+      if(!obj || typeof obj !== "object") return null;
+      return obj;
+    }catch(e){ return null; }
+  }
+
+  function saveDeck(obj){
+    try{ localStorage.setItem(DECK_KEY, JSON.stringify(obj)); }catch(e){}
+  }
+
+  function buildDeckSignature(pool, topics, diffMix){
+    // Signature changes whenever the pool changes (topics/difficulty), so we can safely reuse a deck across sets.
+    const ids = pool.map(q=>q.id).slice().sort().join("|");
+    const sigStr = `${ids}||${topics.slice().sort().join(",")}||${diffMix}`;
+    return fnv1a(sigStr);
+  }
+
+  function getNextFromDeck(pool, topics, diffMix, nWanted){
+    const need = clamp(nWanted, 5, pool.length);
+
+    const sig = buildDeckSignature(pool, topics, diffMix);
+    let deck = loadDeck();
+
+    // Build id list and map
+    const poolMap = new Map();
+    for(const q of pool){
+      if(!poolMap.has(q.id)) poolMap.set(q.id, q);
+    }
+    const poolIds = Array.from(poolMap.keys());
+
+    // (Re)initialise deck if missing/mismatched
+    if(!deck || deck.sig !== sig || !Array.isArray(deck.order) || typeof deck.cursor !== "number"){
+      deck = {sig, order: shuffle(poolIds.slice()), cursor: 0};
+    }
+
+    function familyOfId(id){
+      const m = id.match(/^(.*)_\d+$/);
+      return m ? m[1] : id;
+    }
+
+    // Cap how many from “near-identical series” can appear in a single set.
+    const caps = {
+      "poles_pair": 2,
+      "wire_dir": 2,
+      "solenoid_strength": 2,
+      "bil_calc": 2,
+      "flhr_case": 2,
+      "flhr_dir": 2,
+      "induced_var": 1,
+      "fields_rule": 1
+    };
+
+    const counts = {};
+    const chosenIds = [];
+
+    let i = deck.cursor;
+    let safety = 0;
+    let relax = false;
+
+    while(chosenIds.length < need && safety < 5000){
+      safety += 1;
+
+      if(i >= deck.order.length){
+        // reached end of deck: reshuffle for next cycle
+        deck.order = shuffle(poolIds.slice());
+        i = 0;
+        // if we're struggling to fill because caps are too strict, relax
+        relax = true;
+      }
+
+      const id = deck.order[i];
+      i += 1;
+
+      if(chosenIds.includes(id)) continue;
+
+      const fam = familyOfId(id);
+      const cap = (relax ? 999 : (caps[fam] ?? ((fam!==id) ? 2 : 999)));
+      if((counts[fam] ?? 0) >= cap) continue;
+
+      chosenIds.push(id);
+      counts[fam] = (counts[fam] ?? 0) + 1;
+    }
+
+    deck.cursor = i;
+    saveDeck(deck);
+
+    // Convert ids to questions
+    const chosen = [];
+    for(const id of chosenIds){
+      const q = poolMap.get(id);
+      if(q) chosen.push(q);
+    }
+    return chosen;
+  }
+
+let currentSet = [];
+  let answered = new Map();
+
+  function qMaxMarksSafe(q){ return qMaxMarks(q); }
+  function totalMaxMarks(){ return currentSet.reduce((s,q)=> s + qMaxMarksSafe(q), 0); }
+  function totalScore(){
+    let s=0;
+    for(const v of answered.values()){
+      if(v.checked) s += (v.score ?? 0);
+    }
+    return s;
+  }
+  function renderKPIs(){
+    const vals = Array.from(answered.values());
+    const checked = vals.filter(x => x.checked).length;
+    const full = vals.filter(x => x.checked && x.status==="full").length;
+    const partial = vals.filter(x => x.checked && x.status==="partial").length;
+    const wrong = vals.filter(x => x.checked && x.status==="wrong").length;
+
+    els.kpiChecked.textContent = checked;
+    els.kpiFull.textContent = full;
+    els.kpiPartial.textContent = partial;
+    els.kpiWrong.textContent = wrong;
+
+    const max = totalMaxMarks();
+    const s = totalScore();
+    els.scoreLine.textContent = max ? `${s.toFixed(1)} / ${max}` : "-";
+    els.summaryLine.innerHTML = currentSet.length
+      ? `<b>${full}</b> full, <b>${partial}</b> partial, <b>${wrong}</b> wrong, <b>${currentSet.length-checked}</b> unchecked.`
+      : "Start a set to begin.";
+// Update header stats (always visible)
+    const checkedN = Array.from(answered.values()).filter(v => v && v.checked).length;
+    const setN = currentSet.length || 0;
+    const maxSet = totalMaxMarks();
+    const sSet = totalScore();
+    const pctSet = maxSet ? (100*sSet/maxSet) : 0;
+
+    if(els.statSet){
+      const prog = setN ? (100*checkedN/setN) : 0;
+      els.statSet.textContent = setN ? `${checkedN}/${setN} tackled • ${pctSet.toFixed(0)}% score` : "–";
+    }
+
+    if(els.statOverall){
+      const tot = computeOverallTotals();
+      const seen = computeOverallSeen();
+      const pctO = tot.totalMax ? (100*tot.totalScore/tot.totalMax) : 0;
+      const bankN = Array.isArray(BANK) ? BANK.length : 0;
+      const seenPct = bankN ? (100*seen.seenCount/bankN) : 0;
+      els.statOverall.textContent = bankN ? `${seen.seenCount}/${bankN} seen (${seenPct.toFixed(0)}%) • ${pctO.toFixed(0)}% score` : "–";
+    }
+
+  }
+
+  function renderChoice(q, idx){
+    const name = `q_${q._instanceId}`;
+    const choice = q.choices[idx];
+
+    let inner = "";
+    if(choice && typeof choice === "object" && choice.symbolKind){
+      inner = `<div class="choiceText"><div class="choiceTitle">${escapeHtml(choice.label || String.fromCharCode(65+idx))}</div>
+               <div class="choiceViz">${symbolSVG(choice.symbolKind)}</div></div>`;
+    } else if(choice && typeof choice === "object" && choice.graphKind){
+      inner = `<div class="choiceText"><div class="choiceTitle">${escapeHtml(choice.label || String.fromCharCode(65+idx))}</div>
+               ${graphSVG(choice.graphKind)}
+               ${choice.caption ? `<div class="small">${escapeHtml(choice.caption)}</div>` : ``}</div>`;
+
+    } else if(choice && typeof choice === "object" && choice.svgKind){
+      inner = `<div class="choiceText"><div class="choiceTitle">${escapeHtml(choice.label || String.fromCharCode(65+idx))}</div>
+               <div class="choiceViz">${customSVG(choice.svgKind)}</div>
+               ${choice.caption ? `<div class="small">${escapeHtml(choice.caption)}</div>` : ``}</div>`;
+    } else {
+      inner = `<div class="choiceText">${escapeHtml(choice)}</div>`;
+    }
+
+    return `<label class="choice">
+        <input type="radio" name="${name}" value="${idx}" />
+        ${inner}
+      </label>`;
+  }
+
+  function renderQuestionCard(q, index){
+    const qnum = index+1;
+    const tags = (q.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("");
+    let inputHTML = "";
+
+    if(q.type==="mcq"){
+      inputHTML = q.choices.map((_,i)=>renderChoice(q,i)).join("")
+        + `<div style="margin-top:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+             <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
+             <span class="small">Tip: click an option then press Enter.</span>
+           </div>`;
+    } else if(q.type==="short"){
+      inputHTML = `<div class="answerbox">
+        <textarea id="in_${q._instanceId}" placeholder="Type your answer…"></textarea>
+        <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
+      </div>
+      <div class="small">Enter submits. Shift+Enter = new line.</div>`;
+    } else {
+      inputHTML = `<div class="answerbox">
+        <input type="text" id="in_${q._instanceId}" placeholder="Type a number (include units if you can)" />
+        <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
+      </div>
+      <div class="small">Tip: press Enter to submit this question.</div>`;
+    }
+
+    return `<div class="qcard" id="card_${q._instanceId}">
+        <div class="qhead">
+          <div>
+            <div class="qnum">Q${qnum} • ${qMaxMarksSafe(q)} mark${qMaxMarksSafe(q)===1?"":"s"}</div>
+            <div class="qtext">${escapeHtml(q.prompt)}</div>
+          </div>
+          <div class="tags">${tags}<button class="btn mini" data-action="report" data-qid="${q._instanceId}" title="Report this question">Report</button></div>
+        </div>
+        ${inputHTML}
+        <div id="fb_${q._instanceId}"></div>
+      </div>`;
+  }
+
+  function renderQuiz(){
+    els.quiz.innerHTML = currentSet.map(renderQuestionCard).join("");
+    
+  // Extra safety: if focus is on a radio option, Enter submits that question.
+  document.addEventListener("keydown", (e) => {
+    if(e.key !== "Enter") return;
+    const t = e.target;
+    if(!t) return;
+    if(t.matches && t.matches('input[type="radio"]')){
+      const card = t.closest('.qcard');
+      if(card){
+        const id = card.id.replace('card_','');
+        if(id){ e.preventDefault(); checkAndShow(id); }
+      }
+    }
+  });
+
+renderKPIs();
+    els.statusPill.textContent = "In progress";
+    els.setPill.textContent = `${currentSet.length} Q set`;
+    els.newSetBtn.disabled = false;
+    els.revealAllBtn.disabled = false;
+
+    for(const q of currentSet){
+      const inp = document.getElementById(`in_${q._instanceId}`);
+      if(inp){
+        inp.addEventListener("keydown", (e) => {
+          if(e.key === "Enter"){
+            if(q.type === "short" && !e.shiftKey){
+              e.preventDefault();
+              checkAndShow(q._instanceId);
+            }
+            if(q.type !== "short"){
+              e.preventDefault();
+              checkAndShow(q._instanceId);
+            }
+          }
+        });
+      }
+      if(q.type === "mcq"){
+        const card = document.getElementById(`card_${q._instanceId}`);
+        if(card){
+          card.addEventListener("keydown", (e) => {
+            if(e.key === "Enter"){
+              const active = document.activeElement;
+              if(card.contains(active)){
+                e.preventDefault();
+                checkAndShow(q._instanceId);
+              }
+            }
+          });
+          card.setAttribute("tabindex","-1");
+        }
+      }
+    }
+  }
+
+  function getMCQSelection(q){
+    const name = `q_${q._instanceId}`;
+    const sel = document.querySelector(`input[name="${name}"]:checked`);
+    return sel ? Number(sel.value) : null;
+  }
+
+  function checkQuestion(q){
+    if(q.type==="mcq"){
+      const sel = getMCQSelection(q);
+      if(sel === null) return {checked:false, msg:"Choose an option first."};
+      const correct = sel === q.answerIndex;
+      const max = qMaxMarksSafe(q);
+      return {checked:true, status: correct ? "full" : "wrong", score: correct ? max : 0, max, auto:false};
+    }
+    if(q.type==="numeric"){
+      const input = document.getElementById(`in_${q._instanceId}`);
+      return checkNumeric(q, input ? input.value : "");
+    }
+    if(q.type==="short"){
+      const input = document.getElementById(`in_${q._instanceId}`);
+      const raw = input ? input.value : "";
+      if(!raw.trim()) return {checked:false, msg:"Type an answer first."};
+      const out = checkShortMarkPoints(q, raw);
+      return {checked:true, ...out};
+    }
+    return {checked:false, msg:"Unsupported question type."};
+  }
+
+  function correctLine(q){
+    if(q.type==="mcq"){
+      const c = q.choices[q.answerIndex];
+      if(c && typeof c === "object"){
+        return `Correct answer: ${c.label || "option"}`;
+      }
+      return `Correct answer: ${(""+c).trim()}`;
+    }
+    if(q.type==="numeric"){
+      const a = q.answer;
+      const rounded = prettyNum(a);
+      const unitShow = q.unitHint ? q.unitHint : "";
+      return `Correct answer: ${rounded}${unitShow ? " " + unitShow : ""}`;
+    }
+    if(q.type==="short"){
+      return `Mark scheme: ${qMaxMarksSafe(q)} point(s).`;
+    }
+    return "";
+  }
+
+  function autoWarnHTML(){
+    return `<div class="autoWarn">
+        <div class="h">AUTO-MARKING WARNING (NOT AI MARKING)</div>
+        <div class="b">
+          This written answer has <b>not</b> been properly marked. The checker only looks for the
+          <b>presence of a few keywords/phrases</b>. It can miss good answers and it can also give credit to weak answers.
+          Use the mark scheme and judge it yourself.
+        </div>
+      </div>`;
+  }
+
+  function adjustMarksHTML(qid, maxMarks){
+    return `<div class="adjustRow">
+        <div class="note"><b>Optional:</b> adjust marks for this question (0 to ${maxMarks}). This updates the totals.</div>
+        <input type="number" min="0" max="${maxMarks}" step="0.5" data-adjust="${qid}" />
+        <button class="btn" data-action="applyAdjust" data-qid="${qid}">Apply</button>
+      </div>`;
+  }
+
+  function showFeedback(q, outcome){
+    const fb = document.getElementById(`fb_${q._instanceId}`);
+    if(!fb) return;
+
+    if(!outcome.checked){
+      fb.innerHTML = `<div class="feedback bad"><div class="title">Not checked</div><p class="explain">${escapeHtml(outcome.msg)}</p></div>`;
+      return;
+    }
+    const max = outcome.max ?? qMaxMarksSafe(q);
+    const good = outcome.status === "full";
+    const partial = outcome.status === "partial";
+    const title = good ? "Correct" : (partial ? "Partly correct" : "Not quite");
+    const cls = good ? "good" : (partial ? "" : "bad");
+
+    let diag = "";
+    if(outcome.unitMsg) diag += outcome.unitMsg + "\n";
+    if(outcome.reason) diag += outcome.reason + "\n";
+    if(outcome.auto){
+      if(outcome.status !== "full" && outcome.missing && outcome.missing.length){
+        diag += `Missing ideas (examples): ${outcome.missing.slice(0,3).join("; ")}\n`;
+      }
+    }
+
+    const explainText = (diag ? (diag + "\n") : "") + (q.explanation || "");
+    const open = true;
+    const warn = outcome.auto ? autoWarnHTML() : "";
+
+    fb.innerHTML = `<div class="feedback ${cls}">
+        <div class="title">${title} (${(outcome.score??0).toFixed(1)} / ${max.toFixed(1)} marks)</div>
+        <p class="explain">${escapeHtml(correctLine(q))}</p>
+        ${warn}
+        <details ${open ? "open" : ""}>
+          <summary>${good ? "Show explanation" : "Explanation (mark-scheme style)"}</summary>
+          <p class="model">${escapeHtml(explainText)}</p>
+        </details>
+        ${outcome.auto ? adjustMarksHTML(q._instanceId, max) : ``}
+      </div>`;
+  }
+
+  function updateSetFromUI(){
+    const topics = getSelectedTopics();
+    let pool = BANK.filter(q => (q.tags||[]).some(t => topics.includes(t)));
+    pool = applyDifficultyFilter(pool, els.diffMix.value);
+    const n = Number(els.numQ.value);
+
+    if(pool.length < 1){
+      els.quiz.innerHTML = `<div class="hint">No questions available — select at least one topic.</div>`;
+      els.startBtn.disabled = false;
+      return false;
+    }
+
+    // Immediate feedback so it never feels "dead"
+    els.statusPill.textContent = "Building set…";
+    els.startBtn.disabled = true;
+    els.newSetBtn.disabled = true;
+    els.revealAllBtn.disabled = true;
+
+    // Shuffle-deck selection: no repeats until exhausted, then reshuffle.
+    const chosen = getNextFromDeck(pool, topics, els.diffMix.value, n).map(expandQuestion);
+
+    const now = Date.now().toString(36);
+    currentSet = chosen.map((q,i)=> ({...q, _instanceId:`${q.id}_${now}_${i}`}));
+
+    answered = new Map();
+    renderQuiz();
+
+    els.setPill.textContent = `Set ${now.toUpperCase()}`;
+    els.statusPill.textContent = "In progress";
+    els.revealAllBtn.disabled = false;
+    els.newSetBtn.disabled = false;
+    els.startBtn.disabled = false;
+
+    renderKPIs();
+    return true;
+  }
+
+  function checkAndShow(qid){
+    const q = currentSet.find(x => x._instanceId === qid);
+    if(!q) return;
+    const outcome = checkQuestion(q);
+    showFeedback(q, outcome);
+    if(outcome.checked){
+      answered.set(q._instanceId, {checked:true, status: outcome.status, score: outcome.score, max: outcome.max ?? qMaxMarksSafe(q), auto: !!outcome.auto});
+      updateOverallForInstance(q._instanceId, q.id, outcome.score, outcome.max ?? qMaxMarksSafe(q));
+      renderKPIs();
+    }
+  }
+
+  els.startBtn.addEventListener("click", updateSetFromUI);
+  els.newSetBtn.addEventListener("click", updateSetFromUI);
+
+  els.revealAllBtn.addEventListener("click", () => {
+    currentSet.forEach(q => {
+      const fb = document.getElementById(`fb_${q._instanceId}`);
+      const warn = (q.type==="short" && q.markPoints) ? autoWarnHTML() : "";
+      fb.innerHTML = `<div class="feedback">
+          <div class="title">Mark scheme</div>
+          <p class="explain">${escapeHtml(correctLine(q))}</p>
+          ${warn}
+          <details open><summary>Explanation</summary><p class="model">${escapeHtml(q.explanation || "")}</p></details>
+          ${((q.type==='short' && Array.isArray(q.markPoints)) ? adjustMarksHTML(q._instanceId, qMaxMarksSafe(q)) : ``)}
+        </div>`;
+    });
+    els.statusPill.textContent = "Revealed";
+  });
+
+  els.quiz.addEventListener("click", (e) => {
+const repBtn = e.target.closest("button[data-action='report']");
+    if(repBtn){
+      const qid = repBtn.getAttribute("data-qid");
+      const q = currentSet.find(x => x._instanceId === qid);
+      const baseId = q ? q.id : "(unknown)";
+      const payload = `Please check this question:\n\nTopic: 6 Magnetism\nbase id: ${baseId}\ninstance id: ${qid}\n\nPrompt:\n${q ? q.prompt : ""}\n`;
+      const banner = document.getElementById("reportBanner");
+      if(banner){
+        banner.style.display = "block";
+        banner.innerHTML = `
+          <div class="reportRow">
+            <div>
+              <b>Report a dodgy question</b>
+              <div class="small">Paste the text below into an email (it identifies the exact question).</div>
+            </div>
+            <button class="btn mini" type="button" id="closeReportBtn">Close</button>
+          </div>
+          <textarea class="reportBox" readonly>${escapeHtml(payload)}</textarea>
+          <div class="reportActions">
+            <button class="btn mini" type="button" id="copyReportBtn">Copy</button>
+            <span class="small">If copy is blocked, just select the text and copy manually.</span>
+          </div>
+        `;
+        const cbtn = document.getElementById("copyReportBtn");
+        if(cbtn){
+          cbtn.addEventListener("click", ()=>{
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              navigator.clipboard.writeText(payload).catch(()=>{});
+            }
+          }, {once:true});
+        }
+        const xbtn = document.getElementById("closeReportBtn");
+        if(xbtn){
+          xbtn.addEventListener("click", ()=>{ banner.style.display="none"; }, {once:true});
+        }
+        // Auto-hide after 15 seconds
+        setTimeout(()=>{ try{ banner.style.display="none"; }catch(_){} }, 15000);
+        banner.scrollIntoView({behavior:"smooth", block:"start"});
+        // Attempt immediate clipboard copy
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(payload).catch(()=>{});
+        }
+      } else {
+        alert(payload);
+      }
+      return;
+    }
+
+    const btnCheck = e.target.closest("button[data-action='check']");
+    if(btnCheck){
+      checkAndShow(btnCheck.getAttribute("data-qid"));
+      return;
+    }
+    const btnAdj = e.target.closest("button[data-action='applyAdjust']");
+    if(btnAdj){
+      const qid = btnAdj.getAttribute("data-qid");
+      const q = currentSet.find(x => x._instanceId === qid);
+      if(!q) return;
+      const input = document.querySelector(`input[data-adjust="${qid}"]`);
+      if(!input) return;
+      const val = Number(input.value);
+      if(Number.isNaN(val)) return;
+
+      const max = qMaxMarksSafe(q);
+      const adj = clamp(val, 0, max);
+      const status = (adj===0) ? "wrong" : (adj===max ? "full" : "partial");
+      answered.set(qid, {checked:true, status, score:adj, max, auto:(q.type==="short" && Array.isArray(q.markPoints)), selfOverride:true});
+      updateOverallForInstance(qid, q.id, adj, max);
+
+      const fb = document.getElementById(`fb_${qid}`);
+      if(fb){
+        const titleEl = fb.querySelector(".feedback .title");
+        if(titleEl) titleEl.textContent = `Marks set (${adj.toFixed(1)} / ${max.toFixed(1)} marks)`;
+      }
+      renderKPIs();
+      return;
+    }
+  });
+
+  if(els.resetOverallBtn){
+    els.resetOverallBtn.addEventListener('click', ()=>{
+      resetOverall();
+      renderKPIs();
+    });
+  }
+  if(els.resetDeckBtn){
+    els.resetDeckBtn.addEventListener('click', ()=>{
+      resetDeck();
+      els.statusPill.textContent = "Deck reset";
+      // Next set will start a fresh shuffled order
+    });
+  }
+
+  renderKPIs();
+})();
+
+</script>
+</body>
+</html>
