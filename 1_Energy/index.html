@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Trilogy Quiz — Energy</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brandTitle" id="title">Trilogy Energy Quiz</div>
+    <div class="brandSub" id="subtitle">Energy (AQA Trilogy 6.1) • random sets • mark-scheme style feedback</div>
+  </div>
+  <div class="panelMeta">
+    <span class="pill" id="statusPill">Idle</span>
+    <span class="pill">Enter submits (Shift+Enter = new line)</span>
+    <span class="pill">Units are case‑sensitive</span>
+  </div>
+
+  <div class="topStats" id="topStats">
+    <span class="statPill"><b>Set</b> <span id="statSet">–</span></span>
+    <span class="statPill"><b>Overall</b> <span id="statOverall">–</span></span>
+    <button class="btn mini" id="resetOverallBtn" type="button" title="Reset overall stats (this device only)">Reset overall</button>
+    <button class="btn mini" id="resetDeckBtn" type="button" title="Reset shuffle-deck (this device only)">Reset deck</button>
+  </div>
+</header>
+
+    <div><b>Overall:</b> <span id="scoreBarOverall">–</span></div>
+    <button class="btn mini" id="resetOverallBtn" type="button" title="Reset overall stats (this device only)">Reset overall</button>
+    <button class="btn mini" id="resetDeckBtn" type="button" title="Reset shuffle-deck (this device only)">Reset deck</button>
+  </div>
+  <div class="small">Overall is stored on this device (browser local storage), not online.</div>
+</div>
+
+
+<main class="wrap">
+  <section class="panel">
+    <div class="panelTop">
+      <div class="panelTitle">Controls</div>
+      <div class="panelMeta">
+        <span class="pill" id="setPill">No set</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="numQ">Questions per set</label>
+        <input id="numQ" type="number" min="5" max="40" value="14" />
+      </div>
+      <div class="control">
+        <label for="diffMix">Difficulty mix</label>
+        <select id="diffMix">
+          <option value="all" selected>Mixed</option>
+          <option value="easy">Mostly easier</option>
+          <option value="med">Mostly medium</option>
+          <option value="hard">Harder</option>
+        </select>
+      </div>
+
+      <div class="control wide">
+        <details class="topicDetails" id="topicDetails">
+  <summary>Topics to include (click to expand/collapse)</summary>
+    <div class="topicGrid">
+    <label class="topic"><input class="topicCb" type="checkbox" value="units" checked /> Units (J, W, kg, m, s, N, N/kg, °C, K)</label>
+
+    <label class="topic"><input class="topicCb" type="checkbox" value="stores" checked /> Energy stores & systems (8 stores)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="transfers" checked /> Transfer pathways (mechanical, electrical, heating, radiation)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="conservation" checked /> Conservation & dissipation (wasted energy)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="reduce" checked /> Reducing unwanted transfers (lubrication, insulation, streamlining)</label>
+
+    <label class="topic"><input class="topicCb" type="checkbox" value="ke" checked /> Kinetic energy (½mv²)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="gpe" checked /> Gravitational potential energy (mgh)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="epe" checked /> Elastic potential energy (½ke²)</label>
+
+    <label class="topic"><input class="topicCb" type="checkbox" value="shc" checked /> Heating & specific heat capacity (ΔE=mcΔθ)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="shc_practical" checked /> Required practical: SHC method & data handling</label>
+
+    <label class="topic"><input class="topicCb" type="checkbox" value="power" checked /> Power & work done (P=E/t, W=Fs)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="elecwork" checked /> Electrical work (E=IVt, P=IV when needed)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="efficiency" checked /> Efficiency (energy & power)</label>
+
+    <label class="topic"><input class="topicCb" type="checkbox" value="resources" checked /> Energy resources (renewable/non‑renewable, uses, reliability)</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="environment" checked /> Environmental impacts & trade‑offs</label>
+    <label class="topic"><input class="topicCb" type="checkbox" value="grid" checked /> National Grid ideas (high V, low I, transformers)</label>
+  </div>
+</details>
+        <div class="hint">
+          Notes: written answers are auto-checked for keywords only (not AI marking). “Start set” applies your current settings; “New random set” generates another set with the same settings. Overall stats are stored on this device only. (HT topics are included if you leave their boxes ticked.)
+        </div>
+      </div>
+
+      <div class="control actions">
+        <button class="btn primary" id="startBtn">Start set</button>
+        <button class="btn" id="newSetBtn" disabled>New random set</button>
+        <button class="btn" id="revealAllBtn" disabled>Reveal mark scheme</button>
+      </div>
+
+      <div class="control wide">
+        <div class="kpis">
+          <div class="kpi"><div class="kpiN" id="kpiChecked">0</div><div class="kpiL">checked</div></div>
+          <div class="kpi"><div class="kpiN" id="kpiFull">0</div><div class="kpiL">full</div></div>
+          <div class="kpi"><div class="kpiN" id="kpiPartial">0</div><div class="kpiL">partial</div></div>
+          <div class="kpi"><div class="kpiN" id="kpiWrong">0</div><div class="kpiL">wrong</div></div>
+        </div>
+        <div class="scoreLine" id="scoreLine">-</div>
+        <div class="hint" id="summaryLine">Start a set to begin.</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="reportBanner" class="reportBanner"></div>
+
+  <section class="panel">
+    <div class="panelTop">
+      <div class="panelTitle">Questions</div>
+      <div class="panelMeta">
+        <span class="pill">Mark scheme style explanations</span>
+      </div>
+    </div>
+    <div id="quiz"></div>
+  </section>
+</main>
+
+<script src="questions.js"></script>
+<script src="engine.js"></script>
+</body>
+</html>
