@@ -60,13 +60,50 @@
   }
   function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
 function prettyNum(a){
+  // Display-friendly number formatting:
+  // - Prefer plain numbers with commas (no scientific e-notation)
+  // - Accept scientific notation in input, but don't display it.
+  if(a === null || a === undefined || Number.isNaN(a)) return "";
   const abs = Math.abs(a);
-  let s = (abs >= 1000 || (abs > 0 && abs < 0.01)) ? a.toExponential(3) : a.toPrecision(4);
-  // trim trailing zeros
-  s = s.replace(/(\.\d*?[1-9])0+$/, '$1');
-  s = s.replace(/\.0+(e|$)/, '$1');
-  s = s.replace(/(\d)0+e/, '$1e');
-  return s;
+  const isInt = Math.abs(a - Math.round(a)) < 1e-9;
+
+  function withCommas(nStr){
+    const parts = nStr.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  }
+
+  // Reasonable plain display for most GCSE/Trilogy numbers
+  if(isInt && abs < 1e12){
+    return withCommas(String(Math.round(a)));
+  }
+
+  if(abs === 0) return "0";
+
+  // Use 4 significant figures for non-integers in normal range
+  if(abs >= 0.001 && abs < 1e9){
+    let s = Number(a).toPrecision(4);
+    // trim trailing zeros
+    s = s.replace(/(\.\d*?[1-9])0+$/, '$1');
+    s = s.replace(/\.0+$/, '');
+    // add commas to integer part if applicable
+    if(s.includes("e") || s.includes("E")) {
+      // fall through to sci display below
+    } else {
+      // normal
+      const neg = s.startsWith("-");
+      if(neg) s = s.slice(1);
+      s = withCommas(s);
+      return neg ? "-" + s : s;
+    }
+  }
+
+  // For very large/small numbers, display as ×10^n (not e-notation)
+  const exp = Math.floor(Math.log10(abs));
+  const mant = a / Math.pow(10, exp);
+  let mantStr = mant.toPrecision(3);
+  mantStr = mantStr.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+  return `${mantStr}×10^${exp}`;
 }
   function rchoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
@@ -454,8 +491,6 @@ return "";
     if(ieq("J")) return {type:"energy", canonical:"J", scale:1, caseOk:eq("J")};
     if(ieq("kJ")) return {type:"energy", canonical:"kJ", scale:1e3, caseOk:eq("kJ")};
     if(ieq("MJ")) return {type:"energy", canonical:"MJ", scale:1e6, caseOk:eq("MJ")};
-    if(ieq("Wh")) return {type:"energy", canonical:"Wh", scale:3600, caseOk:eq("Wh")};
-    if(ieq("kWh")) return {type:"energy", canonical:"kWh", scale:3.6e6, caseOk:eq("kWh")};
 
     // Power
     if(ieq("W")) return {type:"power", canonical:"W", scale:1, caseOk:eq("W")};
@@ -482,16 +517,33 @@ return "";
   }
 
   function parseQuantity(raw){
-    const parts = numParts(raw);
-    if(!parts.ok) return {ok:false};
-    const rawStr = raw.toString().trim();
-    const m = rawStr.match(/[-+]?\d*\.?\d+(?:\s*(?:e|E|x\s*10\^?)\s*[-+]?\d+)?/);
-    let suffix = "";
-    if(m){ suffix = rawStr.slice(rawStr.indexOf(m[0]) + m[0].length).trim(); }
+    if(raw === null || raw === undefined) return {ok:false};
+    let s = raw.toString().trim();
+    if(!s) return {ok:false};
+
+    // Allow common formats:
+    // 58,800  -> 58800
+    // 5.8×10^4 / 5.8 x 10^4 / 5.8*10^4 -> 5.8e4
+    s = s.replace(/,/g,'');
+    s = s.replace(/×/g,'x');
+
+    // Convert a×10^b (with optional spaces/parentheses) to ae b
+    s = s.replace(/([-+]?(?:\d+(?:\.\d*)?|\.\d+))\s*[x\*]\s*10\^?\s*\(?\s*([-+]?\d+)\s*\)?/gi, '$1e$2');
+
+    // Extract leading number (now supports e-notation)
+    const m = s.match(/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?/i);
+    if(!m) return {ok:false};
+
+    const numStr = m[0].replace(/\s+/g,'');
+    const num = Number(numStr);
+    if(Number.isNaN(num)) return {ok:false};
+
+    const suffix = s.slice(m[0].length).trim();
     const token = tidyUnitToken(suffix);
     const unitPresent = !!token;
     const info = unitPresent ? unitInfo(token) : null;
-    return {ok:true, num:parts.num, numStr:(m ? m[0].replace(/\s+/g,'') : parts.numStr), unitPresent, unitToken:token, unitInfo:info};
+
+    return {ok:true, num, numStr, unitPresent, unitToken:token, unitInfo:info};
   }
   function countDecimalPlaces(numStr){
     const s = numStr.toLowerCase();
@@ -1208,7 +1260,7 @@ renderKPIs();
           <summary>${good ? "Show explanation" : "Explanation (mark-scheme style)"}</summary>
           <p class="model">${escapeHtml(explainText)}</p>
         </details>
-        ${(outcome.auto && (q.allowAdjust || q.type==="long")) ? adjustMarksHTML(q._instanceId, max) : ``}
+        ${(q.type!=="mcq") ? adjustMarksHTML(q._instanceId, max) : ``}
       </div>`;
   }
 
@@ -1273,7 +1325,7 @@ renderKPIs();
           <p class="explain">${escapeHtml(correctLine(q))}</p>
           ${warn}
           <details open><summary>Explanation</summary><p class="model">${escapeHtml(q.explanation || "")}</p></details>
-          ${((q.type==='short' && Array.isArray(q.markPoints)) ? adjustMarksHTML(q._instanceId, qMaxMarksSafe(q)) : ``)}
+          ${(q.type!=='mcq' ? adjustMarksHTML(q._instanceId, qMaxMarksSafe(q)) : ``)}
         </div>`;
     });
     els.statusPill.textContent = "Revealed";
@@ -1285,7 +1337,7 @@ const repBtn = e.target.closest("button[data-action='report']");
       const qid = repBtn.getAttribute("data-qid");
       const q = currentSet.find(x => x._instanceId === qid);
       const baseId = q ? q.id : "(unknown)";
-      const payload = `Please check this question:\n\nTopic: 6 Magnetism\nbase id: ${baseId}\ninstance id: ${qid}\n\nPrompt:\n${q ? q.prompt : ""}\n`;
+      const payload = `Please check this question:\n\nTopic: 6.1 Energy\nbase id: ${baseId}\ninstance id: ${qid}\n\nPrompt:\n${q ? q.prompt : ""}\n`;
       const banner = document.getElementById("reportBanner");
       if(banner){
         banner.style.display = "block";

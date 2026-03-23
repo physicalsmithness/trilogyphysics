@@ -3,14 +3,357 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Trilogy Quiz — Energy (Student)</title>
-<link rel="stylesheet" href="styles.css" />
+<title>Trilogy Energy Quiz</title>
+<style>
+:root{
+  --bg:#070b16;
+  --ink:#eef2ff;
+  --muted:#a8b3d6;
+  --line:rgba(255,255,255,.10);
+  --good:#21c07a;
+  --bad:#ff5a6a;
+  --warn:#ffcc66;
+  --accent:#3b6cff;
+  --card: rgba(255,255,255,.02);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: radial-gradient(1200px 900px at 15% -10%, #14224a 0%, rgba(20,34,74,0) 50%),
+              radial-gradient(1200px 900px at 95% 0%, #1a2a58 0%, rgba(26,42,88,0) 45%),
+              var(--bg);
+  color:var(--ink);
+  background-attachment: fixed;
+}
+a{color:inherit}
+.topbar{
+  background: rgba(7,11,22,.86);
+
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  backdrop-filter: blur(10px);
+
+  display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  padding:16px 18px;
+  max-width:1200px; margin:0 auto;
+}
+.brandTitle{font-weight:1000; font-size:18px; letter-spacing:.2px}
+.brandSub{color:var(--muted); font-size:12px; margin-top:2px}
+.wrap{max-width:1200px; margin:0 auto; padding:0 18px 26px; display:grid; gap:14px}
+
+.panel{
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+}
+.panelTop{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:12px}
+.panelTitle{font-weight:1000; font-size:15px}
+.panelMeta{display:flex; gap:8px; flex-wrap:wrap}
+
+.pill{
+  display:inline-flex; align-items:center;
+  padding:6px 10px; border-radius:999px;
+  border:1px solid var(--line);
+  color:var(--muted);
+  font-size:12px;
+  background: rgba(255,255,255,.02);
+}
+
+.btn{
+  appearance:none;
+  border:1px solid var(--line);
+  background: rgba(255,255,255,.04);
+  color:var(--ink);
+  background-attachment: fixed;
+  padding:10px 12px;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:800;
+}
+.btn:hover{border-color:rgba(255,255,255,.22)}
+.btn.primary{
+  background: linear-gradient(180deg, rgba(59,108,255,.20), rgba(59,108,255,.12));
+  border-color: rgba(59,108,255,.55);
+}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+
+.controls{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap:12px;
+}
+@media (max-width: 980px){
+  .controls{grid-template-columns:1fr}
+}
+.control label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+.control input, .control select{
+  width:100%;
+  background: rgba(255,255,255,.03);
+  border:1px solid var(--line);
+  color:var(--ink);
+  background-attachment: fixed;
+  padding:10px 10px;
+  border-radius:12px;
+  outline:none;
+}
+.control.wide{grid-column: 1 / -1}
+.control.actions{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap}
+
+.topicGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:8px;
+}
+@media (max-width: 980px){ .topicGrid{grid-template-columns:1fr} }
+.topic{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  background: var(--card);
+  font-size:13px;
+  color: var(--ink);
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+.topic input{margin-top:2px}
+
+.hint{color:var(--muted); font-size:12px; margin-top:6px}
+
+.kpis{display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-top:6px}
+.kpi{border:1px solid var(--line); border-radius:14px; padding:10px; background: var(--card)}
+.kpiN{font-weight:1000; font-size:18px}
+.kpiL{color:var(--muted); font-size:12px; margin-top:3px}
+.scoreLine{margin-top:10px; font-weight:1000}
+
+.qcard{
+  margin-top:12px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+}
+.qhead{display:flex; justify-content:space-between; gap:12px; align-items:flex-start}
+.qnum{font-size:12px; color:var(--muted); margin-bottom:8px}
+.qtext{font-size:15px; font-weight:900}
+.tags{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end}
+.tag{
+  font-size:11px;
+  border:1px solid var(--line);
+  padding:4px 8px;
+  border-radius:999px;
+  color:var(--muted);
+  background: rgba(255,255,255,.02);
+}
+
+.choice{
+  display:flex; gap:10px; align-items:flex-start;
+  padding:10px 10px; border-radius:12px;
+  border:1px solid var(--line);
+  margin-top:8px; background: var(--card);
+  cursor:pointer;
+}
+.choice:hover{border-color: rgba(255,255,255,.22)}
+.choice input{margin-top:2px}
+.choiceViz{margin-top:8px;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:8px;background:rgba(255,255,255,.015);display:inline-block}
+.choiceViz svg{display:block}
+
+.answerbox{display:flex; gap:10px; margin-top:10px}
+.answerbox input, .answerbox textarea{flex:1; min-height:110px; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+.answerbox textarea{min-height: 92px; resize: vertical;}
+
+.feedback{
+  margin-top:12px;
+  border:1px dashed rgba(255,255,255,.20);
+  border-radius:14px;
+  padding:12px;
+  background: rgba(255,255,255,.02);
+}
+.feedback.good{border-color: rgba(33,192,122,.55); background: rgba(33,192,122,.07)}
+.feedback.bad{border-color: rgba(255,90,106,.55); background: rgba(255,90,106,.06)}
+.feedback .title{font-weight:1000; margin-bottom:8px}
+.explain{margin:0 0 10px; font-size:13px}
+details summary{cursor:pointer; color:var(--muted); font-weight:1000; margin-top:6px}
+details .model{
+  margin:10px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size:12.5px;
+  color:#dbe2ff;
+  white-space:pre-wrap;
+  line-height:1.4;
+}
+.autoWarn{
+  border:2px solid rgba(255,204,102,.65);
+  background: rgba(255,204,102,.14);
+  padding:12px;
+  border-radius:14px;
+  margin-top:10px;
+}
+.autoWarn .h{font-weight:1000; color:#ffe6b3; margin-bottom:6px}
+.autoWarn .b{color:#ffecc7; font-size:12.5px; line-height:1.35}
+
+.adjustRow{
+  display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap;
+  padding-top:8px; border-top:1px solid rgba(255,255,255,.10);
+}
+.adjustRow input{
+  width:120px;
+  background: rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.18);
+  color:var(--ink);
+  background-attachment: fixed;
+  padding:8px 10px;
+  border-radius:12px;
+  outline:none;
+}
+.adjustRow .note{color:var(--muted); font-size:12px}
+.small{font-size:12px; color:var(--muted)}
+/* Mini buttons (e.g., report) */
+.btn.mini{
+  padding:6px 10px;
+  border-radius:10px;
+  font-weight:800;
+  font-size:12px;
+}
+.reportBanner{
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  margin: 10px 0 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(59,108,255,.10);
+  color: #eaf0ff;
+  display:none;
+}
+.reportBanner .small{color:#cfe0ff}
+/* Sticky score bar (always visible) */
+.scoreBar{
+  position: sticky;
+  top: 10px;
+  z-index: 30;
+  max-width:1200px;
+  margin: 0 auto;
+  padding: 0 18px;
+}
+.scoreBar > div.scoreBarRow{
+  display:flex;
+  gap:14px;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.18);
+  border-radius:16px;
+  padding:10px 12px;
+}
+.scoreBar .small{color:var(--muted); font-size:12px; margin-top:6px}
+.scoreBar code{background:rgba(255,255,255,.08); padding:2px 6px; border-radius:8px}
+/* Compact always-visible stats row inside header */
+.topStats{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.statPill{
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.18);
+  font-size:12px;
+  color: rgba(235,242,255,.92);
+}
+.statPill b{font-weight:1000}
+.topicDetails{
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  background: rgba(255,255,255,.015);
+  padding:10px 10px;
+}
+.topicDetails > summary{
+  cursor:pointer;
+  list-style:none;
+  font-weight:900;
+  color:#dbe2ff;
+}
+.topicDetails > summary::-webkit-details-marker{display:none;}
+.topicDetails > summary::before{
+  content:"▸";
+  display:inline-block;
+  margin-right:8px;
+  color: rgba(255,255,255,.7);
+}
+.topicDetails[open] > summary::before{content:"▾";}
+.controls{gap:12px}
+.control label{margin-bottom:6px}
+.topicGrid{gap:10px}
+.topic{padding:10px 10px; font-size:13px}
+/* Fixed header so stats are always visible */
+.topbar{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 120;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(5,8,18,.78);
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+/* Push the main content down under the fixed header */
+.wrap{
+  padding-top: calc(var(--headerOffset, 0px) + 18px);
+}
+/* Report banner: in-flow, non-overlapping */
+.reportBanner{
+  position: relative !important;
+  top: auto !important;
+  z-index: auto !important;
+}
+.reportRow{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+.reportBox{
+  width:100%;
+  margin-top:8px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.22);
+  color: rgba(235,242,255,.95);
+  padding:10px;
+  min-height:84px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size: 12.5px;
+}
+.reportActions{
+  margin-top:8px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+</style>
 </head>
 <body>
+
 <header class="topbar">
   <div class="brand">
     <div class="brandTitle" id="title">Trilogy Energy Quiz</div>
-    <div class="brandSub" id="subtitle">Energy (AQA Trilogy 6.1) • student view • random sets</div>
+    <div class="brandSub" id="subtitle">Energy (AQA Trilogy 6.1) • random sets • mark-scheme style feedback</div>
   </div>
   <div class="panelMeta">
     <span class="pill" id="statusPill">Idle</span>
@@ -122,7 +465,1446 @@
   </section>
 </main>
 
-<script src="questions.js"></script>
-<script src="engine.js"></script>
+<script>
+window.TRILOGY_ENERGY_QUIZ_META = {
+  "title": "Trilogy Energy Quiz",
+  "subtitle": "Energy (AQA Trilogy 6.1) • random sets • mark-scheme style feedback"
+};
+
+window.TRILOGY_ENERGY_QUIZ_QUESTIONS = [{"id": "units_1", "tags": ["units"], "difficulty": "easy", "type": "mcq", "prompt": "The SI unit of energy is:", "choices": ["joule (J)", "watt (W)", "newton (N)", "kilogram (kg)"], "answerIndex": 0, "explanation": "Energy is measured in joules (J). Power is watts (W)."}, {"id": "units_2", "tags": ["units"], "difficulty": "easy", "type": "mcq", "prompt": "The unit of power is:", "choices": ["joule (J)", "watt (W)", "newton (N)", "kilogram (kg)"], "answerIndex": 1, "explanation": "Power is the rate of energy transfer, measured in watts (W)."}, {"id": "units_3", "tags": ["units"], "difficulty": "easy", "type": "mcq", "prompt": "Gravitational field strength g is measured in:", "choices": ["N", "N/kg", "J/kg", "kg/N"], "answerIndex": 1, "explanation": "g is weight per unit mass: N/kg."}, {"id": "units_4", "tags": ["units"], "difficulty": "med", "type": "mcq", "prompt": "Specific heat capacity c is measured in:", "choices": ["J/kg °C", "J/kg", "J/°C", "W/kg"], "answerIndex": 0, "explanation": "From ΔE = mcΔθ ⇒ c = ΔE/(mΔθ), so units are J/(kg·°C)."}, {"id": "units_5", "tags": ["units"], "difficulty": "med", "type": "mcq", "prompt": "Spring constant k is measured in:", "choices": ["N", "N/m", "J", "kg/m"], "answerIndex": 1, "explanation": "From F = ke ⇒ k = F/e so N/m."}, {"id": "units_6", "tags": ["units", "power"], "difficulty": "easy", "type": "mcq", "prompt": "Work done is measured in:", "choices": ["newtons (N)", "joules (J)", "watts (W)", "volts (V)"], "answerIndex": 1, "explanation": "Work done is a transfer of energy, measured in joules (J)."}, {"id": "units_7", "tags": ["units"], "difficulty": "easy", "type": "mcq", "prompt": "A temperature difference of 1 °C is the same as:", "choices": ["1 K", "273 K", "1 J", "0.1 K"], "answerIndex": 0, "explanation": "A change of 1 °C equals a change of 1 K."}, {"id": "units_8", "tags": ["units", "efficiency"], "difficulty": "easy", "type": "mcq", "prompt": "Efficiency is a:", "choices": ["unit (J)", "ratio (no units)", "force (N)", "power (W)"], "answerIndex": 1, "explanation": "Efficiency is a ratio, so it has no units (it can be written as a decimal or %)."}, {"id": "stores_scenario_1", "tags": ["stores", "transfers"], "difficulty": "easy", "type": "mcq", "prompt": "A ball is thrown straight up. Ignoring air resistance, which is correct?", "choices": ["KE decreases, GPE increases", "KE increases, GPE decreases", "Both increase", "Both decrease"], "answerIndex": 0, "explanation": "As it rises, speed falls so KE decreases; height rises so GPE increases."}, {"id": "stores_scenario_2", "tags": ["stores", "conservation"], "difficulty": "easy", "type": "mcq", "prompt": "A cyclist brakes to a stop. The main energy change is:", "choices": ["kinetic energy → thermal energy (brakes/tyres/road)", "thermal → kinetic", "chemical → GPE", "nuclear → thermal"], "answerIndex": 0, "explanation": "Braking transfers energy from KE to thermal energy by friction (work done)."}, {"id": "stores_scenario_3", "tags": ["stores", "transfers"], "difficulty": "med", "type": "mcq", "prompt": "A torch is switched on. The main store decreasing in the torch is:", "choices": ["thermal", "chemical", "gravitational", "elastic"], "answerIndex": 1, "explanation": "Chemical energy in the battery decreases; energy is transferred electrically and by radiation (light/IR)."}, {"id": "stores_scenario_4", "tags": ["stores", "transfers"], "difficulty": "med", "type": "mcq", "prompt": "A spring-driven toy launches a car. The energy store that decreases first is:", "choices": ["elastic potential", "kinetic", "thermal", "gravitational"], "answerIndex": 0, "explanation": "Elastic potential energy decreases and is transferred to kinetic energy by mechanical work."}, {"id": "stores_scenario_5", "tags": ["stores", "transfers"], "difficulty": "med", "type": "mcq", "prompt": "A person climbs stairs at steady speed. Which stores change most?", "choices": ["chemical decreases; GPE increases", "GPE decreases; KE increases", "thermal decreases; chemical increases", "KE increases; GPE decreases"], "answerIndex": 0, "explanation": "Chemical energy in muscles decreases; GPE increases. Some energy is also dissipated as thermal."}, {"id": "stores_scenario_6", "tags": ["stores", "transfers"], "difficulty": "med", "type": "mcq", "prompt": "A hot cup of tea cools on the table. The store that decreases (in the tea) is mainly:", "choices": ["thermal (internal)", "chemical", "kinetic", "gravitational"], "answerIndex": 0, "explanation": "The tea's thermal energy store decreases as energy is transferred to surroundings by heating/radiation."}, {"id": "transfer_path_1", "tags": ["transfers"], "difficulty": "easy", "type": "mcq", "prompt": "Which is an energy transfer pathway?", "choices": ["kinetic store", "heating", "chemical store", "gravitational store"], "answerIndex": 1, "explanation": "Heating is a transfer pathway; the others are stores."}, {"id": "transfer_path_2", "tags": ["transfers"], "difficulty": "med", "type": "mcq", "prompt": "A book is lifted onto a shelf. The main transfer is:", "choices": ["heating", "radiation", "mechanical work", "electrical work"], "answerIndex": 2, "explanation": "A force does work lifting the book: mechanical work transfers energy."}, {"id": "transfer_path_3", "tags": ["transfers"], "difficulty": "med", "type": "mcq", "prompt": "A lamp glows. Energy is transferred from the filament mainly by:", "choices": ["radiation", "mechanical work", "gravitational work", "mass flow"], "answerIndex": 0, "explanation": "Light and infrared are energy transfer by radiation."}, {"id": "transfer_path_4", "tags": ["transfers", "elecwork"], "difficulty": "med", "type": "mcq", "prompt": "A phone charges from the mains. Energy is transferred into the battery mainly by:", "choices": ["mechanical work", "electrical work", "gravitational work", "nuclear transfer"], "answerIndex": 1, "explanation": "Charging transfers energy by electrical work (current in a circuit)."}, {"id": "formula_recall_1", "tags": ["ke"], "difficulty": "easy", "type": "short", "prompt": "Write the kinetic energy equation.", "markPoints": [{"any": ["ek", "1/2", "0.5", "½", "m", "v", "^2", "squared"]}], "explanation": "Ek = ½ m v².", "allowAdjust": false, "expectedSymbolic": ["Ek=0.5mv^2", "Ek=1/2mv^2", "Ek=½mv^2", "E_k=0.5mv^2", "Ek=0.5*m*v^2"]}, {"id": "formula_recall_2", "tags": ["gpe"], "difficulty": "easy", "type": "short", "prompt": "Write the gravitational potential energy equation.", "markPoints": [{"any": ["ep", "gpe", "m", "g", "h"]}], "explanation": "Ep = m g h (GPE gained).", "allowAdjust": false, "expectedSymbolic": ["Ep=mgh", "E_p=mgh", "gpe=mgh", "GPE=mgh"]}, {"id": "formula_recall_3", "tags": ["epe"], "difficulty": "med", "type": "short", "prompt": "Write the elastic potential energy equation for a spring (in the limit of proportionality).", "markPoints": [{"any": ["1/2", "0.5", "½", "k", "e", "^2", "squared"]}], "explanation": "Ee = ½ k e².", "allowAdjust": false, "expectedSymbolic": ["Ee=0.5ke^2", "Ee=1/2ke^2", "Ee=½ke^2", "E_e=0.5ke^2"]}, {"id": "formula_recall_4", "tags": ["shc"], "difficulty": "easy", "type": "short", "prompt": "Write the specific heat capacity equation for heating without change of state.", "markPoints": [{"any": ["delta", "Δ", "e", "m", "c", "delta", "θ", "t", "temp", "temperature"]}], "explanation": "ΔE = m c Δθ.", "allowAdjust": false, "expectedSymbolic": ["ΔE=mcΔθ", "dE=mcΔθ", "DE=mcDθ", "ΔE=m c Δθ"]}, {"id": "formula_recall_5", "tags": ["power"], "difficulty": "easy", "type": "short", "prompt": "Write the power equation using energy transferred E and time t.", "markPoints": [{"any": ["p", "=", "e", "/", "t"]}], "explanation": "P = E / t.", "allowAdjust": false, "expectedSymbolic": ["P=E/t", "P=E÷t"]}, {"id": "formula_recall_6", "tags": ["power"], "difficulty": "easy", "type": "short", "prompt": "Write the work done equation using force F and distance s.", "markPoints": [{"any": ["w", "=", "f", "s"]}], "explanation": "Work done W = F s.", "allowAdjust": false, "expectedSymbolic": ["W=Fs", "W=F*s"]}, {"id": "formula_recall_7", "tags": ["elecwork"], "difficulty": "med", "type": "short", "prompt": "Write the equation for energy transferred when current flows through a device: use I, V and t.", "markPoints": [{"any": ["e", "=", "i", "v", "t"]}], "explanation": "E = I V t.", "allowAdjust": false, "expectedSymbolic": ["E=IVt", "E=I*V*t", "E=VIt"]}, {"id": "formula_recall_8", "tags": ["efficiency"], "difficulty": "easy", "type": "short", "prompt": "Write the efficiency equation using useful output energy and total input energy.", "markPoints": [{"any": ["useful", "output", "/", "total", "input"]}], "explanation": "Efficiency = useful output energy ÷ total input energy (×100% if needed).", "allowAdjust": false}, {"id": "stores_scenario_7", "tags": ["stores"], "difficulty": "med", "type": "mcq", "prompt": "Which list contains ONLY energy stores (not transfer pathways)?", "choices": ["kinetic, chemical, thermal", "heating, radiation, electrical work", "current, voltage, resistance", "speed, time, distance"], "answerIndex": 0, "explanation": "Kinetic/chemical/thermal are stores. Heating/radiation/electrical work are pathways."}, {"id": "ke_calc_1", "tags": ["ke"], "difficulty": "med", "type": "numeric", "prompt": "A 0.8 kg object moves at 12 m/s. Calculate its kinetic energy.", "answer": 57.60000000000001, "unitHint": "J", "explanation": "Ek = ½mv² = 0.5×0.8×12² = 57.6 J (exact: 57.6 J)."}, {"id": "ke_calc_2", "tags": ["ke"], "difficulty": "med", "type": "numeric", "prompt": "A 1.5 kg object moves at 4 m/s. Calculate its kinetic energy.", "answer": 12.0, "unitHint": "J", "explanation": "Ek = ½mv² = 0.5×1.5×4² = 12 J (exact: 12 J)."}, {"id": "ke_calc_3", "tags": ["ke"], "difficulty": "med", "type": "numeric", "prompt": "A 60 kg object moves at 7 m/s. Calculate its kinetic energy.", "answer": 1470.0, "unitHint": "J", "explanation": "Ek = ½mv² = 0.5×60×7² = 1.47e+03 J (exact: 1470 J)."}, {"id": "ke_calc_4", "tags": ["ke"], "difficulty": "med", "type": "numeric", "prompt": "A 0.2 kg object moves at 15 m/s. Calculate its kinetic energy.", "answer": 22.5, "unitHint": "J", "explanation": "Ek = ½mv² = 0.5×0.2×15² = 22.5 J (exact: 22.5 J)."}, {"id": "ke_calc_5", "tags": ["ke"], "difficulty": "med", "type": "numeric", "prompt": "A 2 kg object moves at 3.5 m/s. Calculate its kinetic energy.", "answer": 12.25, "unitHint": "J", "explanation": "Ek = ½mv² = 0.5×2×3.5² = 12.2 J (exact: 12.25 J)."}, {"id": "ke_calc_6", "tags": ["ke"], "difficulty": "hard", "type": "numeric", "prompt": "A 1200 kg object moves at 25 m/s. Calculate its kinetic energy.", "answer": 375000.0, "unitHint": "J", "explanation": "Ek = ½mv² = 0.5×1200×25² = 3.75e+05 J (exact: 375000 J)."}, {"id": "ke_calc_7", "tags": ["ke"], "difficulty": "med", "type": "numeric", "prompt": "A 0.05 kg object moves at 18 m/s. Calculate its kinetic energy.", "answer": 8.1, "unitHint": "J", "explanation": "Ek = ½mv² = 0.5×0.05×18² = 8.1 J (exact: 8.1 J)."}, {"id": "ke_calc_8", "tags": ["ke"], "difficulty": "med", "type": "numeric", "prompt": "A 75 kg object moves at 9 m/s. Calculate its kinetic energy.", "answer": 3037.5, "unitHint": "J", "explanation": "Ek = ½mv² = 0.5×75×9² = 3.04e+03 J (exact: 3037.5 J)."}, {"id": "gpe_calc_1", "tags": ["gpe"], "difficulty": "med", "type": "numeric", "prompt": "A 2 kg mass is raised by 3 m on a planet where g = 9.8 N/kg. Calculate the GPE gained.", "answer": 58.800000000000004, "unitHint": "J", "explanation": "Ep = mgh = 2×9.8×3 = 58.8 J."}, {"id": "gpe_calc_2", "tags": ["gpe"], "difficulty": "med", "type": "numeric", "prompt": "A 0.5 kg mass is raised by 1.2 m on a planet where g = 9.8 N/kg. Calculate the GPE gained.", "answer": 5.88, "unitHint": "J", "explanation": "Ep = mgh = 0.5×9.8×1.2 = 5.88 J."}, {"id": "gpe_calc_3", "tags": ["gpe"], "difficulty": "med", "type": "numeric", "prompt": "A 75 kg mass is raised by 0.4 m on a planet where g = 9.8 N/kg. Calculate the GPE gained.", "answer": 294.0, "unitHint": "J", "explanation": "Ep = mgh = 75×9.8×0.4 = 294 J."}, {"id": "gpe_calc_4", "tags": ["gpe"], "difficulty": "hard", "type": "numeric", "prompt": "A 1200 kg mass is raised by 5 m on a planet where g = 9.8 N/kg. Calculate the GPE gained.", "answer": 58800.0, "unitHint": "J", "explanation": "Ep = mgh = 1200×9.8×5 = 58800 J."}, {"id": "gpe_calc_5", "tags": ["gpe"], "difficulty": "med", "type": "numeric", "prompt": "A 0.25 kg mass is raised by 8 m on a planet where g = 10 N/kg. Calculate the GPE gained.", "answer": 20.0, "unitHint": "J", "explanation": "Ep = mgh = 0.25×10×8 = 20 J."}, {"id": "gpe_calc_6", "tags": ["gpe"], "difficulty": "med", "type": "numeric", "prompt": "A 45 kg mass is raised by 2.5 m on a planet where g = 9.8 N/kg. Calculate the GPE gained.", "answer": 1102.5000000000002, "unitHint": "J", "explanation": "Ep = mgh = 45×9.8×2.5 = 1102.5 J."}, {"id": "epe_calc_1", "tags": ["epe"], "difficulty": "med", "type": "numeric", "prompt": "A spring has k = 200 N/m and is stretched by 0.12 m (within the limit of proportionality). Calculate the elastic potential energy stored.", "answer": 1.44, "unitHint": "J", "explanation": "Ee = ½ke² = 0.5×200×0.12² = 1.44 J."}, {"id": "epe_calc_2", "tags": ["epe"], "difficulty": "med", "type": "numeric", "prompt": "A spring has k = 50 N/m and is stretched by 0.3 m (within the limit of proportionality). Calculate the elastic potential energy stored.", "answer": 2.25, "unitHint": "J", "explanation": "Ee = ½ke² = 0.5×50×0.3² = 2.25 J."}, {"id": "epe_calc_3", "tags": ["epe"], "difficulty": "med", "type": "numeric", "prompt": "A spring has k = 120 N/m and is stretched by 0.08 m (within the limit of proportionality). Calculate the elastic potential energy stored.", "answer": 0.384, "unitHint": "J", "explanation": "Ee = ½ke² = 0.5×120×0.08² = 0.384 J."}, {"id": "epe_calc_4", "tags": ["epe"], "difficulty": "med", "type": "numeric", "prompt": "A spring has k = 500 N/m and is stretched by 0.05 m (within the limit of proportionality). Calculate the elastic potential energy stored.", "answer": 0.625, "unitHint": "J", "explanation": "Ee = ½ke² = 0.5×500×0.05² = 0.625 J."}, {"id": "epe_calc_5", "tags": ["epe"], "difficulty": "med", "type": "numeric", "prompt": "A spring has k = 30 N/m and is stretched by 0.2 m (within the limit of proportionality). Calculate the elastic potential energy stored.", "answer": 0.6000000000000001, "unitHint": "J", "explanation": "Ee = ½ke² = 0.5×30×0.2² = 0.6 J."}, {"id": "work_calc_1", "tags": ["power"], "difficulty": "easy", "type": "numeric", "prompt": "A force of 50 N moves an object 3 m in the direction of the force. Calculate the work done.", "answer": 150.0, "unitHint": "J", "explanation": "W = F s = 50×3 = 150 J."}, {"id": "work_calc_2", "tags": ["power"], "difficulty": "med", "type": "numeric", "prompt": "A force of 120 N moves an object 0.4 m in the direction of the force. Calculate the work done.", "answer": 48.0, "unitHint": "J", "explanation": "W = F s = 120×0.4 = 48 J."}, {"id": "work_calc_3", "tags": ["power"], "difficulty": "easy", "type": "numeric", "prompt": "A force of 8 N moves an object 15 m in the direction of the force. Calculate the work done.", "answer": 120.0, "unitHint": "J", "explanation": "W = F s = 8×15 = 120 J."}, {"id": "work_calc_4", "tags": ["power"], "difficulty": "med", "type": "numeric", "prompt": "A force of 600 N moves an object 0.25 m in the direction of the force. Calculate the work done.", "answer": 150.0, "unitHint": "J", "explanation": "W = F s = 600×0.25 = 150 J."}, {"id": "power_calc_1", "tags": ["power"], "difficulty": "easy", "type": "numeric", "prompt": "A device transfers 600 J of energy in 30 s. Calculate its power.", "answer": 20.0, "unitHint": "W", "explanation": "P = E/t = 600/30 = 20 W."}, {"id": "power_calc_2", "tags": ["power"], "difficulty": "med", "type": "numeric", "prompt": "A device transfers 18000 J of energy in 3600 s. Calculate its power.", "answer": 5.0, "unitHint": "W", "explanation": "P = E/t = 18000/3600 = 5 W."}, {"id": "power_calc_3", "tags": ["power"], "difficulty": "easy", "type": "numeric", "prompt": "A device transfers 250 J of energy in 20 s. Calculate its power.", "answer": 12.5, "unitHint": "W", "explanation": "P = E/t = 250/20 = 12.5 W."}, {"id": "power_calc_4", "tags": ["power"], "difficulty": "med", "type": "numeric", "prompt": "A device transfers 102000 J of energy in 120 s. Calculate its power.", "answer": 850.0, "unitHint": "W", "explanation": "P = E/t = 102000/120 = 850 W."}, {"id": "elec_work_calc_1", "tags": ["elecwork", "power"], "difficulty": "med", "type": "numeric", "prompt": "An appliance has power 2.2 kW and runs for 300 s. Calculate the energy transferred.", "answer": 660000.0, "unitHint": "J", "explanation": "E = P t. Convert power to watts: P = 2200 W. E = 2200×300 = 660000 J."}, {"id": "elec_work_calc_2", "tags": ["elecwork", "power"], "difficulty": "med", "type": "numeric", "prompt": "An appliance has power 850 W and runs for 120 s. Calculate the energy transferred.", "answer": 102000.0, "unitHint": "J", "explanation": "E = P t. Convert power to watts: P = 850 W. E = 850×120 = 102000 J."}, {"id": "elec_work_calc_3", "tags": ["elecwork", "power"], "difficulty": "med", "type": "numeric", "prompt": "An appliance has power 1500 W and runs for 45 s. Calculate the energy transferred.", "answer": 67500.0, "unitHint": "J", "explanation": "E = P t. Convert power to watts: P = 1500 W. E = 1500×45 = 67500 J."}, {"id": "elec_work_calc_4", "tags": ["elecwork", "power"], "difficulty": "med", "type": "numeric", "prompt": "An appliance has power 0.6 kW and runs for 7200 s. Calculate the energy transferred.", "answer": 4320000.0, "unitHint": "J", "explanation": "E = P t. Convert power to watts: P = 600 W. E = 600×7200 = 4.32e+06 J."}, {"id": "elec_work_calc_5", "tags": ["elecwork"], "difficulty": "med", "type": "numeric", "prompt": "A device takes 0.5 A at 12 V for 180 s. Calculate the energy transferred.", "answer": 1080.0, "unitHint": "J", "explanation": "E = IVt = 0.5×12×180 = 1080 J."}, {"id": "elec_work_calc_6", "tags": ["elecwork"], "difficulty": "med", "type": "numeric", "prompt": "A device takes 2 A at 9 V for 60 s. Calculate the energy transferred.", "answer": 1080.0, "unitHint": "J", "explanation": "E = IVt = 2×9×60 = 1080 J."}, {"id": "elec_work_calc_7", "tags": ["elecwork"], "difficulty": "med", "type": "numeric", "prompt": "A device takes 0.35 A at 9 V for 700 s. Calculate the energy transferred.", "answer": 2205.0, "unitHint": "J", "explanation": "E = IVt = 0.35×9×700 = 2205 J."}, {"id": "elec_work_calc_8", "tags": ["elecwork"], "difficulty": "hard", "type": "numeric", "prompt": "A device takes 1.2 A at 230 V for 20 s. Calculate the energy transferred.", "answer": 5520.0, "unitHint": "J", "explanation": "E = IVt = 1.2×230×20 = 5520 J."}, {"id": "elecwork_piv_1", "tags": ["elecwork"], "difficulty": "med", "type": "numeric", "prompt": "An appliance has power 6.9 kW at 230 V. Calculate the current.", "answer": 30.0, "unitHint": "A", "explanation": "Use P=IV. Convert power: P=6900 W. I = P/V = 6900/230 = 30 A."}, {"id": "elecwork_piv_2", "tags": ["elecwork"], "difficulty": "easy", "type": "numeric", "prompt": "A device takes 0.8 A at 12 V. Calculate the power.", "answer": 9.600000000000001, "unitHint": "W", "explanation": "P = IV = 0.8×12 = 9.6 W."}, {"id": "elecwork_piv_3", "tags": ["elecwork"], "difficulty": "med", "type": "numeric", "prompt": "An appliance has power 2.4 kW at 120 V. Calculate the current.", "answer": 20.0, "unitHint": "A", "explanation": "Use P=IV. Convert power: P=2400 W. I = P/V = 2400/120 = 20 A."}, {"id": "shc_calc_1", "tags": ["shc"], "difficulty": "hard", "type": "numeric", "prompt": "A 0.8 kg block gains 312000 J of thermal energy and its temperature rises by 82 °C. Calculate its specific heat capacity.", "answer": 4756.097560975609, "unitHint": "J/kg°C", "explanation": "ΔE = mcΔθ ⇒ c = ΔE/(mΔθ) = 312000/(0.8×82) = 4756.1 J/kg °C."}, {"id": "shc_calc_2", "tags": ["shc"], "difficulty": "med", "type": "numeric", "prompt": "A 0.25 kg block gains 5250 J of thermal energy and its temperature rises by 35 °C. Calculate its specific heat capacity.", "answer": 600.0, "unitHint": "J/kg°C", "explanation": "ΔE = mcΔθ ⇒ c = ΔE/(mΔθ) = 5250/(0.25×35) = 600 J/kg °C."}, {"id": "shc_calc_3", "tags": ["shc"], "difficulty": "med", "type": "numeric", "prompt": "A 1.2 kg block gains 18000 J of thermal energy and its temperature rises by 15 °C. Calculate its specific heat capacity.", "answer": 1000.0, "unitHint": "J/kg°C", "explanation": "ΔE = mcΔθ ⇒ c = ΔE/(mΔθ) = 18000/(1.2×15) = 1000 J/kg °C."}, {"id": "shc_calc_4", "tags": ["shc"], "difficulty": "med", "type": "numeric", "prompt": "A 0.45 kg block gains 9900 J of thermal energy and its temperature rises by 22 °C. Calculate its specific heat capacity.", "answer": 1000.0, "unitHint": "J/kg°C", "explanation": "ΔE = mcΔθ ⇒ c = ΔE/(mΔθ) = 9900/(0.45×22) = 1000 J/kg °C."}, {"id": "shc_calc_dt_1", "tags": ["shc"], "difficulty": "med", "type": "numeric", "prompt": "A 0.3 kg substance has c = 500 J/kg °C. It gains 9000 J. Calculate the temperature rise.", "answer": 60.0, "unitHint": "°C", "explanation": "Δθ = ΔE/(mc) = 9000/(0.3×500) = 60 °C (same size change in K)."}, {"id": "shc_calc_dt_2", "tags": ["shc"], "difficulty": "med", "type": "numeric", "prompt": "A 1 kg substance has c = 4200 J/kg °C. It gains 42000 J. Calculate the temperature rise.", "answer": 10.0, "unitHint": "°C", "explanation": "Δθ = ΔE/(mc) = 42000/(1×4200) = 10 °C (same size change in K)."}, {"id": "shc_calc_dt_3", "tags": ["shc"], "difficulty": "med", "type": "numeric", "prompt": "A 2.5 kg substance has c = 380 J/kg °C. It gains 15000 J. Calculate the temperature rise.", "answer": 15.789473684210526, "unitHint": "°C", "explanation": "Δθ = ΔE/(mc) = 15000/(2.5×380) = 15.7895 °C (same size change in K)."}, {"id": "shc_calc_eff_1", "tags": ["shc", "efficiency"], "difficulty": "hard", "type": "numeric", "prompt": "A 2.6 kW heater runs for 120 s. Only 80% of the energy heats 0.80 kg of water. Water warms from 18 °C to 100 °C. Calculate c for water.", "answer": 3804.8780487804875, "unitHint": "J/kg°C", "explanation": "E_in = Pt = 2600×120 = 312000 J. Useful E = 0.80×E_in = 249600 J. Δθ = 82 °C. c = E_use/(mΔθ) = 249600/(0.80×82) ≈ 3805 J/kg °C (≈ 4.8×10^3)."}, {"id": "shc_practical_1", "tags": ["shc_practical"], "difficulty": "hard", "type": "long", "prompt": "Describe a method to determine the specific heat capacity of a metal block using an electrical heater.", "markPoints": [{"any": ["measure", "mass", "balance"]}, {"any": ["heater", "power", "supply", "current", "voltage", "ammeter", "voltmeter", "joulemeter"]}, {"any": ["temperature", "thermometer", "probe"]}, {"any": ["insulate", "insulation", "reduce", "heat", "loss"]}, {"any": ["record", "time", "energy", "interval", "repeat", "mean"]}, {"any": ["use", "ΔE=mcΔθ", "rearrange", "c="]}], "explanation": "Mark scheme-style points:\n• Measure mass m with a balance.\n• Insert heater + thermometer/probe; insulate block.\n• Measure energy supplied using E=IVt (ammeter+voltmeter+stopwatch) or a joulemeter.\n• Record temperature rise Δθ for known energy ΔE; repeat/mean.\n• Use c = ΔE/(mΔθ).", "allowAdjust": true}, {"id": "data_handling_1", "tags": ["shc_practical"], "difficulty": "med", "type": "short", "prompt": "A student repeats a time measurement and gets 2.98 s and 3.02 s. What is the uncertainty (half range)?", "markPoints": [{"any": ["range", "3.02", "2.98", "0.04"]}, {"any": ["half", "0.02", "±", "plus", "minus"]}], "explanation": "Range = 3.02 − 2.98 = 0.04 s. Uncertainty = range/2 = ±0.02 s.", "allowAdjust": true}, {"id": "data_handling_2", "tags": ["shc_practical"], "difficulty": "med", "type": "mcq", "prompt": "When drawing a best-fit line for energy vs temperature rise, which is usually correct?", "choices": ["The line must go through the origin", "The line should be ruled and may NOT go through the origin", "Join dot-to-dot", "Draw a curve even if points are nearly straight"], "answerIndex": 1, "explanation": "Because of heat losses / heater warming up, the best-fit line is often straight but not through the origin."}, {"id": "data_handling_3", "tags": ["shc_practical"], "difficulty": "easy", "type": "mcq", "prompt": "Which change most improves reliability in a repeated heating experiment?", "choices": ["Use a smaller block", "Repeat and calculate a mean", "Use a higher voltage", "Use less insulation"], "answerIndex": 1, "explanation": "Repeating and taking a mean reduces random error and improves reliability."}, {"id": "eff_calc_1", "tags": ["efficiency"], "difficulty": "med", "type": "numeric", "prompt": "A device transfers 45 J usefully when 120 J is supplied. Calculate the efficiency.", "answer": 0.375, "unitHint": "", "explanation": "Efficiency = useful/total = 45/120 = 0.375 (×100% for percent)."}, {"id": "eff_calc_2", "tags": ["efficiency"], "difficulty": "med", "type": "numeric", "prompt": "A device transfers 180 J usefully when 500 J is supplied. Calculate the efficiency.", "answer": 0.36, "unitHint": "", "explanation": "Efficiency = useful/total = 180/500 = 0.36 (×100% for percent)."}, {"id": "eff_calc_3", "tags": ["efficiency"], "difficulty": "med", "type": "numeric", "prompt": "A device transfers 700 J usefully when 1200 J is supplied. Calculate the efficiency.", "answer": 0.5833333333333334, "unitHint": "", "explanation": "Efficiency = useful/total = 700/1200 = 0.583333 (×100% for percent)."}, {"id": "efficiency_qual_1", "tags": ["efficiency"], "difficulty": "easy", "type": "mcq", "prompt": "If a device has 30% efficiency, which statement is correct?", "choices": ["30% of the input energy is useful output", "30% of the output energy is wasted", "Efficiency must be > 50%", "No energy is dissipated"], "answerIndex": 0, "explanation": "Efficiency = useful output / total input. So 30% of the input becomes useful output."}, {"id": "efficiency_long_1", "tags": ["efficiency", "conservation"], "difficulty": "hard", "type": "long", "prompt": "Explain why the efficiency of a braking system is less than 100%.", "markPoints": [{"any": ["energy", "dissipated", "wasted"]}, {"any": ["thermal", "internal", "heat"]}, {"any": ["friction", "work", "done"]}, {"any": ["surroundings", "air", "road", "brakes"]}], "explanation": "Not all input energy becomes the intended useful output; some is dissipated (often as thermal energy) due to friction/air resistance and transferred to surroundings.", "allowAdjust": true}, {"id": "dissipation_1", "tags": ["conservation"], "difficulty": "easy", "type": "mcq", "prompt": "In a closed system, the total energy:", "choices": ["increases", "decreases", "stays constant", "becomes zero"], "answerIndex": 2, "explanation": "Energy is conserved: it cannot be created or destroyed."}, {"id": "dissipation_2", "tags": ["conservation"], "difficulty": "med", "type": "mcq", "prompt": "A bouncing ball eventually stops bouncing because:", "choices": ["energy is destroyed", "all energy becomes kinetic", "energy is dissipated to thermal and sound", "GPE is conserved"], "answerIndex": 2, "explanation": "Energy transfers to thermal energy of ball/ground/air and to sound, so less remains in KE/GPE."}, {"id": "reduce_1", "tags": ["reduce", "conservation"], "difficulty": "easy", "type": "mcq", "prompt": "Lubricating moving parts mainly reduces unwanted energy transfer by:", "choices": ["radiation", "friction (mechanical work)", "nuclear reactions", "gravitational work"], "answerIndex": 1, "explanation": "Lubrication reduces friction, so less energy is dissipated as thermal energy."}, {"id": "reduce_2", "tags": ["reduce"], "difficulty": "easy", "type": "mcq", "prompt": "To reduce energy transfer by conduction through a wall, you should:", "choices": ["use a thinner wall", "use a material with higher thermal conductivity", "use a thicker wall with low thermal conductivity", "paint it black"], "answerIndex": 2, "explanation": "Thicker + lower thermal conductivity reduces conduction rate."}, {"id": "insulation_long_1", "tags": ["reduce"], "difficulty": "med", "type": "long", "prompt": "Explain how increasing the thickness of insulation in a wall affects the rate of cooling of a building.", "markPoints": [{"any": ["thicker", "insulation"]}, {"any": ["reduces", "rate", "energy", "transfer", "conduction"]}, {"any": ["slower", "cooling", "less", "power", "loss"]}], "explanation": "Thicker insulation reduces the rate of energy transfer by conduction, so the building loses thermal energy more slowly and cools more slowly.", "allowAdjust": true}, {"id": "resources_1", "tags": ["resources"], "difficulty": "easy", "type": "mcq", "prompt": "Which resource is renewable?", "choices": ["coal", "natural gas", "wind", "nuclear fuel"], "answerIndex": 2, "explanation": "Wind is renewable; coal/gas/nuclear fuel are not replenished quickly."}, {"id": "resources_2", "tags": ["resources"], "difficulty": "easy", "type": "mcq", "prompt": "Which is non-renewable?", "choices": ["biofuel", "geothermal", "tidal", "oil"], "answerIndex": 3, "explanation": "Oil is a fossil fuel and is non-renewable."}, {"id": "resources_3", "tags": ["resources"], "difficulty": "easy", "type": "short", "prompt": "Define a renewable energy resource.", "markPoints": [{"any": ["replenished", "replaced", "replenish"]}, {"any": ["as", "used", "using", "doesn", "won't", "run", "out"]}], "explanation": "A renewable resource is replenished as it is used (it will not run out on human timescales).", "allowAdjust": false}, {"id": "resources_4", "tags": ["resources"], "difficulty": "easy", "type": "short", "prompt": "Define a non-renewable energy resource.", "markPoints": [{"any": ["cannot", "not", "replenished", "replaced"]}, {"any": ["will", "run", "out", "finite"]}], "explanation": "A non‑renewable resource cannot be replenished as it is used, so it will run out.", "allowAdjust": false}, {"id": "resources_5", "tags": ["resources"], "difficulty": "med", "type": "mcq", "prompt": "Which resource is generally MOST reliable for constant electricity generation?", "choices": ["solar", "wind", "nuclear", "waves"], "answerIndex": 2, "explanation": "Nuclear can generate continuously. Wind/solar/waves vary with weather/conditions."}, {"id": "resources_6", "tags": ["resources"], "difficulty": "med", "type": "mcq", "prompt": "Which is a typical use of geothermal energy?", "choices": ["transport fuel for cars", "heating buildings", "making plastic", "producing oxygen"], "answerIndex": 1, "explanation": "Geothermal is used for heating and sometimes electricity generation."}, {"id": "environment_1", "tags": ["environment"], "difficulty": "easy", "type": "mcq", "prompt": "Burning fossil fuels causes increased:", "choices": ["radioactive waste", "carbon dioxide emissions", "tidal range", "magnetic fields"], "answerIndex": 1, "explanation": "Fossil fuels release CO₂ which contributes to global warming."}, {"id": "environment_2", "tags": ["environment"], "difficulty": "med", "type": "mcq", "prompt": "A disadvantage of nuclear power is:", "choices": ["high CO₂ emissions during operation", "radioactive waste", "it can only be used for transport", "it relies on wind"], "answerIndex": 1, "explanation": "Nuclear produces radioactive waste that must be stored safely."}, {"id": "environment_long_1", "tags": ["environment", "resources"], "difficulty": "hard", "type": "long", "prompt": "Compare one advantage and one disadvantage of wind turbines as an energy resource.", "markPoints": [{"any": ["renewable", "no", "fuel", "carbon", "dioxide", "low", "co2"]}, {"any": ["intermittent", "not", "reliable", "depends", "wind", "weather"]}, {"any": ["noise", "visual", "pollution", "birds", "habitat"]}], "explanation": "Indicative points: Wind is renewable and has low CO₂ emissions during operation. Disadvantages include intermittency (not reliable), visual/noise pollution, and potential impacts on wildlife.", "allowAdjust": true}, {"id": "resources_7", "tags": ["resources"], "difficulty": "med", "type": "mcq", "prompt": "Which resource is commonly used for BOTH electricity generation and heating in homes?", "choices": ["wind", "natural gas", "tidal", "waves"], "answerIndex": 1, "explanation": "Natural gas is widely used for heating and for generating electricity."}, {"id": "resources_8", "tags": ["resources"], "difficulty": "hard", "type": "mcq", "prompt": "Which is a correct match?", "choices": ["tidal → predictable", "solar → constant at night", "wind → always available", "coal → renewable"], "answerIndex": 0, "explanation": "Tides are predictable. Solar isn't available at night; wind varies; coal is non‑renewable."}, {"id": "dissipation_long_2", "tags": ["conservation", "shc"], "difficulty": "med", "type": "short", "prompt": "An electric kettle is on. Give ONE reason why not all the electrical energy supplied increases the thermal energy of the water.", "markPoints": [{"any": ["energy", "transferred", "to", "surroundings", "air", "kettle", "heating", "loss"]}], "explanation": "Some energy is transferred to the kettle itself and the surroundings (air) by heating/radiation, so not all goes into raising the water temperature.", "allowAdjust": false}, {"id": "ke_concept_1", "tags": ["ke"], "difficulty": "med", "type": "mcq", "prompt": "A car doubles its speed. What happens to its kinetic energy?", "choices": ["doubles", "halves", "quadruples", "stays the same"], "answerIndex": 2, "explanation": "Ek ∝ v², so doubling v makes Ek 4× larger."}, {"id": "gpe_concept_1", "tags": ["gpe"], "difficulty": "easy", "type": "mcq", "prompt": "A mass is lifted to double the height. What happens to the GPE gained (same m and g)?", "choices": ["doubles", "halves", "quadruples", "stays the same"], "answerIndex": 0, "explanation": "Ep = mgh, so doubling h doubles Ep."}, {"id": "shc_concept_1", "tags": ["shc"], "difficulty": "easy", "type": "mcq", "prompt": "To raise the temperature of 2 kg of water by 10 °C, compared with 1 kg by 10 °C, you need:", "choices": ["half the energy", "the same energy", "double the energy", "four times the energy"], "answerIndex": 2, "explanation": "ΔE = mcΔθ; doubling mass doubles energy needed for same Δθ."}, {"id": "power_def_1", "tags": ["power"], "difficulty": "easy", "type": "short", "prompt": "Define power.", "markPoints": [{"any": ["rate", "energy", "transfer", "work", "done"]}, {"any": ["per", "second", "time"]}], "explanation": "Power is the rate of energy transfer (or the rate of doing work): energy transferred per second.", "allowAdjust": false}, {"id": "power_concept_1", "tags": ["power"], "difficulty": "easy", "type": "mcq", "prompt": "Two motors lift the same load through the same height. Motor A does it in 5 s; Motor B in 10 s. Which is more powerful?", "choices": ["A", "B", "Same power", "Cannot tell"], "answerIndex": 0, "explanation": "Same work done, but A does it in less time, so A has greater power (P=E/t)."}, {"id": "environment_long_2", "tags": ["environment", "resources"], "difficulty": "hard", "type": "long", "prompt": "Give TWO reasons why wind and solar are sometimes described as less reliable for electricity generation.", "markPoints": [{"any": ["depends", "weather", "wind", "sunlight", "cloud", "night"]}, {"any": ["not", "constant", "intermittent", "variable"]}], "explanation": "Wind and solar depend on weather/daylight so their power output varies and cannot be guaranteed at a given moment without storage/backup.", "allowAdjust": true}, {"id": "resources_long_1", "tags": ["resources", "environment"], "difficulty": "hard", "type": "long", "prompt": "Explain why science can identify environmental issues from energy resources, but society may still use damaging resources.", "markPoints": [{"any": ["science", "evidence", "identify", "measure", "co2", "pollution"]}, {"any": ["political", "economic", "cost", "jobs", "social", "ethical"]}, {"any": ["not", "always", "power", "to", "change", "policy"]}], "explanation": "Science can measure emissions and impacts, but decisions involve cost, jobs, energy security, politics, ethics and public acceptance—so action may be limited even with clear evidence.", "allowAdjust": true}];
+
+</script>
+<script>
+(function(){
+  const META = window.TRILOGY_ENERGY_QUIZ_META || {title:"Quiz", subtitle:""};
+  const BANK = window.TRILOGY_ENERGY_QUIZ_QUESTIONS || [];
+
+  const els = {
+    statusPill: document.getElementById("statusPill"),
+    setPill: document.getElementById("setPill"),
+    numQ: document.getElementById("numQ"),
+    diffMix: document.getElementById("diffMix"),
+    startBtn: document.getElementById("startBtn"),
+    newSetBtn: document.getElementById("newSetBtn"),
+    revealAllBtn: document.getElementById("revealAllBtn"),
+    quiz: document.getElementById("quiz"),
+    scoreLine: document.getElementById("scoreLine"),
+    summaryLine: document.getElementById("summaryLine"),
+    kpiChecked: document.getElementById("kpiChecked"),
+    kpiFull: document.getElementById("kpiFull"),
+    kpiPartial: document.getElementById("kpiPartial"),
+    kpiWrong: document.getElementById("kpiWrong"),
+    title: document.getElementById("title"),
+    subtitle: document.getElementById("subtitle"),
+        resetOverallBtn: document.getElementById("resetOverallBtn"),
+    resetDeckBtn: document.getElementById("resetDeckBtn"),
+    statSet: document.getElementById("statSet"),
+    statOverall: document.getElementById("statOverall"),
+  };
+  els.title.textContent = META.title || "Quiz";
+  els.subtitle.textContent = META.subtitle || "";
+
+  function applyHeaderOffset(){
+    const h = document.querySelector("header.topbar");
+    if(!h) return;
+    const px = h.offsetHeight || 0;
+    document.documentElement.style.setProperty("--headerOffset", px + "px");
+  }
+  applyHeaderOffset();
+  window.addEventListener("resize", applyHeaderOffset);
+
+  function escapeHtml(s){
+    return (s ?? "").toString()
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;").replaceAll("'","&#39;");
+  }
+  function norm(s){
+    return (s ?? "")
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[“”"]/g,'"')
+      .replace(/[’]/g,"'")
+      .replace(/\s+/g,' ');
+  }
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
+function prettyNum(a){
+  // Display-friendly number formatting:
+  // - Prefer plain numbers with commas (no scientific e-notation)
+  // - Accept scientific notation in input, but don't display it.
+  if(a === null || a === undefined || Number.isNaN(a)) return "";
+  const abs = Math.abs(a);
+  const isInt = Math.abs(a - Math.round(a)) < 1e-9;
+
+  function withCommas(nStr){
+    const parts = nStr.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  }
+
+  // Reasonable plain display for most GCSE/Trilogy numbers
+  if(isInt && abs < 1e12){
+    return withCommas(String(Math.round(a)));
+  }
+
+  if(abs === 0) return "0";
+
+  // Use 4 significant figures for non-integers in normal range
+  if(abs >= 0.001 && abs < 1e9){
+    let s = Number(a).toPrecision(4);
+    // trim trailing zeros
+    s = s.replace(/(\.\d*?[1-9])0+$/, '$1');
+    s = s.replace(/\.0+$/, '');
+    // add commas to integer part if applicable
+    if(s.includes("e") || s.includes("E")) {
+      // fall through to sci display below
+    } else {
+      // normal
+      const neg = s.startsWith("-");
+      if(neg) s = s.slice(1);
+      s = withCommas(s);
+      return neg ? "-" + s : s;
+    }
+  }
+
+  // For very large/small numbers, display as ×10^n (not e-notation)
+  const exp = Math.floor(Math.log10(abs));
+  const mant = a / Math.pow(10, exp);
+  let mantStr = mant.toPrecision(3);
+  mantStr = mantStr.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+  return `${mantStr}×10^${exp}`;
+}
+  function rchoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function svgAxesIV(){
+    // 4-quadrant axes centered in the viewBox
+    return `
+      <line x1="120" y1="14" x2="120" y2="156" stroke="rgba(255,255,255,.35)"/>
+      <line x1="18" y1="85" x2="222" y2="85" stroke="rgba(255,255,255,.35)"/>
+      <text x="10" y="28" fill="rgba(255,255,255,.65)" font-size="11">I</text>
+      <text x="210" y="166" fill="rgba(255,255,255,.65)" font-size="11">V</text>
+    `;
+  }
+  function gOhmic4(){
+    return `<line x1="25" y1="150" x2="215" y2="20" stroke="rgba(255,255,255,.85)" stroke-width="3"/>`;
+  }
+  function gFilament4(){
+    // Filament lamp: I increases with V but NOT proportionally; slope decreases as |V| increases (curve flattens).
+    // Smooth concave-down curve (no S-shape / no knee), mirrored for negative V.
+    return `
+      <path d="M120 85 Q 125 55 215 45"
+            fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+      <path d="M120 85 Q 115 115 25 125"
+            fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+    `;
+  }
+  function gDiode4(){
+    // Diode/LED: ~zero current for reverse and small forward V, then steep rise after a threshold.
+    // (Used mainly as a distractor in this quiz.)
+    return `
+      <path d="M25 85 L 120 85" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="3"/>
+      <path d="M120 85 L 158 85" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+      <path d="M158 85 C 172 82, 188 66, 202 44 C 210 30, 214 24, 215 22"
+            fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+    `;
+  }
+  function gFlat4(){
+    return `<line x1="25" y1="85" x2="215" y2="85" stroke="rgba(255,255,255,.85)" stroke-width="3"/>`;
+  }
+  function gCurveUp4(){
+    // steeper as |V| increases, mirrored (distractor)
+    return `
+      <path d="M120 85 C 150 84, 180 70, 215 22" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+      <path d="M120 85 C 90 86, 60 100, 25 148" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
+    `;
+  }
+
+  function graphSVG(kind){
+    let path = gOhmic4();
+    if(kind==="filament") path = gFilament4();
+    if(kind==="diode") path = gDiode4();
+    if(kind==="flat") path = gFlat4();
+    if(kind==="curveUp") path = gCurveUp4();
+    return `
+      <div class="choiceViz">
+        <svg viewBox="0 0 240 170" width="220" height="150">
+          ${svgAxesIV()}
+          ${path}
+        </svg>
+      </div>`;
+  }
+
+function symbolSVG(kind){
+    const stroke = 'stroke="rgba(255,255,255,.92)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+    const solid = 'fill="rgba(255,255,255,.92)"';
+
+    if(kind==="cell"){
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="92" y2="35" ${stroke}/>
+        <line x1="92" y1="18" x2="92" y2="52" ${stroke}/>
+        <line x1="112" y1="25" x2="112" y2="45" ${stroke}/>
+        <line x1="112" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="battery"){
+      // Add explicit joining wire between cells (between the middle plates)
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="70" y2="35" ${stroke}/>
+        <line x1="70" y1="18" x2="70" y2="52" ${stroke}/>
+        <line x1="90" y1="25" x2="90" y2="45" ${stroke}/>
+        <line x1="90" y1="35" x2="110" y2="35" ${stroke}/>
+        <line x1="110" y1="18" x2="110" y2="52" ${stroke}/>
+        <line x1="130" y1="25" x2="130" y2="45" ${stroke}/>
+        <line x1="130" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="lamp"){
+      // Extend wires slightly into the circle so it visually touches.
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="102" y2="35" ${stroke}/>
+        <circle cx="120" cy="35" r="22" ${stroke}/>
+        <path d="M108 27 L 132 43 M132 27 L108 43" ${stroke}/>
+        <line x1="138" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="resistor"){
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="70" y2="35" ${stroke}/>
+        <rect x="70" y="22" width="100" height="26" ${stroke}/>
+        <line x1="170" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="varres"){
+      // Full diagonal arrow across the resistor
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="70" y2="35" ${stroke}/>
+        <rect x="70" y="22" width="100" height="26" ${stroke}/>
+        <line x1="170" y1="35" x2="220" y2="35" ${stroke}/>
+        <line x1="64" y1="60" x2="176" y2="10" ${stroke}/>
+        <polyline points="170,12 176,10 173,16" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="led"){
+      // Diode + two arrows pointing OUTWARDS (light emission).
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="95" y2="35" ${stroke}/>
+        <polygon points="95,20 95,50 130,35" ${stroke}/>
+        <line x1="138" y1="20" x2="138" y2="50" ${stroke}/>
+        <line x1="138" y1="35" x2="220" y2="35" ${stroke}/>
+        <line x1="150" y1="18" x2="170" y2="6" ${stroke}/>
+        <polyline points="164,6 170,6 168,11" ${stroke}/>
+        <line x1="155" y1="32" x2="175" y2="20" ${stroke}/>
+        <polyline points="169,20 175,20 173,25" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="switch"){
+      return `<svg viewBox="0 0 240 70" width="220" height="56">
+        <line x1="20" y1="35" x2="90" y2="35" ${stroke}/>
+        <circle cx="90" cy="35" r="4" ${solid}/>
+        <circle cx="150" cy="35" r="4" ${solid}/>
+        <line x1="90" y1="35" x2="142" y2="15" ${stroke}/>
+        <line x1="150" y1="35" x2="220" y2="35" ${stroke}/>
+      </svg>`;
+    }
+
+    // Custom SVGs for magnetism diagrams (used in MCQ choices via {svgKind: "..."}).
+  function customSVG(kind){
+    const stroke = 'stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+    const faint  = 'stroke="rgba(255,255,255,.35)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+    const txt    = 'fill="rgba(255,255,255,.85)" font-size="12" font-weight="700"';
+    const tmuted = 'fill="rgba(255,255,255,.65)" font-size="11"';
+    const box    = 'fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"';
+
+    if(kind==="barField_good"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
+        <text x="102" y="86" ${txt}>N</text>
+        <text x="160" y="86" ${txt}>S</text>
+
+        <!-- outer loops -->
+        <path d="M85 65 C 35 45, 35 20, 130 18 C 225 20, 225 45, 175 65" ${stroke}/>
+        <path d="M85 95 C 35 115, 35 140, 130 142 C 225 140, 225 115, 175 95" ${stroke}/>
+        <!-- inner loops -->
+        <path d="M95 65 C 70 55, 70 38, 130 36 C 190 38, 190 55, 165 65" ${faint}/>
+        <path d="M95 95 C 70 105, 70 122, 130 124 C 190 122, 190 105, 165 95" ${faint}/>
+
+        <!-- arrows N->S on the top and bottom loops -->
+        <polyline points="132,18 138,18 135,24" ${stroke}/>
+        <polyline points="132,142 138,142 135,136" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="barField_wrong_arrows"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
+        <text x="102" y="86" ${txt}>N</text>
+        <text x="160" y="86" ${txt}>S</text>
+        <path d="M85 65 C 35 45, 35 20, 130 18 C 225 20, 225 45, 175 65" ${stroke}/>
+        <path d="M85 95 C 35 115, 35 140, 130 142 C 225 140, 225 115, 175 95" ${stroke}/>
+        <!-- arrows wrongly S->N -->
+        <polyline points="128,18 122,18 125,24" ${stroke}/>
+        <polyline points="128,142 122,142 125,136" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="barField_wrong_cross"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
+        <text x="102" y="86" ${txt}>N</text>
+        <text x="160" y="86" ${txt}>S</text>
+        <path d="M85 65 C 35 45, 35 20, 130 18 C 225 20, 225 45, 175 65" ${stroke}/>
+        <path d="M85 95 C 35 115, 35 140, 130 142 C 225 140, 225 115, 175 95" ${stroke}/>
+        <!-- add a crossing line (invalid) -->
+        <path d="M70 30 L 190 130" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="barField_wrong_gaps"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
+        <text x="102" y="86" ${txt}>N</text>
+        <text x="160" y="86" ${txt}>S</text>
+        <!-- loops that do not reach the magnet (gaps) -->
+        <path d="M78 60 C 35 45, 35 20, 130 18 C 225 20, 225 45, 182 60" ${stroke}/>
+        <path d="M78 100 C 35 115, 35 140, 130 142 C 225 140, 225 115, 182 100" ${stroke}/>
+        <text x="18" y="152" ${tmuted}>Lines don't touch magnet</text>
+      </svg>`;
+    }
+
+    if(kind==="uniformField_good"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
+        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
+        <text x="45" y="85" ${txt}>N</text>
+        <text x="195" y="85" ${txt}>S</text>
+        <!-- straight parallel evenly spaced field lines -->
+        <line x1="90" y1="62" x2="170" y2="62" ${stroke}/>
+        <line x1="90" y1="80" x2="170" y2="80" ${stroke}/>
+        <line x1="90" y1="98" x2="170" y2="98" ${stroke}/>
+        <!-- arrows N->S -->
+        <polyline points="148,62 154,62 151,68" ${stroke}/>
+        <polyline points="148,80 154,80 151,86" ${stroke}/>
+        <polyline points="148,98 154,98 151,104" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="uniformField_wrong_curved"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
+        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
+        <text x="45" y="85" ${txt}>N</text>
+        <text x="195" y="85" ${txt}>S</text>
+        <path d="M90 62 C 120 40, 140 40, 170 62" ${stroke}/>
+        <path d="M90 80 C 120 80, 140 80, 170 80" ${stroke}/>
+        <path d="M90 98 C 120 120, 140 120, 170 98" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="uniformField_wrong_notParallel"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
+        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
+        <text x="45" y="85" ${txt}>N</text>
+        <text x="195" y="85" ${txt}>S</text>
+        <line x1="90" y1="62" x2="170" y2="62" ${stroke}/>
+        <line x1="90" y1="80" x2="165" y2="70" ${stroke}/>
+        <line x1="90" y1="98" x2="170" y2="108" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="uniformField_wrong_arrows"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
+        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
+        <text x="45" y="85" ${txt}>N</text>
+        <text x="195" y="85" ${txt}>S</text>
+        <line x1="90" y1="62" x2="170" y2="62" ${stroke}/>
+        <line x1="90" y1="80" x2="170" y2="80" ${stroke}/>
+        <line x1="90" y1="98" x2="170" y2="98" ${stroke}/>
+        <!-- arrows wrongly S->N -->
+        <polyline points="112,62 106,62 109,68" ${stroke}/>
+        <polyline points="112,80 106,80 109,86" ${stroke}/>
+        <polyline points="112,98 106,98 109,104" ${stroke}/>
+      </svg>`;
+    }
+
+    if(kind==="wire_circles"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <circle cx="130" cy="80" r="10" fill="rgba(255,255,255,.88)"/>
+        <circle cx="130" cy="80" r="28" ${faint}/>
+        <circle cx="130" cy="80" r="48" ${faint}/>
+        <circle cx="130" cy="80" r="68" ${faint}/>
+        <text x="16" y="24" ${tmuted}>Field around straight wire</text>
+      </svg>`;
+    }
+
+    if(kind==="wire_dot"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <circle cx="130" cy="80" r="30" ${faint}/>
+        <circle cx="130" cy="80" r="52" ${faint}/>
+        <circle cx="130" cy="80" r="74" ${faint}/>
+        <circle cx="130" cy="80" r="12" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        <circle cx="130" cy="80" r="4" fill="rgba(255,255,255,.88)"/>
+        <text x="96" y="140" ${tmuted}>• current out of page</text>
+      </svg>`;
+    }
+
+    if(kind==="wire_cross"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <circle cx="130" cy="80" r="30" ${faint}/>
+        <circle cx="130" cy="80" r="52" ${faint}/>
+        <circle cx="130" cy="80" r="74" ${faint}/>
+        <circle cx="130" cy="80" r="12" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        <line x1="124" y1="74" x2="136" y2="86" ${stroke}/>
+        <line x1="136" y1="74" x2="124" y2="86" ${stroke}/>
+        <text x="92" y="140" ${tmuted}>× current into page</text>
+      </svg>`;
+if(kind==="twoMagnets_attract"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
+        <rect x="160" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
+        <text x="46" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
+        <text x="84" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
+        <text x="186" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
+        <text x="224" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
+
+        <!-- Field lines connect across the gap (attraction) -->
+        <path d="M100 65 C 120 55, 140 55, 160 65" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M100 80 C 120 80, 140 80, 160 80" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M100 95 C 120 105, 140 105, 160 95" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <polyline points="140,80 146,80 143,86" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    }
+
+    if(kind==="twoMagnets_repel"){
+      return `<svg viewBox="0 0 260 160" width="240" height="150">
+        <rect x="20" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
+        <rect x="160" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
+        <text x="46" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
+        <text x="84" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
+        <text x="186" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
+        <text x="224" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
+
+        <!-- Like poles facing: lines bow outward (repulsion) -->
+        <path d="M100 65 C 125 30, 135 30, 160 65" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M100 95 C 125 130, 135 130, 160 95" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <text x="92" y="150" fill="rgba(255,255,255,.65)" font-size="11">Weak field region in gap</text>
+      </svg>`;
+    }
+
+    }
+
+    return `<svg viewBox="0 0 260 160" width="240" height="150"><text x="20" y="80" ${txt}>[unknown svgKind]</text></svg>`;
+  }
+
+return "";
+  }
+
+  function numParts(raw){
+    if(raw === null || raw === undefined) return {ok:false};
+    let s = raw.toString().trim();
+    if(!s) return {ok:false};
+    s = s.replace(/×/g,'x');
+    let compact = s.replace(/\s+/g,'');
+    compact = compact.replace(/x10\^?\(?(-?\d+)\)?/i, 'e$1');
+    compact = compact.replace(/10\^\(?(-?\d+)\)?/i, 'e$1');
+    const m = compact.match(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/i);
+    if(!m) return {ok:false};
+    const num = Number(m[0]);
+    if(Number.isNaN(num)) return {ok:false};
+    return {ok:true, num, numStr:m[0]};
+  }
+  function tidyUnitToken(u){
+    if(!u) return null;
+    let t = u.trim();
+    if(!t) return null;
+    t = t.replace(/Ω/g,'ohm');
+    t = t.replace(/²/g,'^2').replace(/³/g,'^3');
+    t = t.replace(/°C/g,"degC");
+    t = t.replace(/\s+/g,'');
+    return t;
+  }
+  function unitInfo(raw){
+    if(!raw) return null;
+    const eq = (want) => raw === want;
+    const ieq = (want) => raw.toLowerCase() === want.toLowerCase();
+
+    // Mass
+    if(ieq("kg")) return {type:"mass", canonical:"kg", scale:1, caseOk:eq("kg")};
+    if(ieq("g")) return {type:"mass", canonical:"g", scale:1e-3, caseOk:eq("g")};
+
+    // Length / time
+    if(ieq("m")) return {type:"length", canonical:"m", scale:1, caseOk:eq("m")};
+    if(ieq("cm")) return {type:"length", canonical:"cm", scale:1e-2, caseOk:eq("cm")};
+    if(ieq("mm")) return {type:"length", canonical:"mm", scale:1e-3, caseOk:eq("mm")};
+    if(ieq("s")) return {type:"time", canonical:"s", scale:1, caseOk:eq("s")};
+    if(ieq("min") || ieq("mins") || ieq("minute") || ieq("minutes")) return {type:"time", canonical:"min", scale:60, caseOk:true};
+    if(ieq("h") || ieq("hr") || ieq("hour") || ieq("hours")) return {type:"time", canonical:"h", scale:3600, caseOk:true};
+
+    // Speed / acceleration
+    if(ieq("m/s") || ieq("ms^-1") || ieq("mps")) return {type:"speed", canonical:"m/s", scale:1, caseOk:eq("m/s")};
+    if(ieq("m/s^2") || ieq("ms^-2")) return {type:"acc", canonical:"m/s^2", scale:1, caseOk:eq("m/s^2")};
+
+    // Force / g / spring constant
+    if(ieq("N") || ieq("newton") || ieq("newtons")) return {type:"force", canonical:"N", scale:1, caseOk:eq("N")};
+    if(ieq("N/kg") || ieq("Nkg^-1")) return {type:"gfield", canonical:"N/kg", scale:1, caseOk:eq("N/kg")};
+    if(ieq("N/m") || ieq("Nm^-1")) return {type:"spring", canonical:"N/m", scale:1, caseOk:eq("N/m")};
+
+    // Energy
+    if(ieq("J")) return {type:"energy", canonical:"J", scale:1, caseOk:eq("J")};
+    if(ieq("kJ")) return {type:"energy", canonical:"kJ", scale:1e3, caseOk:eq("kJ")};
+    if(ieq("MJ")) return {type:"energy", canonical:"MJ", scale:1e6, caseOk:eq("MJ")};
+
+    // Power
+    if(ieq("W")) return {type:"power", canonical:"W", scale:1, caseOk:eq("W")};
+    if(ieq("kW")) return {type:"power", canonical:"kW", scale:1e3, caseOk:eq("kW")};
+    if(ieq("MW")) return {type:"power", canonical:"MW", scale:1e6, caseOk:eq("MW")};
+
+    // Electrical
+    if(ieq("V")) return {type:"voltage", canonical:"V", scale:1, caseOk:eq("V")};
+    if(ieq("A")) return {type:"current", canonical:"A", scale:1, caseOk:eq("A")};
+    if(ieq("mA")) return {type:"current", canonical:"mA", scale:1e-3, caseOk:eq("mA")};
+    if(ieq("ohm") || ieq("ohms")) return {type:"resistance", canonical:"Ω", scale:1, caseOk:true};
+    if(raw.includes("Ω")) return {type:"resistance", canonical:"Ω", scale:1, caseOk:true};
+
+    // Temperature
+    if(raw === "°C" || raw === "degC" || raw === "degC") return {type:"tempC", canonical:"°C", scale:1, caseOk:(raw === "°C" || raw === "degC")};
+    if(raw === "K") return {type:"tempK", canonical:"K", scale:1, caseOk:eq("K")};
+
+    // Specific heat capacity
+    const shcTokens = ["J/kg°C","J/kgdegC","J/kg°C".replace("°","deg")];
+    if(shcTokens.some(t => raw === t)) return {type:"shc", canonical:"J/kg °C", scale:1, caseOk:true};
+    if(ieq("J/kg°C") || ieq("J/kgdegC") || ieq("J/kg°c")) return {type:"shc", canonical:"J/kg °C", scale:1, caseOk:(raw === "J/kg°C" || raw === "J/kgdegC")};
+
+    return null;
+  }
+
+  function parseQuantity(raw){
+    if(raw === null || raw === undefined) return {ok:false};
+    let s = raw.toString().trim();
+    if(!s) return {ok:false};
+
+    // Allow common formats:
+    // 58,800  -> 58800
+    // 5.8×10^4 / 5.8 x 10^4 / 5.8*10^4 -> 5.8e4
+    s = s.replace(/,/g,'');
+    s = s.replace(/×/g,'x');
+
+    // Convert a×10^b (with optional spaces/parentheses) to ae b
+    s = s.replace(/([-+]?(?:\d+(?:\.\d*)?|\.\d+))\s*[x\*]\s*10\^?\s*\(?\s*([-+]?\d+)\s*\)?/gi, '$1e$2');
+
+    // Extract leading number (now supports e-notation)
+    const m = s.match(/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?/i);
+    if(!m) return {ok:false};
+
+    const numStr = m[0].replace(/\s+/g,'');
+    const num = Number(numStr);
+    if(Number.isNaN(num)) return {ok:false};
+
+    const suffix = s.slice(m[0].length).trim();
+    const token = tidyUnitToken(suffix);
+    const unitPresent = !!token;
+    const info = unitPresent ? unitInfo(token) : null;
+
+    return {ok:true, num, numStr, unitPresent, unitToken:token, unitInfo:info};
+  }
+  function countDecimalPlaces(numStr){
+    const s = numStr.toLowerCase();
+    const base = s.split('e')[0];
+    const dot = base.indexOf('.');
+    return (dot === -1) ? 0 : (base.length - dot - 1);
+  }
+  function countSigFigs(numStr){
+    let s = numStr.toLowerCase();
+    s = s.replace(/^[-+]/,'');
+    s = s.split('e')[0];
+    if(s.includes('.')){
+      s = s.replace(/^0+/, '').replace('.','').replace(/^0+/, '');
+      return Math.max(1, s.length);
+    } else {
+      s = s.replace(/^0+/, '').replace(/0+$/,'');
+      return Math.max(1, s.length || 1);
+    }
+  }
+  function roundToDp(x, dp){
+    const f = Math.pow(10, dp);
+    return Math.round((x + Number.EPSILON) * f) / f;
+  }
+  function roundToSf(x, sf){
+    if(x === 0) return 0;
+    return Number(x.toPrecision(sf));
+  }
+  function nearlyEqual(a,b, rel=1e-4, abs=1e-9){
+    const diff = Math.abs(a-b);
+    if(diff <= abs) return true;
+    const scale = Math.max(Math.abs(a), Math.abs(b), 1e-12);
+    return diff/scale <= rel;
+  }
+  function roundingMatch(studentVal, trueVal, numStr){
+    if(nearlyEqual(studentVal, trueVal)) return {ok:true, basis:"exact"};
+    const dp = countDecimalPlaces(numStr);
+    const sf = countSigFigs(numStr);
+    const tDp = roundToDp(trueVal, dp);
+    if(nearlyEqual(studentVal, tDp, 1e-10, 1e-12)) return {ok:true, basis:`${dp} d.p.`};
+    const tSf = roundToSf(trueVal, sf);
+    if(nearlyEqual(studentVal, tSf, 1e-10, 1e-12)) return {ok:true, basis:`${sf} s.f.`};
+    return {ok:false};
+  }
+  function closeButBadRounding(studentVal, trueVal, numStr, relTolClose){
+    const diff = Math.abs(studentVal-trueVal);
+    const scale = Math.max(Math.abs(trueVal), 1e-12);
+    const rel = diff/scale;
+    const close = rel <= (relTolClose ?? 0.03);
+    if(!close) return null;
+    const dp = countDecimalPlaces(numStr);
+    const sf = countSigFigs(numStr);
+    const base = numStr.toLowerCase().split('e')[0];
+    const hasDot = base.includes('.');
+    const target = hasDot ? roundToDp(trueVal, dp) : roundToSf(trueVal, sf);
+    let hint = "";
+    if(target > studentVal) hint = "You needed to round up.";
+    if(target < studentVal) hint = "You needed to round down.";
+    return {basis: hasDot ? `${dp} d.p.` : `${sf} s.f.`, target, hint, dp: hasDot ? dp : null, sf: hasDot ? null : sf};
+  }
+  function fmtRounded(value, opts){
+    if(opts && Number.isInteger(opts.dp)) return Number(value).toFixed(opts.dp);
+    if(opts && Number.isInteger(opts.sf)) return Number(value).toPrecision(opts.sf);
+    const a = Number(value);
+    return (Math.abs(a) >= 1000 || Math.abs(a) < 0.01) ? a.toExponential(3) : a.toPrecision(4);
+  }
+
+  function qMaxMarks(q){
+    if(Number.isFinite(q.marks)) return q.marks;
+    if(Array.isArray(q.markPoints)) return q.markPoints.length;
+    return 1;
+  }
+  function textIncludesAny(t, arr){ return arr.some(x => t.includes(norm(x))); }
+
+  function genPIV_Current(){
+    const PkW = rchoice([0.6, 0.9, 1.2, 1.4, 1.8, 2.2, 2.8, 3.0]);
+    const V = 230;
+    const P = PkW*1000;
+    const I = P / V;
+    return {
+      prompt: `A device is rated ${PkW} kW on ${V} V mains. Calculate the current.`,
+      answer: I,
+      unitHint: "A",
+      explanation:
+`Mark scheme:
+Use P = IV, so I = P / V.
+Convert kW to W: P = ${PkW} kW = ${P} W.
+I = ${P} / ${V} = ${I.toPrecision(4)} A.`
+    };
+  }
+  function genPIV_Power(){
+    const V = rchoice([6, 9, 12, 24]);
+    const I = rchoice([0.25, 0.4, 0.6, 0.8, 1.2, 1.5]);
+    const P = V * I;
+    return {prompt:`A motor takes ${I} A from a ${V} V supply. Calculate the power.`, answer:P, unitHint:"W",
+            explanation:`Mark scheme:\nP = IV = ${I} × ${V} = ${P.toPrecision(4)} W.`};
+  }
+  function genOhms_Current(){
+    const V = rchoice([3, 4.5, 6, 9, 12]);
+    const R = rchoice([3.3, 4.7, 6.8, 10, 15, 22, 33]);
+    const I = V / R;
+    return {prompt:`A ${R} Ω resistor is connected to a ${V} V supply. Calculate the current.`, answer:I, unitHint:"A",
+            explanation:`Mark scheme:\nUse V = IR so I = V / R.\nI = ${V} / ${R} = ${I.toPrecision(4)} A.`};
+  }
+  function genOhms_Voltage(){
+    const I = rchoice([0.12, 0.18, 0.25, 0.30, 0.40, 0.55]);
+    const R = rchoice([5.6, 8.2, 10, 12, 15, 22, 47]);
+    const V = I * R;
+    return {prompt:`The current through a resistor is ${I} A and its resistance is ${R} Ω. Calculate the voltage across it.`, answer:V, unitHint:"V",
+            explanation:`Mark scheme:\nUse V = IR.\nV = ${I} × ${R} = ${V.toPrecision(4)} V.`};
+  }
+  function genSeriesTwoResistors(){
+    const R1 = rchoice([4.7, 6.8, 10, 12, 15, 22, 33, 47]);
+    const R2 = rchoice([5.6, 8.2, 10, 18, 27, 39, 56]);
+    const Vs = rchoice([6, 9, 12]);
+    const Rt = R1+R2;
+    const I = Vs/Rt;
+    const V1 = I*R1;
+    const V2 = I*R2;
+    const pick = rchoice(["current","V1","V2","Rt"]);
+    if(pick==="current"){
+      return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are connected in series to a ${Vs} V supply. Calculate the current in the circuit.`, answer:I, unitHint:"A",
+              explanation:`Mark scheme:\nR_total = ${R1} + ${R2} = ${Rt} Ω.\nI = V / R_total = ${Vs} / ${Rt} = ${I.toPrecision(4)} A.`};
+    }
+    if(pick==="V1"){
+      return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are in series on a ${Vs} V supply. Calculate the voltage across the ${R1} Ω resistor.`, answer:V1, unitHint:"V",
+              explanation:`Mark scheme:\nR_total = ${Rt} Ω, so I = ${Vs}/${Rt} = ${I.toPrecision(4)} A.\nV1 = IR1 = ${I.toPrecision(4)} × ${R1} = ${V1.toPrecision(4)} V.`};
+    }
+    if(pick==="V2"){
+      return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are in series on a ${Vs} V supply. Calculate the voltage across the ${R2} Ω resistor.`, answer:V2, unitHint:"V",
+              explanation:`Mark scheme:\nI = ${Vs}/${Rt} = ${I.toPrecision(4)} A.\nV2 = IR2 = ${I.toPrecision(4)} × ${R2} = ${V2.toPrecision(4)} V.`};
+    }
+    return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are connected in series. Calculate the total resistance.`, answer:Rt, unitHint:"Ω",
+            explanation:`Mark scheme:\nIn series, resistances add: R_total = ${R1} + ${R2} = ${Rt} Ω.`};
+  }
+  const GENERATORS = {genPIV_Current, genPIV_Power, genOhms_Current, genOhms_Voltage, genSeriesTwoResistors};
+
+  function expandQuestion(q){
+    if(q.generator && q.generator.name && GENERATORS[q.generator.name]){
+      const inst = GENERATORS[q.generator.name]();
+      return {...q, ...inst};
+    }
+    return {...q};
+  }
+
+  function expectedUnitInfo(unitHint){
+    if(!unitHint) return null;
+    if(unitHint==="Ω") return {type:"resistance", canonical:"Ω", scale:1, caseOk:true, token:"Ω"};
+    const info = unitInfo(unitHint);
+    if(!info) return null;
+    return {...info, token: unitHint};
+  }
+
+  function checkNumeric(q, raw){
+    const parsed = parseQuantity(raw);
+    if(!parsed.ok) return {checked:false, msg:"Enter a number (you can add units)."};
+    const exp = expectedUnitInfo(q.unitHint || "");
+    const unitNeeded = !!exp;
+    const max = qMaxMarks(q);
+
+    let usedScale = 1;
+    let unitOkForFull = true;
+    let unitMsg = "";
+
+    if(unitNeeded){
+      if(!parsed.unitPresent){
+        unitOkForFull = false;
+        unitMsg = "Unit missing.";
+        usedScale = exp.scale;
+      } else {
+        const info = parsed.unitInfo;
+        if(!info){
+          unitOkForFull = false;
+          unitMsg = "Unit not recognised.";
+        } else if(info.type !== exp.type){
+          unitOkForFull = false;
+          unitMsg = "Unit looks wrong for this quantity.";
+          usedScale = info.scale;
+        } else {
+          usedScale = info.scale;
+          if(info.caseOk === false){
+            unitOkForFull = false;
+            unitMsg = `Unit case matters: use ${info.canonical} exactly.`;
+          } else {
+            unitOkForFull = true;
+          }
+        }
+      }
+    }
+
+    const trueInStudentUnits = unitNeeded ? (q.answer / usedScale) : q.answer;
+    const rm = roundingMatch(parsed.num, trueInStudentUnits, parsed.numStr);
+    const okNumeric = rm.ok;
+
+    let status="wrong", score=0, reason="";
+    if(okNumeric && (!unitNeeded || unitOkForFull)){
+      status="full"; score=max;
+    } else if(okNumeric && unitNeeded){
+      status="partial"; score=max/2;
+      reason = unitMsg || "Number correct but unit not accepted.";
+    } else {
+      // partial for "close but wrong rounding" isn't included in this simplified rebuild
+      status="wrong"; score=0;
+    }
+    return {checked:true, status, score, max, reason, unitMsg, auto:false};
+  }
+
+  function checkShortMarkPoints(q, raw){
+    const rawTrim = (raw ?? "").toString().trim();
+    const t = norm(rawTrim);
+
+    // Special handling for "state the formula" style questions:
+    // Full marks if symbols are correct *and* case is correct (e.g. V=IR).
+    // Half marks if symbols are correct but case is wrong (e.g. v=ir).
+    // Worded statements can still earn full marks.
+    if(Array.isArray(q.expectedSymbolic) && q.expectedSymbolic.length){
+      const max = qMaxMarks(q);
+
+      // Full credit for a fully-correct worded statement (keyword-based).
+      if(Array.isArray(q.markPoints) && q.markPoints.length){
+        const gotWord = q.markPoints.every(mp => !mp.any || textIncludesAny(t, mp.any));
+        if(gotWord) return {score:max, max, status:"full", missing:[], auto:true};
+      }
+
+      // Normalise symbolic: remove spaces and multiplication dots/crosses.
+      const compact = rawTrim.replace(/\s+/g,'').replace(/[×*·]/g,'');
+
+      // Full (case-sensitive) match
+      if(q.expectedSymbolic.some(a => compact === a)){
+        return {score:max, max, status:"full", missing:[], auto:true};
+      }
+
+      // Partial (case-insensitive) match
+      const lower = compact.toLowerCase();
+      if(q.expectedSymbolic.some(a => lower === a.toLowerCase())){
+        return {score:max/2, max, status:"partial", missing:["Case matters for symbols (e.g. V, I, R)."], auto:true};
+      }
+      // Fall through to generic marking
+    }
+
+    const points = q.markPoints || [];
+    let got = 0;
+    const missing = [];
+    for(const mp of points){
+      if(mp.any){
+        const ok = textIncludesAny(t, mp.any);
+        if(ok) got += 1; else missing.push(mp.any[0]);
+      }
+    }
+    const max = qMaxMarks(q);
+    const status = (got===0) ? "wrong" : (got===max ? "full" : "partial");
+    return {score:got, max, status, missing, auto:true};
+  }
+
+  function getSelectedTopics(){
+    return Array.from(document.querySelectorAll(".topicCb")).filter(cb=>cb.checked).map(cb=>cb.value);
+  }
+  function applyDifficultyFilter(list, mix){
+    if(mix === "all") return list;
+    if(mix === "easy") return list.filter(q => q.difficulty==="easy" || q.difficulty==="med");
+    if(mix === "med") return list.filter(q => q.difficulty!=="easy");
+    if(mix === "hard") return list.filter(q => q.difficulty==="hard");
+    return list;
+  }
+
+  // ---------------- Overall stats across sets (this device only) ----------------
+  const OVERALL_KEY = "preibphysics_trilogy_mag_em_overall_v1";
+  function loadOverall(){
+    try{
+      const raw = localStorage.getItem(OVERALL_KEY);
+      if(!raw) return {items:{}, seen:{}};
+      const obj = JSON.parse(raw);
+      if(!obj || typeof obj !== "object") return {items:{}};
+      if(!obj.items || typeof obj.items !== "object") obj.items = {};
+      if(!obj.seen || typeof obj.seen !== "object") obj.seen = {};
+      return obj;
+    }catch(e){
+      return {items:{}, seen:{}};
+    }
+  }
+  function saveOverall(obj){
+    try{ localStorage.setItem(OVERALL_KEY, JSON.stringify(obj)); }catch(e){}
+  }
+  function computeOverallSeen(){
+    const o = loadOverall();
+    const seen = o.seen || {};
+    return {seenCount: Object.keys(seen).length};
+  }
+  function computeOverallTotals(){
+    const o = loadOverall();
+    let totalScore = 0;
+    let totalMax = 0;
+    for(const k of Object.keys(o.items)){
+      const it = o.items[k];
+      if(it && typeof it === "object" && Number.isFinite(it.score) && Number.isFinite(it.max)){
+        totalScore += it.score;
+        totalMax += it.max;
+      }
+    }
+    return {totalScore, totalMax, count:Object.keys(o.items).length};
+  }
+  function updateOverallForInstance(qid, baseId, score, max){
+    const o = loadOverall();
+    if(!o.items) o.items = {};
+    o.items[qid] = {score:Number(score)||0, max:Number(max)||0, t:Date.now()};
+    if(baseId){ if(!o.seen) o.seen = {}; o.seen[baseId] = 1; }
+    saveOverall(o);
+  }
+  function resetOverall(){
+    try{ localStorage.removeItem(OVERALL_KEY); }catch(e){}
+  }
+  function resetDeck(){
+    try{ localStorage.removeItem(DECK_KEY); }catch(e){}
+  }
+// ---------------- Shuffle-deck (no repeats until exhausted) ----------------
+  const DECK_KEY = "preibphysics_trilogy_energy_deck_v1";
+
+  function fnv1a(str){
+    let h = 2166136261;
+    for(let i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h>>>0).toString(16);
+  }
+
+  function loadDeck(){
+    try{
+      const raw = localStorage.getItem(DECK_KEY);
+      if(!raw) return null;
+      const obj = JSON.parse(raw);
+      if(!obj || typeof obj !== "object") return null;
+      return obj;
+    }catch(e){ return null; }
+  }
+
+  function saveDeck(obj){
+    try{ localStorage.setItem(DECK_KEY, JSON.stringify(obj)); }catch(e){}
+  }
+
+  function buildDeckSignature(pool, topics, diffMix){
+    // Signature changes whenever the pool changes (topics/difficulty), so we can safely reuse a deck across sets.
+    const ids = pool.map(q=>q.id).slice().sort().join("|");
+    const sigStr = `${ids}||${topics.slice().sort().join(",")}||${diffMix}`;
+    return fnv1a(sigStr);
+  }
+
+  function getNextFromDeck(pool, topics, diffMix, nWanted){
+    const need = clamp(nWanted, 5, pool.length);
+
+    const sig = buildDeckSignature(pool, topics, diffMix);
+    let deck = loadDeck();
+
+    // Build id list and map
+    const poolMap = new Map();
+    for(const q of pool){
+      if(!poolMap.has(q.id)) poolMap.set(q.id, q);
+    }
+    const poolIds = Array.from(poolMap.keys());
+
+    // (Re)initialise deck if missing/mismatched
+    if(!deck || deck.sig !== sig || !Array.isArray(deck.order) || typeof deck.cursor !== "number"){
+      deck = {sig, order: shuffle(poolIds.slice()), cursor: 0};
+    }
+
+    function familyOfId(id){
+      const m = id.match(/^(.*)_\d+$/);
+      return m ? m[1] : id;
+    }
+
+    // Cap how many from “near-identical series” can appear in a single set.
+    const caps = {
+      "stores_scenario": 2,
+      "transfer_path": 2,
+      "formula_recall": 2,
+      "ke_calc": 2,
+      "gpe_calc": 2,
+      "epe_calc": 2,
+      "work_calc": 2,
+      "power_calc": 2,
+      "elec_work_calc": 2,
+      "shc_calc": 2,
+      "shc_practical": 1,
+      "data_handling": 2,
+      "eff_calc": 2,
+      "dissipation": 2,
+      "insulation": 2,
+      "resources": 2,
+      "grid": 2
+    };
+
+    const counts = {};
+    const chosenIds = [];
+
+    let i = deck.cursor;
+    let safety = 0;
+    let relax = false;
+
+    while(chosenIds.length < need && safety < 5000){
+      safety += 1;
+
+      if(i >= deck.order.length){
+        // reached end of deck: reshuffle for next cycle
+        deck.order = shuffle(poolIds.slice());
+        i = 0;
+        // if we're struggling to fill because caps are too strict, relax
+        relax = true;
+      }
+
+      const id = deck.order[i];
+      i += 1;
+
+      if(chosenIds.includes(id)) continue;
+
+      const fam = familyOfId(id);
+      const cap = (relax ? 999 : (caps[fam] ?? ((fam!==id) ? 2 : 999)));
+      if((counts[fam] ?? 0) >= cap) continue;
+
+      chosenIds.push(id);
+      counts[fam] = (counts[fam] ?? 0) + 1;
+    }
+
+    deck.cursor = i;
+    saveDeck(deck);
+
+    // Convert ids to questions
+    const chosen = [];
+    for(const id of chosenIds){
+      const q = poolMap.get(id);
+      if(q) chosen.push(q);
+    }
+    return chosen;
+  }
+
+let currentSet = [];
+  let answered = new Map();
+
+  function qMaxMarksSafe(q){ return qMaxMarks(q); }
+  function totalMaxMarks(){ return currentSet.reduce((s,q)=> s + qMaxMarksSafe(q), 0); }
+  function totalScore(){
+    let s=0;
+    for(const v of answered.values()){
+      if(v.checked) s += (v.score ?? 0);
+    }
+    return s;
+  }
+  function renderKPIs(){
+    const vals = Array.from(answered.values());
+    const checked = vals.filter(x => x.checked).length;
+    const full = vals.filter(x => x.checked && x.status==="full").length;
+    const partial = vals.filter(x => x.checked && x.status==="partial").length;
+    const wrong = vals.filter(x => x.checked && x.status==="wrong").length;
+
+    els.kpiChecked.textContent = checked;
+    els.kpiFull.textContent = full;
+    els.kpiPartial.textContent = partial;
+    els.kpiWrong.textContent = wrong;
+
+    const max = totalMaxMarks();
+    const s = totalScore();
+    els.scoreLine.textContent = max ? `${s.toFixed(1)} / ${max}` : "-";
+    els.summaryLine.innerHTML = currentSet.length
+      ? `<b>${full}</b> full, <b>${partial}</b> partial, <b>${wrong}</b> wrong, <b>${currentSet.length-checked}</b> unchecked.`
+      : "Start a set to begin.";
+// Update header stats (always visible)
+    const checkedN = Array.from(answered.values()).filter(v => v && v.checked).length;
+    const setN = currentSet.length || 0;
+    const maxSet = totalMaxMarks();
+    const sSet = totalScore();
+    const pctSet = maxSet ? (100*sSet/maxSet) : 0;
+
+    if(els.statSet){
+      const prog = setN ? (100*checkedN/setN) : 0;
+      els.statSet.textContent = setN ? `${checkedN}/${setN} tackled • ${pctSet.toFixed(0)}% score` : "–";
+    }
+
+    if(els.statOverall){
+      const tot = computeOverallTotals();
+      const seen = computeOverallSeen();
+      const pctO = tot.totalMax ? (100*tot.totalScore/tot.totalMax) : 0;
+      const bankN = Array.isArray(BANK) ? BANK.length : 0;
+      const seenPct = bankN ? (100*seen.seenCount/bankN) : 0;
+      els.statOverall.textContent = bankN ? `${seen.seenCount}/${bankN} seen (${seenPct.toFixed(0)}%) • ${pctO.toFixed(0)}% score` : "–";
+    }
+
+  }
+
+  function renderChoice(q, idx){
+    const name = `q_${q._instanceId}`;
+    const choice = q.choices[idx];
+
+    let inner = "";
+    if(choice && typeof choice === "object" && choice.symbolKind){
+      inner = `<div class="choiceText"><div class="choiceTitle">${escapeHtml(choice.label || String.fromCharCode(65+idx))}</div>
+               <div class="choiceViz">${symbolSVG(choice.symbolKind)}</div></div>`;
+    } else if(choice && typeof choice === "object" && choice.graphKind){
+      inner = `<div class="choiceText"><div class="choiceTitle">${escapeHtml(choice.label || String.fromCharCode(65+idx))}</div>
+               ${graphSVG(choice.graphKind)}
+               ${choice.caption ? `<div class="small">${escapeHtml(choice.caption)}</div>` : ``}</div>`;
+
+    } else if(choice && typeof choice === "object" && choice.svgKind){
+      inner = `<div class="choiceText"><div class="choiceTitle">${escapeHtml(choice.label || String.fromCharCode(65+idx))}</div>
+               <div class="choiceViz">${customSVG(choice.svgKind)}</div>
+               ${choice.caption ? `<div class="small">${escapeHtml(choice.caption)}</div>` : ``}</div>`;
+    } else {
+      inner = `<div class="choiceText">${escapeHtml(choice)}</div>`;
+    }
+
+    return `<label class="choice">
+        <input type="radio" name="${name}" value="${idx}" />
+        ${inner}
+      </label>`;
+  }
+
+  function renderQuestionCard(q, index){
+    const qnum = index+1;
+    const tags = (q.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("");
+    let inputHTML = "";
+
+    if(q.type==="mcq"){
+      inputHTML = q.choices.map((_,i)=>renderChoice(q,i)).join("")
+        + `<div style="margin-top:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+             <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
+             <span class="small">Tip: click an option then press Enter.</span>
+           </div>`;
+    } else if(q.type==="short"){
+      inputHTML = `<div class="answerbox">
+        <textarea id="in_${q._instanceId}" placeholder="Type your answer…"></textarea>
+        <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
+      </div>
+      <div class="small">Enter submits. Shift+Enter = new line.</div>`;
+    } else if(q.type==="long"){
+      inputHTML = `<div class="answerbox">
+        <textarea id="in_${q._instanceId}" placeholder="Type your answer… (aim for full sentences)"></textarea>
+        <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
+      </div>
+      <div class="small">Enter submits. Shift+Enter = new line.</div>`;
+    } else {
+      inputHTML = `<div class="answerbox">
+        <input type="text" id="in_${q._instanceId}" placeholder="Type a number (include units if you can)" />
+        <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
+      </div>
+      <div class="small">Tip: press Enter to submit this question.</div>`;
+    }
+
+    return `<div class="qcard" id="card_${q._instanceId}">
+        <div class="qhead">
+          <div>
+            <div class="qnum">Q${qnum} • ${qMaxMarksSafe(q)} mark${qMaxMarksSafe(q)===1?"":"s"}</div>
+            <div class="qtext">${escapeHtml(q.prompt)}</div>
+          </div>
+          <div class="tags">${tags}<button class="btn mini" data-action="report" data-qid="${q._instanceId}" title="Report this question">Report</button></div>
+        </div>
+        ${inputHTML}
+        <div id="fb_${q._instanceId}"></div>
+      </div>`;
+  }
+
+  function renderQuiz(){
+    els.quiz.innerHTML = currentSet.map(renderQuestionCard).join("");
+    
+  // Extra safety: if focus is on a radio option, Enter submits that question.
+  document.addEventListener("keydown", (e) => {
+    if(e.key !== "Enter") return;
+    const t = e.target;
+    if(!t) return;
+    if(t.matches && t.matches('input[type="radio"]')){
+      const card = t.closest('.qcard');
+      if(card){
+        const id = card.id.replace('card_','');
+        if(id){ e.preventDefault(); checkAndShow(id); }
+      }
+    }
+  });
+
+renderKPIs();
+    els.statusPill.textContent = "In progress";
+    els.setPill.textContent = `${currentSet.length} Q set`;
+    els.newSetBtn.disabled = false;
+    els.revealAllBtn.disabled = false;
+
+    for(const q of currentSet){
+      const inp = document.getElementById(`in_${q._instanceId}`);
+      if(inp){
+        inp.addEventListener("keydown", (e) => {
+          if(e.key === "Enter"){
+            if((q.type === "short" || q.type==="long") && !e.shiftKey){
+              e.preventDefault();
+              checkAndShow(q._instanceId);
+            }
+            if(!(q.type === "short" || q.type==="long")){
+              e.preventDefault();
+              checkAndShow(q._instanceId);
+            }
+          }
+        });
+      }
+      if(q.type === "mcq"){
+        const card = document.getElementById(`card_${q._instanceId}`);
+        if(card){
+          card.addEventListener("keydown", (e) => {
+            if(e.key === "Enter"){
+              const active = document.activeElement;
+              if(card.contains(active)){
+                e.preventDefault();
+                checkAndShow(q._instanceId);
+              }
+            }
+          });
+          card.setAttribute("tabindex","-1");
+        }
+      }
+    }
+  }
+
+  function getMCQSelection(q){
+    const name = `q_${q._instanceId}`;
+    const sel = document.querySelector(`input[name="${name}"]:checked`);
+    return sel ? Number(sel.value) : null;
+  }
+
+  function checkQuestion(q){
+    if(q.type==="mcq"){
+      const sel = getMCQSelection(q);
+      if(sel === null) return {checked:false, msg:"Choose an option first."};
+      const correct = sel === q.answerIndex;
+      const max = qMaxMarksSafe(q);
+      return {checked:true, status: correct ? "full" : "wrong", score: correct ? max : 0, max, auto:false};
+    }
+    if(q.type==="numeric"){
+      const input = document.getElementById(`in_${q._instanceId}`);
+      return checkNumeric(q, input ? input.value : "");
+    }
+    if(q.type==="short" || q.type==="long"){
+      const input = document.getElementById(`in_${q._instanceId}`);
+      const raw = input ? input.value : "";
+      if(!raw.trim()) return {checked:false, msg:"Type an answer first."};
+      const out = checkShortMarkPoints(q, raw);
+      return {checked:true, ...out};
+    }
+    return {checked:false, msg:"Unsupported question type."};
+  }
+
+  function correctLine(q){
+    if(q.type==="mcq"){
+      const c = q.choices[q.answerIndex];
+      if(c && typeof c === "object"){
+        return `Correct answer: ${c.label || "option"}`;
+      }
+      return `Correct answer: ${(""+c).trim()}`;
+    }
+    if(q.type==="numeric"){
+      const a = q.answer;
+      const rounded = prettyNum(a);
+      const unitShow = q.unitHint ? q.unitHint : "";
+      return `Correct answer: ${rounded}${unitShow ? " " + unitShow : ""}`;
+    }
+    if(q.type==="short" || q.type==="long"){
+      return `Mark scheme: ${qMaxMarksSafe(q)} point(s).`;
+    }
+    return "";
+  }
+
+  function autoWarnHTML(){
+    return `<div class="autoWarn">
+        <div class="h">AUTO-MARKING WARNING (NOT AI MARKING)</div>
+        <div class="b">
+          This written answer has <b>not</b> been properly marked. The checker only looks for the
+          <b>presence of a few keywords/phrases</b>. It can miss good answers and it can also give credit to weak answers.
+          Use the mark scheme and judge it yourself.
+        </div>
+      </div>`;
+  }
+
+  function adjustMarksHTML(qid, maxMarks){
+    return `<div class="adjustRow">
+        <div class="note"><b>Optional:</b> adjust marks for this question (0 to ${maxMarks}). This updates the totals.</div>
+        <input type="number" min="0" max="${maxMarks}" step="0.5" data-adjust="${qid}" />
+        <button class="btn" data-action="applyAdjust" data-qid="${qid}">Apply</button>
+      </div>`;
+  }
+
+  function showFeedback(q, outcome){
+    const fb = document.getElementById(`fb_${q._instanceId}`);
+    if(!fb) return;
+
+    if(!outcome.checked){
+      fb.innerHTML = `<div class="feedback bad"><div class="title">Not checked</div><p class="explain">${escapeHtml(outcome.msg)}</p></div>`;
+      return;
+    }
+    const max = outcome.max ?? qMaxMarksSafe(q);
+    const good = outcome.status === "full";
+    const partial = outcome.status === "partial";
+    const title = good ? "Correct" : (partial ? "Partly correct" : "Not quite");
+    const cls = good ? "good" : (partial ? "" : "bad");
+
+    let diag = "";
+    if(outcome.unitMsg) diag += outcome.unitMsg + "\n";
+    if(outcome.reason) diag += outcome.reason + "\n";
+    if(outcome.auto){
+      if(outcome.status !== "full" && outcome.missing && outcome.missing.length){
+        diag += `Missing ideas (examples): ${outcome.missing.slice(0,3).join("; ")}\n`;
+      }
+    }
+
+    const explainText = (diag ? (diag + "\n") : "") + (q.explanation || "");
+    const open = true;
+    const warn = outcome.auto ? autoWarnHTML() : "";
+
+    fb.innerHTML = `<div class="feedback ${cls}">
+        <div class="title">${title} (${(outcome.score??0).toFixed(1)} / ${max.toFixed(1)} marks)</div>
+        <p class="explain">${escapeHtml(correctLine(q))}</p>
+        ${warn}
+        <details ${open ? "open" : ""}>
+          <summary>${good ? "Show explanation" : "Explanation (mark-scheme style)"}</summary>
+          <p class="model">${escapeHtml(explainText)}</p>
+        </details>
+        ${(q.type!=="mcq") ? adjustMarksHTML(q._instanceId, max) : ``}
+      </div>`;
+  }
+
+  function updateSetFromUI(){
+    const topics = getSelectedTopics();
+    let pool = BANK.filter(q => (q.tags||[]).some(t => topics.includes(t)));
+    pool = applyDifficultyFilter(pool, els.diffMix.value);
+    const n = Number(els.numQ.value);
+
+    if(pool.length < 1){
+      els.quiz.innerHTML = `<div class="hint">No questions available — select at least one topic.</div>`;
+      els.startBtn.disabled = false;
+      return false;
+    }
+
+    // Immediate feedback so it never feels "dead"
+    els.statusPill.textContent = "Building set…";
+    els.startBtn.disabled = true;
+    els.newSetBtn.disabled = true;
+    els.revealAllBtn.disabled = true;
+
+    // Shuffle-deck selection: no repeats until exhausted, then reshuffle.
+    const chosen = getNextFromDeck(pool, topics, els.diffMix.value, n).map(expandQuestion);
+
+    const now = Date.now().toString(36);
+    currentSet = chosen.map((q,i)=> ({...q, _instanceId:`${q.id}_${now}_${i}`}));
+
+    answered = new Map();
+    renderQuiz();
+
+    els.setPill.textContent = `Set ${now.toUpperCase()}`;
+    els.statusPill.textContent = "In progress";
+    els.revealAllBtn.disabled = false;
+    els.newSetBtn.disabled = false;
+    els.startBtn.disabled = false;
+
+    renderKPIs();
+    return true;
+  }
+
+  function checkAndShow(qid){
+    const q = currentSet.find(x => x._instanceId === qid);
+    if(!q) return;
+    const outcome = checkQuestion(q);
+    showFeedback(q, outcome);
+    if(outcome.checked){
+      answered.set(q._instanceId, {checked:true, status: outcome.status, score: outcome.score, max: outcome.max ?? qMaxMarksSafe(q), auto: !!outcome.auto});
+      updateOverallForInstance(q._instanceId, q.id, outcome.score, outcome.max ?? qMaxMarksSafe(q));
+      renderKPIs();
+    }
+  }
+
+  els.startBtn.addEventListener("click", updateSetFromUI);
+  els.newSetBtn.addEventListener("click", updateSetFromUI);
+
+  els.revealAllBtn.addEventListener("click", () => {
+    currentSet.forEach(q => {
+      const fb = document.getElementById(`fb_${q._instanceId}`);
+      const warn = (q.type==="short" && q.markPoints) ? autoWarnHTML() : "";
+      fb.innerHTML = `<div class="feedback">
+          <div class="title">Mark scheme</div>
+          <p class="explain">${escapeHtml(correctLine(q))}</p>
+          ${warn}
+          <details open><summary>Explanation</summary><p class="model">${escapeHtml(q.explanation || "")}</p></details>
+          ${(q.type!=='mcq' ? adjustMarksHTML(q._instanceId, qMaxMarksSafe(q)) : ``)}
+        </div>`;
+    });
+    els.statusPill.textContent = "Revealed";
+  });
+
+  els.quiz.addEventListener("click", (e) => {
+const repBtn = e.target.closest("button[data-action='report']");
+    if(repBtn){
+      const qid = repBtn.getAttribute("data-qid");
+      const q = currentSet.find(x => x._instanceId === qid);
+      const baseId = q ? q.id : "(unknown)";
+      const payload = `Please check this question:\n\nTopic: 6.1 Energy\nbase id: ${baseId}\ninstance id: ${qid}\n\nPrompt:\n${q ? q.prompt : ""}\n`;
+      const banner = document.getElementById("reportBanner");
+      if(banner){
+        banner.style.display = "block";
+        banner.innerHTML = `
+          <div class="reportRow">
+            <div>
+              <b>Report a dodgy question</b>
+              <div class="small">Paste the text below into an email (it identifies the exact question).</div>
+            </div>
+            <button class="btn mini" type="button" id="closeReportBtn">Close</button>
+          </div>
+          <textarea class="reportBox" readonly>${escapeHtml(payload)}</textarea>
+          <div class="reportActions">
+            <button class="btn mini" type="button" id="copyReportBtn">Copy</button>
+            <span class="small">If copy is blocked, just select the text and copy manually.</span>
+          </div>
+        `;
+        const cbtn = document.getElementById("copyReportBtn");
+        if(cbtn){
+          cbtn.addEventListener("click", ()=>{
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              navigator.clipboard.writeText(payload).catch(()=>{});
+            }
+          }, {once:true});
+        }
+        const xbtn = document.getElementById("closeReportBtn");
+        if(xbtn){
+          xbtn.addEventListener("click", ()=>{ banner.style.display="none"; }, {once:true});
+        }
+        // Auto-hide after 15 seconds
+        setTimeout(()=>{ try{ banner.style.display="none"; }catch(_){} }, 15000);
+        banner.scrollIntoView({behavior:"smooth", block:"start"});
+        // Attempt immediate clipboard copy
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(payload).catch(()=>{});
+        }
+      } else {
+        alert(payload);
+      }
+      return;
+    }
+
+    const btnCheck = e.target.closest("button[data-action='check']");
+    if(btnCheck){
+      checkAndShow(btnCheck.getAttribute("data-qid"));
+      return;
+    }
+    const btnAdj = e.target.closest("button[data-action='applyAdjust']");
+    if(btnAdj){
+      const qid = btnAdj.getAttribute("data-qid");
+      const q = currentSet.find(x => x._instanceId === qid);
+      if(!q) return;
+      const input = document.querySelector(`input[data-adjust="${qid}"]`);
+      if(!input) return;
+      const val = Number(input.value);
+      if(Number.isNaN(val)) return;
+
+      const max = qMaxMarksSafe(q);
+      const adj = clamp(val, 0, max);
+      const status = (adj===0) ? "wrong" : (adj===max ? "full" : "partial");
+      answered.set(qid, {checked:true, status, score:adj, max, auto:(q.type==="short" && Array.isArray(q.markPoints)), selfOverride:true});
+      updateOverallForInstance(qid, q.id, adj, max);
+
+      const fb = document.getElementById(`fb_${qid}`);
+      if(fb){
+        const titleEl = fb.querySelector(".feedback .title");
+        if(titleEl) titleEl.textContent = `Marks set (${adj.toFixed(1)} / ${max.toFixed(1)} marks)`;
+      }
+      renderKPIs();
+      return;
+    }
+  });
+
+  if(els.resetOverallBtn){
+    els.resetOverallBtn.addEventListener('click', ()=>{
+      resetOverall();
+      renderKPIs();
+    });
+  }
+  if(els.resetDeckBtn){
+    els.resetDeckBtn.addEventListener('click', ()=>{
+      resetDeck();
+      els.statusPill.textContent = "Deck reset";
+      // Next set will start a fresh shuffled order
+    });
+  }
+
+  renderKPIs();
+})();
+
+</script>
 </body>
 </html>
