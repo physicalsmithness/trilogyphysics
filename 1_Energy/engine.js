@@ -1,37 +1,88 @@
 (function(){
   const META = window.TRILOGY_ENERGY_QUIZ_META || {title:"Quiz", subtitle:""};
   const BANK = window.TRILOGY_ENERGY_QUIZ_QUESTIONS || [];
+  const REPORT_FORM = window.TRILOGY_ENERGY_REPORT_FORM || null;
 
   const els = {
-    statusPill: document.getElementById("statusPill"),
-    setPill: document.getElementById("setPill"),
-    numQ: document.getElementById("numQ"),
-    diffMix: document.getElementById("diffMix"),
-    startBtn: document.getElementById("startBtn"),
-    newSetBtn: document.getElementById("newSetBtn"),
-    revealAllBtn: document.getElementById("revealAllBtn"),
-    quiz: document.getElementById("quiz"),
-    scoreLine: document.getElementById("scoreLine"),
-    summaryLine: document.getElementById("summaryLine"),
-    kpiChecked: document.getElementById("kpiChecked"),
-    kpiFull: document.getElementById("kpiFull"),
-    kpiPartial: document.getElementById("kpiPartial"),
-    kpiWrong: document.getElementById("kpiWrong"),
     title: document.getElementById("title"),
     subtitle: document.getElementById("subtitle"),
-        resetOverallBtn: document.getElementById("resetOverallBtn"),
+    statusPill: document.getElementById("statusPill"),
+    poolPill: document.getElementById("poolPill"),
+    questionMetaPill: document.getElementById("questionMetaPill"),
+    questionType: document.getElementById("questionType"),
+    difficultyRating: document.getElementById("difficultyRating"),
+    electricityDone: document.getElementById("electricityDone"),
+    startBtn: document.getElementById("startBtn"),
+    quiz: document.getElementById("quiz"),
+    statSeen: document.getElementById("statSeen"),
+    statDone: document.getElementById("statDone"),
+    statRightDone: document.getElementById("statRightDone"),
+    statRightAll: document.getElementById("statRightAll"),
+    filterStatSeen: document.getElementById("filterStatSeen"),
+    filterStatDone: document.getElementById("filterStatDone"),
+    filterStatRightDone: document.getElementById("filterStatRightDone"),
+    filterStatRightAll: document.getElementById("filterStatRightAll"),
+    filterSummary: document.getElementById("filterSummary"),
+    recentDots: document.getElementById("recentDots"),
+    resetOverallBtn: document.getElementById("resetOverallBtn"),
     resetDeckBtn: document.getElementById("resetDeckBtn"),
-    statSet: document.getElementById("statSet"),
-    statOverall: document.getElementById("statOverall"),
+    reportBanner: document.getElementById("reportBanner")
   };
-  els.title.textContent = META.title || "Quiz";
+  els.title.textContent = META.title || "Trilogy Energy Quiz";
   els.subtitle.textContent = META.subtitle || "";
+
+  const PROGRESS_KEY = "preibphysics_trilogy_energy_progress_v4";
+  const DECK_KEY = "preibphysics_trilogy_energy_deck_v4";
+
+  let activePool = [];
+  let currentQuestion = null;
+  let sessionSerial = 0;
+  const lastVariantByBase = Object.create(null);
+
+  const TYPE_LABELS = {calc:'Calculation', short:'Short answer', long:'Long answer', quick:'Quick check'};
+
+  function questionKindOf(q){
+    if(!q) return 'quick';
+    if(q.quizKind) return q.quizKind;
+    if(q.type === 'numeric' || (q.tags || []).includes('calc')) return 'calc';
+    if(q.type === 'short') return 'short';
+    if(q.type === 'long') return 'long';
+    return 'quick';
+  }
+  function inferDifficultyRating(q){
+    if(Number.isFinite(Number(q.difficultyRating))) return clamp(Number(q.difficultyRating), 1, 5);
+    let rating = 3;
+    if(q.difficulty === 'easy') rating = 2;
+    else if(q.difficulty === 'med') rating = 3;
+    else if(q.difficulty === 'hard') rating = 4;
+
+    const kind = questionKindOf(q);
+    const marks = Number(q.marks || 0);
+    const calcMeta = q.calcMeta || q._calcMeta || null;
+    if(kind === 'quick') rating -= 1;
+    if(kind === 'long') rating += 1;
+    if(kind === 'calc' && marks >= 5) rating += 1;
+    if(kind === 'short' && marks >= 4) rating += 1;
+    if(q.bridge) rating += 1;
+    if(calcMeta && calcMeta.needsRearrangement) rating += 0.5;
+    if(calcMeta && calcMeta.needsConversion) rating += 0.5;
+    const hardKinds = new Set(['accelPowerMoving','dropWithInitialKE','keToTempNoMass','hangingSpringEnergy','brakingForceFromKE']);
+    if(calcMeta && hardKinds.has(calcMeta.kind)) rating += 0.5;
+    rating = Math.round(rating);
+    return clamp(rating, 1, 5);
+  }
+  function normalizeBank(){
+    BANK.forEach(q => {
+      q.quizKind = questionKindOf(q);
+      q.difficultyRating = inferDifficultyRating(q);
+    });
+  }
+  normalizeBank();
 
   function applyHeaderOffset(){
     const h = document.querySelector("header.topbar");
     if(!h) return;
-    const px = h.offsetHeight || 0;
-    document.documentElement.style.setProperty("--headerOffset", px + "px");
+    document.documentElement.style.setProperty("--headerOffset", (h.offsetHeight || 0) + "px");
   }
   applyHeaderOffset();
   window.addEventListener("resize", applyHeaderOffset);
@@ -50,6 +101,7 @@
       .replace(/[’]/g,"'")
       .replace(/\s+/g,' ');
   }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
   function shuffle(arr){
     const a = arr.slice();
     for(let i=a.length-1;i>0;i--){
@@ -58,493 +110,530 @@
     }
     return a;
   }
-  function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
-function prettyNum(a){
-  // Display-friendly number formatting:
-  // - Prefer plain numbers with commas (no scientific e-notation)
-  // - Accept scientific notation in input, but don't display it.
-  if(a === null || a === undefined || Number.isNaN(a)) return "";
-  const abs = Math.abs(a);
-  const isInt = Math.abs(a - Math.round(a)) < 1e-9;
 
-  function withCommas(nStr){
-    const parts = nStr.split(".");
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    return parts.join(".");
+  function cloneDeep(obj){
+    return obj === undefined ? undefined : JSON.parse(JSON.stringify(obj));
+  }
+  function materializeQuestion(base){
+    let q = cloneDeep(base);
+    const variants = Array.isArray(base && base.instances) ? base.instances : [];
+    if(variants.length){
+      const options = [null, ...variants];
+      let idxs = options.map((_, i) => i);
+      const prev = lastVariantByBase[base.id];
+      if(options.length > 2 && Number.isInteger(prev)) idxs = idxs.filter(i => i !== prev);
+      const pickIndex = idxs[Math.floor(Math.random() * idxs.length)];
+      lastVariantByBase[base.id] = pickIndex;
+      const variant = options[pickIndex];
+      if(variant){
+        const merged = {...q, ...cloneDeep(variant)};
+        merged.tags = Array.from(new Set([...(q.tags || []), ...(variant.tags || [])]));
+        if(variant.bridge === null) delete merged.bridge;
+        q = merged;
+      }
+    }
+    q.quizKind = questionKindOf(q);
+    q.difficultyRating = inferDifficultyRating(q);
+    return q;
   }
 
-  // Reasonable plain display for most GCSE/Trilogy numbers
-  if(isInt && abs < 1e12){
-    return withCommas(String(Math.round(a)));
+  function fnv1a(str){
+    let h = 2166136261;
+    for(let i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h>>>0).toString(16);
+  }
+  function familyOfId(id){
+    const m = (id || "").match(/^(.*)_\d+$/);
+    return m ? m[1] : id;
+  }
+  function prettyNum(a){
+    if(a === null || a === undefined || Number.isNaN(a)) return "";
+    const abs = Math.abs(a);
+    const isInt = Math.abs(a - Math.round(a)) < 1e-9;
+    function withCommas(nStr){
+      const parts = nStr.split(".");
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      return parts.join(".");
+    }
+    if(isInt && abs < 1e12) return withCommas(String(Math.round(a)));
+    if(abs === 0) return "0";
+    if(abs >= 0.001 && abs < 1e9){
+      let s = Number(a).toPrecision(4).replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+      if(!(s.includes("e") || s.includes("E"))){
+        const neg = s.startsWith("-");
+        if(neg) s = s.slice(1);
+        s = withCommas(s);
+        return neg ? "-" + s : s;
+      }
+    }
+    return Number(a).toExponential(3).replace(/e\+?/,' × 10^');
+  }
+  function pct(n,d){ return d ? Math.round((100*n)/d) : 0; }
+
+  function loadProgress(){
+    try{
+      const raw = localStorage.getItem(PROGRESS_KEY);
+      if(!raw) return {byBase:{}, recent:[]};
+      const obj = JSON.parse(raw);
+      if(!obj || typeof obj !== "object") return {byBase:{}, recent:[]};
+      if(!obj.byBase || typeof obj.byBase !== "object") obj.byBase = {};
+      if(!Array.isArray(obj.recent)) obj.recent = [];
+      return obj;
+    }catch(_){ return {byBase:{}, recent:[]}; }
+  }
+  function saveProgress(obj){
+    try{ localStorage.setItem(PROGRESS_KEY, JSON.stringify(obj)); }catch(_){ }
+  }
+  function resetProgress(){
+    try{ localStorage.removeItem(PROGRESS_KEY); }catch(_){ }
   }
 
-  if(abs === 0) return "0";
+  function loadDeck(){
+    try{
+      const raw = localStorage.getItem(DECK_KEY);
+      if(!raw) return null;
+      const obj = JSON.parse(raw);
+      if(!obj || typeof obj !== "object") return null;
+      return obj;
+    }catch(_){ return null; }
+  }
+  function saveDeck(obj){
+    try{ localStorage.setItem(DECK_KEY, JSON.stringify(obj)); }catch(_){ }
+  }
+  function resetDeck(){
+    try{ localStorage.removeItem(DECK_KEY); }catch(_){ }
+  }
 
-  // Use 4 significant figures for non-integers in normal range
-  if(abs >= 0.001 && abs < 1e9){
-    let s = Number(a).toPrecision(4);
-    // trim trailing zeros
-    s = s.replace(/(\.\d*?[1-9])0+$/, '$1');
-    s = s.replace(/\.0+$/, '');
-    // add commas to integer part if applicable
-    if(s.includes("e") || s.includes("E")) {
-      // fall through to sci display below
+  function getSelectedTopics(){
+    return Array.from(document.querySelectorAll('.topicCb')).filter(cb => cb.checked).map(cb => cb.value);
+  }
+  function buildBasePool(){
+    const topics = getSelectedTopics();
+    let pool = BANK.filter(q => (q.tags || []).some(t => topics.includes(t)));
+    if(!els.electricityDone.checked){
+      pool = pool.filter(q => !q.needsElectricity);
+    }
+    return pool;
+  }
+  function filterPool(list){
+    let pool = list.slice();
+    const type = els.questionType ? els.questionType.value : 'all';
+    const rating = els.difficultyRating ? els.difficultyRating.value : 'all';
+    if(type !== 'all') pool = pool.filter(q => questionKindOf(q) === type);
+    if(rating !== 'all') pool = pool.filter(q => String(q.difficultyRating || '') === String(rating));
+    return pool;
+  }
+  function buildPool(){
+    return filterPool(buildBasePool());
+  }
+  function currentFilterSummary(){
+    const type = els.questionType ? els.questionType.value : 'all';
+    const rating = els.difficultyRating ? els.difficultyRating.value : 'all';
+    const typeText = type === 'all' ? 'All question types' : TYPE_LABELS[type];
+    const diffText = rating === 'all' ? 'any difficulty' : `difficulty ${rating}`;
+    return `${typeText} • ${diffText}`;
+  }
+  function buildDeckSignature(ids){
+    return fnv1a(ids.slice().sort().join('|'));
+  }
+
+  function getNextQuestionFromDeck(pool){
+    const ids = pool.map(q => q.id);
+    const sig = buildDeckSignature(ids);
+    const map = new Map(pool.map(q => [q.id, q]));
+    let deck = loadDeck();
+    if(!deck || deck.sig !== sig || !Array.isArray(deck.order) || typeof deck.cursor !== "number"){
+      deck = {sig, order: shuffle(ids), cursor: 0};
+    }
+    if(deck.cursor >= deck.order.length){
+      deck.order = shuffle(ids);
+      deck.cursor = 0;
+    }
+
+    const progress = loadProgress();
+    const lastEvent = progress.recent.length ? progress.recent[progress.recent.length - 1] : null;
+    const lastFamily = lastEvent ? familyOfId(lastEvent.baseId) : null;
+    if(lastFamily){
+      for(let j=deck.cursor; j<Math.min(deck.order.length, deck.cursor + 6); j++){
+        if(familyOfId(deck.order[j]) !== lastFamily){
+          [deck.order[deck.cursor], deck.order[j]] = [deck.order[j], deck.order[deck.cursor]];
+          break;
+        }
+      }
+    }
+
+    const baseId = deck.order[deck.cursor];
+    deck.cursor += 1;
+    saveDeck(deck);
+
+    sessionSerial += 1;
+    const q = materializeQuestion(map.get(baseId));
+    return {...q, _instanceId: `${baseId}_${Date.now().toString(36)}_${sessionSerial}`};
+  }
+
+  function markSeen(baseId){
+    const progress = loadProgress();
+    if(!progress.byBase[baseId]) progress.byBase[baseId] = {};
+    progress.byBase[baseId].seen = true;
+    progress.byBase[baseId].updatedAt = Date.now();
+    saveProgress(progress);
+  }
+  function pushRecent(progress, entry, replaceLastSame){
+    if(replaceLastSame && progress.recent.length && progress.recent[progress.recent.length-1].baseId === entry.baseId){
+      progress.recent[progress.recent.length-1] = entry;
     } else {
-      // normal
-      const neg = s.startsWith("-");
-      if(neg) s = s.slice(1);
-      s = withCommas(s);
-      return neg ? "-" + s : s;
+      progress.recent.push(entry);
+      if(progress.recent.length > 10) progress.recent = progress.recent.slice(-10);
     }
   }
-
-  // For very large/small numbers, display as ×10^n (not e-notation)
-  const exp = Math.floor(Math.log10(abs));
-  const mant = a / Math.pow(10, exp);
-  let mantStr = mant.toPrecision(3);
-  mantStr = mantStr.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
-  return `${mantStr}×10^${exp}`;
-}
-  function rchoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-
-  function svgAxesIV(){
-    // 4-quadrant axes centered in the viewBox
-    return `
-      <line x1="120" y1="14" x2="120" y2="156" stroke="rgba(255,255,255,.35)"/>
-      <line x1="18" y1="85" x2="222" y2="85" stroke="rgba(255,255,255,.35)"/>
-      <text x="10" y="28" fill="rgba(255,255,255,.65)" font-size="11">I</text>
-      <text x="210" y="166" fill="rgba(255,255,255,.65)" font-size="11">V</text>
-    `;
+  function saveOutcome(baseId, outcome, replaceLastSame){
+    const progress = loadProgress();
+    if(!progress.byBase[baseId]) progress.byBase[baseId] = {};
+    progress.byBase[baseId] = {
+      ...progress.byBase[baseId],
+      seen: true,
+      answered: true,
+      status: outcome.status,
+      score: Number(outcome.score) || 0,
+      max: Number(outcome.max) || 0,
+      updatedAt: Date.now()
+    };
+    pushRecent(progress, {baseId, status: outcome.status, t: Date.now()}, !!replaceLastSame);
+    saveProgress(progress);
   }
-  function gOhmic4(){
-    return `<line x1="25" y1="150" x2="215" y2="20" stroke="rgba(255,255,255,.85)" stroke-width="3"/>`;
-  }
-  function gFilament4(){
-    // Filament lamp: I increases with V but NOT proportionally; slope decreases as |V| increases (curve flattens).
-    // Smooth concave-down curve (no S-shape / no knee), mirrored for negative V.
-    return `
-      <path d="M120 85 Q 125 55 215 45"
-            fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
-      <path d="M120 85 Q 115 115 25 125"
-            fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
-    `;
-  }
-  function gDiode4(){
-    // Diode/LED: ~zero current for reverse and small forward V, then steep rise after a threshold.
-    // (Used mainly as a distractor in this quiz.)
-    return `
-      <path d="M25 85 L 120 85" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="3"/>
-      <path d="M120 85 L 158 85" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
-      <path d="M158 85 C 172 82, 188 66, 202 44 C 210 30, 214 24, 215 22"
-            fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
-    `;
-  }
-  function gFlat4(){
-    return `<line x1="25" y1="85" x2="215" y2="85" stroke="rgba(255,255,255,.85)" stroke-width="3"/>`;
-  }
-  function gCurveUp4(){
-    // steeper as |V| increases, mirrored (distractor)
-    return `
-      <path d="M120 85 C 150 84, 180 70, 215 22" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
-      <path d="M120 85 C 90 86, 60 100, 25 148" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3"/>
-    `;
+  function saveSkip(baseId){
+    const progress = loadProgress();
+    if(!progress.byBase[baseId]) progress.byBase[baseId] = {};
+    progress.byBase[baseId] = {
+      ...progress.byBase[baseId],
+      seen: true,
+      answered: false,
+      status: 'skip',
+      score: 0,
+      max: qMaxMarks(currentQuestion),
+      updatedAt: Date.now()
+    };
+    pushRecent(progress, {baseId, status:'skip', t:Date.now()}, false);
+    saveProgress(progress);
   }
 
-  function graphSVG(kind){
-    let path = gOhmic4();
-    if(kind==="filament") path = gFilament4();
-    if(kind==="diode") path = gDiode4();
-    if(kind==="flat") path = gFlat4();
-    if(kind==="curveUp") path = gCurveUp4();
-    return `
-      <div class="choiceViz">
-        <svg viewBox="0 0 240 170" width="220" height="150">
-          ${svgAxesIV()}
-          ${path}
-        </svg>
-      </div>`;
+  function computeStatsForPool(pool, progress){
+    const ids = pool.map(q => q.id);
+    let seen = 0, answered = 0, full = 0;
+    ids.forEach(id => {
+      const item = progress.byBase[id];
+      if(!item) return;
+      if(item.seen) seen += 1;
+      if(item.answered){
+        answered += 1;
+        if(item.status === 'full') full += 1;
+      }
+    });
+    return {total: ids.length, seen, answered, full};
   }
 
-function symbolSVG(kind){
-    const stroke = 'stroke="rgba(255,255,255,.92)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"';
-    const solid = 'fill="rgba(255,255,255,.92)"';
+  function renderStats(){
+    const progress = loadProgress();
+    const overallPool = buildBasePool();
+    const filteredPool = filterPool(overallPool);
+    const overall = computeStatsForPool(overallPool, progress);
+    const filtered = computeStatsForPool(filteredPool, progress);
 
-    if(kind==="cell"){
-      return `<svg viewBox="0 0 240 70" width="220" height="56">
-        <line x1="20" y1="35" x2="92" y2="35" ${stroke}/>
-        <line x1="92" y1="18" x2="92" y2="52" ${stroke}/>
-        <line x1="112" y1="25" x2="112" y2="45" ${stroke}/>
-        <line x1="112" y1="35" x2="220" y2="35" ${stroke}/>
-      </svg>`;
-    }
+    els.statSeen.textContent = `${overall.seen}/${overall.total} (${pct(overall.seen, overall.total)}%)`;
+    els.statDone.textContent = `${overall.answered}/${overall.total} (${pct(overall.answered, overall.total)}%)`;
+    els.statRightDone.textContent = `${overall.full}/${overall.answered} (${pct(overall.full, overall.answered)}%)`;
+    els.statRightAll.textContent = `${overall.full}/${overall.total} (${pct(overall.full, overall.total)}%)`;
 
-    if(kind==="battery"){
-      // Add explicit joining wire between cells (between the middle plates)
-      return `<svg viewBox="0 0 240 70" width="220" height="56">
-        <line x1="20" y1="35" x2="70" y2="35" ${stroke}/>
-        <line x1="70" y1="18" x2="70" y2="52" ${stroke}/>
-        <line x1="90" y1="25" x2="90" y2="45" ${stroke}/>
-        <line x1="90" y1="35" x2="110" y2="35" ${stroke}/>
-        <line x1="110" y1="18" x2="110" y2="52" ${stroke}/>
-        <line x1="130" y1="25" x2="130" y2="45" ${stroke}/>
-        <line x1="130" y1="35" x2="220" y2="35" ${stroke}/>
-      </svg>`;
-    }
+    if(els.filterStatSeen) els.filterStatSeen.textContent = `${filtered.seen}/${filtered.total} (${pct(filtered.seen, filtered.total)}%)`;
+    if(els.filterStatDone) els.filterStatDone.textContent = `${filtered.answered}/${filtered.total} (${pct(filtered.answered, filtered.total)}%)`;
+    if(els.filterStatRightDone) els.filterStatRightDone.textContent = `${filtered.full}/${filtered.answered} (${pct(filtered.full, filtered.answered)}%)`;
+    if(els.filterStatRightAll) els.filterStatRightAll.textContent = `${filtered.full}/${filtered.total} (${pct(filtered.full, filtered.total)}%)`;
+    if(els.filterSummary) els.filterSummary.textContent = currentFilterSummary();
 
-    if(kind==="lamp"){
-      // Extend wires slightly into the circle so it visually touches.
-      return `<svg viewBox="0 0 240 70" width="220" height="56">
-        <line x1="20" y1="35" x2="102" y2="35" ${stroke}/>
-        <circle cx="120" cy="35" r="22" ${stroke}/>
-        <path d="M108 27 L 132 43 M132 27 L108 43" ${stroke}/>
-        <line x1="138" y1="35" x2="220" y2="35" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="resistor"){
-      return `<svg viewBox="0 0 240 70" width="220" height="56">
-        <line x1="20" y1="35" x2="70" y2="35" ${stroke}/>
-        <rect x="70" y="22" width="100" height="26" ${stroke}/>
-        <line x1="170" y1="35" x2="220" y2="35" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="varres"){
-      // Full diagonal arrow across the resistor
-      return `<svg viewBox="0 0 240 70" width="220" height="56">
-        <line x1="20" y1="35" x2="70" y2="35" ${stroke}/>
-        <rect x="70" y="22" width="100" height="26" ${stroke}/>
-        <line x1="170" y1="35" x2="220" y2="35" ${stroke}/>
-        <line x1="64" y1="60" x2="176" y2="10" ${stroke}/>
-        <polyline points="170,12 176,10 173,16" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="led"){
-      // Diode + two arrows pointing OUTWARDS (light emission).
-      return `<svg viewBox="0 0 240 70" width="220" height="56">
-        <line x1="20" y1="35" x2="95" y2="35" ${stroke}/>
-        <polygon points="95,20 95,50 130,35" ${stroke}/>
-        <line x1="138" y1="20" x2="138" y2="50" ${stroke}/>
-        <line x1="138" y1="35" x2="220" y2="35" ${stroke}/>
-        <line x1="150" y1="18" x2="170" y2="6" ${stroke}/>
-        <polyline points="164,6 170,6 168,11" ${stroke}/>
-        <line x1="155" y1="32" x2="175" y2="20" ${stroke}/>
-        <polyline points="169,20 175,20 173,25" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="switch"){
-      return `<svg viewBox="0 0 240 70" width="220" height="56">
-        <line x1="20" y1="35" x2="90" y2="35" ${stroke}/>
-        <circle cx="90" cy="35" r="4" ${solid}/>
-        <circle cx="150" cy="35" r="4" ${solid}/>
-        <line x1="90" y1="35" x2="142" y2="15" ${stroke}/>
-        <line x1="150" y1="35" x2="220" y2="35" ${stroke}/>
-      </svg>`;
-    }
-
-    // Custom SVGs for magnetism diagrams (used in MCQ choices via {svgKind: "..."}).
-  function customSVG(kind){
-    const stroke = 'stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"';
-    const faint  = 'stroke="rgba(255,255,255,.35)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"';
-    const txt    = 'fill="rgba(255,255,255,.85)" font-size="12" font-weight="700"';
-    const tmuted = 'fill="rgba(255,255,255,.65)" font-size="11"';
-    const box    = 'fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"';
-
-    if(kind==="barField_good"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
-        <text x="102" y="86" ${txt}>N</text>
-        <text x="160" y="86" ${txt}>S</text>
-
-        <!-- outer loops -->
-        <path d="M85 65 C 35 45, 35 20, 130 18 C 225 20, 225 45, 175 65" ${stroke}/>
-        <path d="M85 95 C 35 115, 35 140, 130 142 C 225 140, 225 115, 175 95" ${stroke}/>
-        <!-- inner loops -->
-        <path d="M95 65 C 70 55, 70 38, 130 36 C 190 38, 190 55, 165 65" ${faint}/>
-        <path d="M95 95 C 70 105, 70 122, 130 124 C 190 122, 190 105, 165 95" ${faint}/>
-
-        <!-- arrows N->S on the top and bottom loops -->
-        <polyline points="132,18 138,18 135,24" ${stroke}/>
-        <polyline points="132,142 138,142 135,136" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="barField_wrong_arrows"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
-        <text x="102" y="86" ${txt}>N</text>
-        <text x="160" y="86" ${txt}>S</text>
-        <path d="M85 65 C 35 45, 35 20, 130 18 C 225 20, 225 45, 175 65" ${stroke}/>
-        <path d="M85 95 C 35 115, 35 140, 130 142 C 225 140, 225 115, 175 95" ${stroke}/>
-        <!-- arrows wrongly S->N -->
-        <polyline points="128,18 122,18 125,24" ${stroke}/>
-        <polyline points="128,142 122,142 125,136" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="barField_wrong_cross"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
-        <text x="102" y="86" ${txt}>N</text>
-        <text x="160" y="86" ${txt}>S</text>
-        <path d="M85 65 C 35 45, 35 20, 130 18 C 225 20, 225 45, 175 65" ${stroke}/>
-        <path d="M85 95 C 35 115, 35 140, 130 142 C 225 140, 225 115, 175 95" ${stroke}/>
-        <!-- add a crossing line (invalid) -->
-        <path d="M70 30 L 190 130" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="barField_wrong_gaps"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="85" y="62" width="90" height="36" rx="6" ${box}/>
-        <text x="102" y="86" ${txt}>N</text>
-        <text x="160" y="86" ${txt}>S</text>
-        <!-- loops that do not reach the magnet (gaps) -->
-        <path d="M78 60 C 35 45, 35 20, 130 18 C 225 20, 225 45, 182 60" ${stroke}/>
-        <path d="M78 100 C 35 115, 35 140, 130 142 C 225 140, 225 115, 182 100" ${stroke}/>
-        <text x="18" y="152" ${tmuted}>Lines don't touch magnet</text>
-      </svg>`;
-    }
-
-    if(kind==="uniformField_good"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
-        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
-        <text x="45" y="85" ${txt}>N</text>
-        <text x="195" y="85" ${txt}>S</text>
-        <!-- straight parallel evenly spaced field lines -->
-        <line x1="90" y1="62" x2="170" y2="62" ${stroke}/>
-        <line x1="90" y1="80" x2="170" y2="80" ${stroke}/>
-        <line x1="90" y1="98" x2="170" y2="98" ${stroke}/>
-        <!-- arrows N->S -->
-        <polyline points="148,62 154,62 151,68" ${stroke}/>
-        <polyline points="148,80 154,80 151,86" ${stroke}/>
-        <polyline points="148,98 154,98 151,104" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="uniformField_wrong_curved"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
-        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
-        <text x="45" y="85" ${txt}>N</text>
-        <text x="195" y="85" ${txt}>S</text>
-        <path d="M90 62 C 120 40, 140 40, 170 62" ${stroke}/>
-        <path d="M90 80 C 120 80, 140 80, 170 80" ${stroke}/>
-        <path d="M90 98 C 120 120, 140 120, 170 98" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="uniformField_wrong_notParallel"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
-        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
-        <text x="45" y="85" ${txt}>N</text>
-        <text x="195" y="85" ${txt}>S</text>
-        <line x1="90" y1="62" x2="170" y2="62" ${stroke}/>
-        <line x1="90" y1="80" x2="165" y2="70" ${stroke}/>
-        <line x1="90" y1="98" x2="170" y2="108" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="uniformField_wrong_arrows"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="20" y="50" width="70" height="60" rx="6" ${box}/>
-        <rect x="170" y="50" width="70" height="60" rx="6" ${box}/>
-        <text x="45" y="85" ${txt}>N</text>
-        <text x="195" y="85" ${txt}>S</text>
-        <line x1="90" y1="62" x2="170" y2="62" ${stroke}/>
-        <line x1="90" y1="80" x2="170" y2="80" ${stroke}/>
-        <line x1="90" y1="98" x2="170" y2="98" ${stroke}/>
-        <!-- arrows wrongly S->N -->
-        <polyline points="112,62 106,62 109,68" ${stroke}/>
-        <polyline points="112,80 106,80 109,86" ${stroke}/>
-        <polyline points="112,98 106,98 109,104" ${stroke}/>
-      </svg>`;
-    }
-
-    if(kind==="wire_circles"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <circle cx="130" cy="80" r="10" fill="rgba(255,255,255,.88)"/>
-        <circle cx="130" cy="80" r="28" ${faint}/>
-        <circle cx="130" cy="80" r="48" ${faint}/>
-        <circle cx="130" cy="80" r="68" ${faint}/>
-        <text x="16" y="24" ${tmuted}>Field around straight wire</text>
-      </svg>`;
-    }
-
-    if(kind==="wire_dot"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <circle cx="130" cy="80" r="30" ${faint}/>
-        <circle cx="130" cy="80" r="52" ${faint}/>
-        <circle cx="130" cy="80" r="74" ${faint}/>
-        <circle cx="130" cy="80" r="12" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
-        <circle cx="130" cy="80" r="4" fill="rgba(255,255,255,.88)"/>
-        <text x="96" y="140" ${tmuted}>• current out of page</text>
-      </svg>`;
-    }
-
-    if(kind==="wire_cross"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <circle cx="130" cy="80" r="30" ${faint}/>
-        <circle cx="130" cy="80" r="52" ${faint}/>
-        <circle cx="130" cy="80" r="74" ${faint}/>
-        <circle cx="130" cy="80" r="12" fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
-        <line x1="124" y1="74" x2="136" y2="86" ${stroke}/>
-        <line x1="136" y1="74" x2="124" y2="86" ${stroke}/>
-        <text x="92" y="140" ${tmuted}>× current into page</text>
-      </svg>`;
-if(kind==="twoMagnets_attract"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="20" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-        <rect x="160" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-        <text x="46" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
-        <text x="84" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
-        <text x="186" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
-        <text x="224" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
-
-        <!-- Field lines connect across the gap (attraction) -->
-        <path d="M100 65 C 120 55, 140 55, 160 65" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <path d="M100 80 C 120 80, 140 80, 160 80" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <path d="M100 95 C 120 105, 140 105, 160 95" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <polyline points="140,80 146,80 143,86" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>`;
-    }
-
-    if(kind==="twoMagnets_repel"){
-      return `<svg viewBox="0 0 260 160" width="240" height="150">
-        <rect x="20" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-        <rect x="160" y="55" width="80" height="50" rx="6" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-        <text x="46" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
-        <text x="84" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
-        <text x="186" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">S</text>
-        <text x="224" y="85" fill="rgba(255,255,255,.85)" font-size="12" font-weight="700">N</text>
-
-        <!-- Like poles facing: lines bow outward (repulsion) -->
-        <path d="M100 65 C 125 30, 135 30, 160 65" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <path d="M100 95 C 125 130, 135 130, 160 95" stroke="rgba(255,255,255,.88)" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <text x="92" y="150" fill="rgba(255,255,255,.65)" font-size="11">Weak field region in gap</text>
-      </svg>`;
-    }
-
-    }
-
-    return `<svg viewBox="0 0 260 160" width="240" height="150"><text x="20" y="80" ${txt}>[unknown svgKind]</text></svg>`;
+    const recent = progress.recent.slice(-10);
+    els.recentDots.innerHTML = recent.length
+      ? recent.map(x => `<span class="dot ${x.status === 'skip' ? 'skip' : x.status}" title="${escapeHtml(x.baseId)} • ${escapeHtml(x.status)}"></span>`).join('')
+      : `<span class="small">No recent answers yet.</span>`;
+    const totalText = filtered.total ? `${filtered.total} possible in selected filter` : `No questions in selected filter`;
+    els.poolPill.textContent = totalText;
+    applyHeaderOffset();
   }
 
-return "";
+
+  function parseNumBits(s){
+    return Number(String(s).replace(/,/g,'').trim());
+  }
+  function secondsFrom(value, unitText){
+    const u = String(unitText || '').toLowerCase();
+    if(u.startsWith('hour') || u === 'h' || u === 'hr' || u === 'hrs') return value * 3600;
+    if(u.startsWith('min')) return value * 60;
+    return value;
+  }
+  function inferCalcMeta(q){
+    if(!q || q.type !== 'numeric') return null;
+    if(q._calcMeta) return q._calcMeta;
+    if(q.calcMeta){
+      const meta = Object.assign({}, q.calcMeta);
+      if(!Number.isFinite(meta.max)) meta.max = Number.isFinite(q.marks) ? q.marks : ((meta.needsRearrangement || meta.needsConversion) ? 4 : 3);
+      q._calcMeta = meta;
+      return meta;
+    }
+    const id = q.id || '';
+    const prompt = q.prompt || '';
+    let meta = null;
+
+    let m = null;
+    if((m = prompt.match(/^A\s+([\d.,]+)\s+kg object moves at\s+([\d.,]+)\s+m\/s\./i))){
+      meta = {kind:'ke', m:parseNumBits(m[1]), v:parseNumBits(m[2]), needsRearrangement:false, needsConversion:false};
+    } else if((m = prompt.match(/^A\s+([\d.,]+)\s+kg mass is raised by\s+([\d.,]+)\s+m on a planet where g\s*=\s*([\d.,]+)\s+N\/kg\./i))){
+      meta = {kind:'gpe', m:parseNumBits(m[1]), h:parseNumBits(m[2]), g:parseNumBits(m[3]), needsRearrangement:false, needsConversion:false};
+    } else if((m = prompt.match(/^A spring has k\s*=\s*([\d.,]+)\s+N\/m and is stretched by\s+([\d.,]+)\s+m/i))){
+      meta = {kind:'epe', k:parseNumBits(m[1]), e:parseNumBits(m[2]), needsRearrangement:false, needsConversion:false};
+    } else if((m = prompt.match(/^A force of\s+([\d.,]+)\s+N moves an object\s+([\d.,]+)\s+m/i))){
+      meta = {kind:'work', F:parseNumBits(m[1]), s:parseNumBits(m[2]), needsRearrangement:false, needsConversion:false};
+    } else if((m = prompt.match(/^A device transfers\s+([\d.,]+)\s+J of energy in\s+([\d.,]+)\s+([A-Za-z]+)\./i))){
+      const E = parseNumBits(m[1]);
+      const timeValue = parseNumBits(m[2]);
+      const timeUnit = m[3];
+      const timeSeconds = secondsFrom(timeValue, timeUnit);
+      meta = {kind:'power', E, timeValue, timeUnit, timeSeconds, needsRearrangement:false, needsConversion:Math.abs(timeSeconds - timeValue) > 1e-12};
+    } else if((m = prompt.match(/^An appliance has power\s+([\d.,]+)\s+(kW|W) and runs for\s+([\d.,]+)\s+([A-Za-z]+)\./i))){
+      const powerValue = parseNumBits(m[1]);
+      const powerUnit = m[2];
+      const timeValue = parseNumBits(m[3]);
+      const timeUnit = m[4];
+      const powerW = /^kW$/i.test(powerUnit) ? powerValue * 1000 : powerValue;
+      const timeSeconds = secondsFrom(timeValue, timeUnit);
+      meta = {kind:'elecEnergyPt', powerValue, powerUnit, powerW, timeValue, timeUnit, timeSeconds, needsRearrangement:false, needsConversion:(Math.abs(powerW - powerValue) > 1e-12) || (Math.abs(timeSeconds - timeValue) > 1e-12)};
+    } else if((m = prompt.match(/^A device takes\s+([\d.,]+)\s+A at\s+([\d.,]+)\s+V for\s+([\d.,]+)\s+([A-Za-z]+)\./i))){
+      const I = parseNumBits(m[1]);
+      const V = parseNumBits(m[2]);
+      const timeValue = parseNumBits(m[3]);
+      const timeUnit = m[4];
+      const timeSeconds = secondsFrom(timeValue, timeUnit);
+      meta = {kind:'elecEnergyIVt', I, V, timeValue, timeUnit, timeSeconds, needsRearrangement:false, needsConversion:Math.abs(timeSeconds - timeValue) > 1e-12};
+    } else if((m = prompt.match(/^An appliance has power\s+([\d.,]+)\s+(kW|W) at\s+([\d.,]+)\s+V\./i))){
+      const powerValue = parseNumBits(m[1]);
+      const powerUnit = m[2];
+      const V = parseNumBits(m[3]);
+      const powerW = /^kW$/i.test(powerUnit) ? powerValue * 1000 : powerValue;
+      meta = {kind:'currentFromPV', powerValue, powerUnit, powerW, V, needsRearrangement:true, needsConversion:Math.abs(powerW - powerValue) > 1e-12};
+    } else if((m = prompt.match(/^A device takes\s+([\d.,]+)\s+A at\s+([\d.,]+)\s+V\./i))){
+      meta = {kind:'powerFromIV', I:parseNumBits(m[1]), V:parseNumBits(m[2]), needsRearrangement:false, needsConversion:false};
+    } else if((m = prompt.match(/^A\s+([\d.,]+)\s+kg block gains\s+([\d.,]+)\s+J of thermal energy and its temperature rises by\s+([\d.,]+)\s+°C\./i))){
+      meta = {kind:'shc', m:parseNumBits(m[1]), E:parseNumBits(m[2]), dT:parseNumBits(m[3]), needsRearrangement:true, needsConversion:false};
+    } else if((m = prompt.match(/^A\s+([\d.,]+)\s+kg substance has c\s*=\s*([\d.,]+)\s+J\/\(kg\s*°C\)\. It gains\s+([\d.,]+)\s+J\./i))){
+      meta = {kind:'deltaT', m:parseNumBits(m[1]), c:parseNumBits(m[2]), E:parseNumBits(m[3]), needsRearrangement:true, needsConversion:false};
+    } else if((m = prompt.match(/^A\s+([\d.,]+)\s+kW heater runs for\s+([\d.,]+)\s+s\. Only\s+([\d.,]+)% of the energy heats\s+([\d.,]+)\s+kg of water\. Water warms from\s+([\d.,]+)\s+°C to\s+([\d.,]+)\s+°C\./i))){
+      const powerValue = parseNumBits(m[1]);
+      const powerW = powerValue * 1000;
+      const timeSeconds = parseNumBits(m[2]);
+      const effPercent = parseNumBits(m[3]);
+      const mMass = parseNumBits(m[4]);
+      const startT = parseNumBits(m[5]);
+      const endT = parseNumBits(m[6]);
+      meta = {kind:'shcEff', powerValue, powerW, timeSeconds, effPercent, effFraction:effPercent/100, m:mMass, startT, endT, dT:endT-startT, needsRearrangement:true, needsConversion:true};
+    } else if((m = prompt.match(/^A device transfers\s+([\d.,]+)\s+J usefully when\s+([\d.,]+)\s+J is supplied\./i))){
+      meta = {kind:'efficiency', useful:parseNumBits(m[1]), total:parseNumBits(m[2]), needsRearrangement:false, needsConversion:false};
+    }
+
+    if(!meta) meta = {kind:'genericNumeric', needsRearrangement:false, needsConversion:false};
+    meta.max = (meta.needsRearrangement || meta.needsConversion) ? 4 : 3;
+    q._calcMeta = meta;
+    return meta;
+  }
+  function qMaxMarks(q){
+    if(Number.isFinite(q.marks)) return q.marks;
+    if(q.type === 'numeric'){
+      const meta = inferCalcMeta(q);
+      if(meta && Number.isFinite(meta.max)) return meta.max;
+    }
+    if(Array.isArray(q.markPoints)) return q.markPoints.length;
+    return 1;
   }
 
-  function numParts(raw){
-    if(raw === null || raw === undefined) return {ok:false};
-    let s = raw.toString().trim();
-    if(!s) return {ok:false};
-    s = s.replace(/×/g,'x');
-    let compact = s.replace(/\s+/g,'');
-    compact = compact.replace(/x10\^?\(?(-?\d+)\)?/i, 'e$1');
-    compact = compact.replace(/10\^\(?(-?\d+)\)?/i, 'e$1');
-    const m = compact.match(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/i);
-    if(!m) return {ok:false};
-    const num = Number(m[0]);
-    if(Number.isNaN(num)) return {ok:false};
-    return {ok:true, num, numStr:m[0]};
+  function bridgePlaceholder(name){
+    if(name === 'lhs') return 'left side';
+    if(name === 'relation') return 'relation';
+    if(name === 'rhs') return 'right side';
+    return 'choose';
   }
-  function tidyUnitToken(u){
-    if(!u) return null;
-    let t = u.trim();
-    if(!t) return null;
-    t = t.replace(/Ω/g,'ohm');
-    t = t.replace(/²/g,'^2').replace(/³/g,'^3');
-    t = t.replace(/°C/g,"degC");
-    t = t.replace(/\s+/g,'');
-    return t;
+  function bridgeLabel(name){
+    if(name === 'lhs') return 'Pick the first quantity';
+    if(name === 'relation') return 'Pick the relation';
+    if(name === 'rhs') return 'Pick the second quantity';
+    return 'Choose';
   }
-  function unitInfo(raw){
-    if(!raw) return null;
-    const eq = (want) => raw === want;
-    const ieq = (want) => raw.toLowerCase() === want.toLowerCase();
-
-    // Mass
-    if(ieq("kg")) return {type:"mass", canonical:"kg", scale:1, caseOk:eq("kg")};
-    if(ieq("g")) return {type:"mass", canonical:"g", scale:1e-3, caseOk:eq("g")};
-
-    // Length / time
-    if(ieq("m")) return {type:"length", canonical:"m", scale:1, caseOk:eq("m")};
-    if(ieq("cm")) return {type:"length", canonical:"cm", scale:1e-2, caseOk:eq("cm")};
-    if(ieq("mm")) return {type:"length", canonical:"mm", scale:1e-3, caseOk:eq("mm")};
-    if(ieq("s")) return {type:"time", canonical:"s", scale:1, caseOk:eq("s")};
-    if(ieq("min") || ieq("mins") || ieq("minute") || ieq("minutes")) return {type:"time", canonical:"min", scale:60, caseOk:true};
-    if(ieq("h") || ieq("hr") || ieq("hour") || ieq("hours")) return {type:"time", canonical:"h", scale:3600, caseOk:true};
-
-    // Speed / acceleration
-    if(ieq("m/s") || ieq("ms^-1") || ieq("mps")) return {type:"speed", canonical:"m/s", scale:1, caseOk:eq("m/s")};
-    if(ieq("m/s^2") || ieq("ms^-2")) return {type:"acc", canonical:"m/s^2", scale:1, caseOk:eq("m/s^2")};
-
-    // Force / g / spring constant
-    if(ieq("N") || ieq("newton") || ieq("newtons")) return {type:"force", canonical:"N", scale:1, caseOk:eq("N")};
-    if(ieq("N/kg") || ieq("Nkg^-1")) return {type:"gfield", canonical:"N/kg", scale:1, caseOk:eq("N/kg")};
-    if(ieq("N/m") || ieq("Nm^-1")) return {type:"spring", canonical:"N/m", scale:1, caseOk:eq("N/m")};
-
-    // Energy
-    if(ieq("J")) return {type:"energy", canonical:"J", scale:1, caseOk:eq("J")};
-    if(ieq("kJ")) return {type:"energy", canonical:"kJ", scale:1e3, caseOk:eq("kJ")};
-    if(ieq("MJ")) return {type:"energy", canonical:"MJ", scale:1e6, caseOk:eq("MJ")};
-
-    // Power
-    if(ieq("W")) return {type:"power", canonical:"W", scale:1, caseOk:eq("W")};
-    if(ieq("kW")) return {type:"power", canonical:"kW", scale:1e3, caseOk:eq("kW")};
-    if(ieq("MW")) return {type:"power", canonical:"MW", scale:1e6, caseOk:eq("MW")};
-
-    // Electrical
-    if(ieq("V")) return {type:"voltage", canonical:"V", scale:1, caseOk:eq("V")};
-    if(ieq("A")) return {type:"current", canonical:"A", scale:1, caseOk:eq("A")};
-    if(ieq("mA")) return {type:"current", canonical:"mA", scale:1e-3, caseOk:eq("mA")};
-    if(ieq("ohm") || ieq("ohms")) return {type:"resistance", canonical:"Ω", scale:1, caseOk:true};
-    if(raw.includes("Ω")) return {type:"resistance", canonical:"Ω", scale:1, caseOk:true};
-
-    // Temperature
-    if(raw === "°C" || raw === "degC" || raw === "degC") return {type:"tempC", canonical:"°C", scale:1, caseOk:(raw === "°C" || raw === "degC")};
-    if(raw === "K") return {type:"tempK", canonical:"K", scale:1, caseOk:eq("K")};
-
-    // Specific heat capacity
-    const shcTokens = ["J/kg°C","J/kgdegC","J/kg°C".replace("°","deg")];
-    if(shcTokens.some(t => raw === t)) return {type:"shc", canonical:"J/kg °C", scale:1, caseOk:true};
-    if(ieq("J/kg°C") || ieq("J/kgdegC") || ieq("J/kg°c")) return {type:"shc", canonical:"J/kg °C", scale:1, caseOk:(raw === "J/kg°C" || raw === "J/kgdegC")};
-
-    return null;
+  function renderBridgeSelect(name, options, currentValue){
+    const opts = (options || []).map(opt => `<option value="${escapeHtml(String(opt))}" ${String(opt) === String(currentValue || '') ? 'selected' : ''}>${escapeHtml(String(opt))}</option>`).join('');
+    return `<label class="bridgePick"><span>${bridgeLabel(name)}</span><select data-bridge="${name}"><option value="">${bridgePlaceholder(name)}</option>${opts}</select></label>`;
+  }
+  function bridgeMarkup(q){
+    if(!q || !q.bridge) return '';
+    const b = q.bridge;
+    return `<div class="bridgeBox">
+      <div class="bridgeTitle">${escapeHtml(b.prompt || 'Helpful bridge (optional):')}</div>
+      <div class="bridgeRow">
+        ${renderBridgeSelect('lhs', b.lhsChoices || [], '')}
+        ${renderBridgeSelect('relation', b.relationChoices || ['='], '')}
+        ${renderBridgeSelect('rhs', b.rhsChoices || [], '')}
+      </div>
+      <div class="small">Pick the quantities you are treating as equal. A correct final answer still gets full marks.</div>
+    </div>`;
+  }
+  function getBridgeState(q){
+    if(!q || !q.bridge || !q._instanceId) return null;
+    const root = document.getElementById(`card_${q._instanceId}`);
+    if(!root) return null;
+    const lhs = root.querySelector('select[data-bridge="lhs"]');
+    const relation = root.querySelector('select[data-bridge="relation"]');
+    const rhs = root.querySelector('select[data-bridge="rhs"]');
+    return {lhs: lhs ? lhs.value : '', relation: relation ? relation.value : '', rhs: rhs ? rhs.value : ''};
+  }
+  function evaluateBridge(q){
+    if(!q || !q.bridge) return {attempted:false, correct:false, marks:0, note:''};
+    const state = getBridgeState(q);
+    if(!state) return {attempted:false, correct:false, marks:0, note:''};
+    if(!state.lhs && !state.relation && !state.rhs) return {attempted:false, correct:false, marks:0, note:''};
+    const c = q.bridge.correct || {};
+    const correct = state.lhs === c.lhs && state.relation === c.relation && state.rhs === c.rhs;
+    const marks = correct ? (q.bridge.marks || 1) : 0;
+    const answerText = [c.lhs, c.relation, c.rhs].filter(Boolean).join(' ');
+    return {attempted:true, correct, marks, note: correct ? `Bridge statement correct: ${answerText}.` : `Bridge statement not quite right. A good bridge here is ${answerText}.`};
   }
 
-  function parseQuantity(raw){
-    if(raw === null || raw === undefined) return {ok:false};
-    let s = raw.toString().trim();
-    if(!s) return {ok:false};
-
-    // Allow common formats:
-    // 58,800  -> 58800
-    // 5.8×10^4 / 5.8 x 10^4 / 5.8*10^4 -> 5.8e4
-    s = s.replace(/,/g,'');
-    s = s.replace(/×/g,'x');
-
-    // Convert a×10^b (with optional spaces/parentheses) to ae b
-    s = s.replace(/([-+]?(?:\d+(?:\.\d*)?|\.\d+))\s*[x\*]\s*10\^?\s*\(?\s*([-+]?\d+)\s*\)?/gi, '$1e$2');
-
-    // Extract leading number (now supports e-notation)
-    const m = s.match(/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?/i);
-    if(!m) return {ok:false};
-
-    const numStr = m[0].replace(/\s+/g,'');
-    const num = Number(numStr);
-    if(Number.isNaN(num)) return {ok:false};
-
-    const suffix = s.slice(m[0].length).trim();
-    const token = tidyUnitToken(suffix);
-    const unitPresent = !!token;
-    const info = unitPresent ? unitInfo(token) : null;
-
-    return {ok:true, num, numStr, unitPresent, unitToken:token, unitInfo:info};
+  function getCalcWorking(q){
+    if(!q || !q._instanceId) return '';
+    const el = document.getElementById(`work_${q._instanceId}`);
+    return el ? (el.value || '') : '';
   }
+  function normWorking(raw){
+    return String(raw || '')
+      .toLowerCase()
+      .replace(/Δ/g,'delta')
+      .replace(/θ/g,'theta')
+      .replace(/×/g,'x')
+      .replace(/\s+/g,'');
+  }
+  function textHasAny(raw, arr){
+    const t = normWorking(raw);
+    return (arr || []).some(x => t.includes(normWorking(x)));
+  }
+  function scoreCalcWorking(meta, working){
+    const raw = String(working || '').trim();
+    if(!raw || !meta) return {marks:0, notes:[]};
+    let marks = 0;
+    const notes = [];
+    const seen = new Set();
+    function award(key, cond, note){
+      if(cond && !seen.has(key)){
+        seen.add(key);
+        marks += 1;
+        notes.push(note);
+      }
+    }
+    const t = normWorking(raw);
+    const has = (arr) => (arr || []).some(x => t.includes(normWorking(x)));
+    const mentionsSeconds = (value) => Number.isFinite(value) && (t.includes(String(value)) || t.includes(String(value).replace(/\.0+$/,'')));
+    const convertedTime = () => has(['x60','*60','÷60','/60','seconds','secs','s=']) || mentionsSeconds(meta.timeSeconds);
+    const convertedPower = () => has(['x1000','*1000','kw','w']) || mentionsSeconds(meta.powerW);
+
+    switch(meta.kind){
+      case 'gpeToKeSpeed':
+        award('gpe', has(['mgh','ep=','gpe']), 'Method seen: using gravitational potential energy.');
+        award('ke', has(['1/2mv^2','0.5mv^2','ek=','v^2','sqrt']), 'Method seen: linking to the kinetic energy equation.');
+        award('rearrange', has(['v=','sqrt','v^2']), 'Method seen: rearranging for the speed.');
+        break;
+      case 'keToGpeHeight':
+        award('ke', has(['1/2mv^2','0.5mv^2','ek=']), 'Method seen: using kinetic energy.');
+        award('gpe', has(['mgh','ep=','gpe','h=']), 'Method seen: linking to gravitational potential energy.');
+        award('rearrange', has(['h=','/g','/10','/9.8']), 'Method seen: rearranging for the height.');
+        break;
+      case 'liftPower':
+        award('gpe', has(['mgh','ep=','gpe']), 'Method seen: finding the useful energy gain.');
+        award('power', has(['p=e/t','power=e/t','p=ep/t','p=9000/']), 'Method seen: using P = E / t.');
+        award('time', convertedTime(), 'Method seen: converting the time to seconds.');
+        break;
+      case 'liftInputPowerEff':
+        award('gpe', has(['mgh','ep=','gpe']), 'Method seen: finding the useful energy gain.');
+        award('power', has(['p=e/t','power=e/t','p=ep/t']), 'Method seen: finding the useful power first.');
+        award('eff', has(['eff','efficiency','useful/input','input=useful/']), 'Method seen: using efficiency to move from useful output to input.');
+        award('time', convertedTime(), 'Method seen: converting the time to seconds.');
+        break;
+      case 'accelPowerRest':
+        award('ke', has(['1/2mv^2','0.5mv^2','ek=']), 'Method seen: finding the gain in kinetic energy.');
+        award('power', has(['p=e/t','power=e/t']), 'Method seen: using P = E / t.');
+        award('time', convertedTime(), 'Method seen: converting the time to seconds.');
+        break;
+      case 'accelPowerMoving':
+        award('added', has(['pt','e=pt','pxt','p*t']), 'Method seen: finding the energy added from the power.');
+        award('initial', has(['1/2mu^2','0.5mu^2','initialek','ek(initial)','10^2','u^2']), 'Method seen: finding the initial kinetic energy.');
+        award('change', has(['deltaek','changeinke','ek(final)','finalek','+']), 'Method seen: combining the added energy with the initial kinetic energy.');
+        award('rearrange', has(['v=','sqrt','v^2']), 'Method seen: rearranging ½mv² for the new speed.');
+        break;
+      case 'keToTempRise':
+        award('ke', has(['1/2mv^2','0.5mv^2','ek=']), 'Method seen: finding the kinetic energy first.');
+        award('heat', has(['mcdelta','mcdelta','mcθ','mcΔ','mc']), 'Method seen: using ΔE = mcΔθ.');
+        award('rearrange', has(['deltatheta=','deltaθ=','/mc','/450','/130','/390']), 'Method seen: rearranging for the temperature rise.');
+        break;
+      case 'gpeToTempRise':
+        award('gpe', has(['mgh','ep=','gpe']), 'Method seen: finding the gravitational potential energy first.');
+        award('heat', has(['mcdelta','mcdelta','mcθ','mcΔ','mc']), 'Method seen: using ΔE = mcΔθ.');
+        award('rearrange', has(['deltatheta=','deltaθ=','/mc','/130','/450','/390']), 'Method seen: rearranging for the temperature rise.');
+        break;
+      case 'springToSpeed':
+        award('epe', has(['1/2ke^2','0.5ke^2','ee=','elast']), 'Method seen: finding the elastic energy first.');
+        award('ke', has(['1/2mv^2','0.5mv^2','ek=']), 'Method seen: linking to the kinetic energy equation.');
+        award('rearrange', has(['v=','sqrt','v^2']), 'Method seen: rearranging for the speed.');
+        break;
+      case 'springToHeight':
+        award('epe', has(['1/2ke^2','0.5ke^2','ee=','elast']), 'Method seen: finding the elastic energy first.');
+        award('gpe', has(['mgh','ep=','gpe','h=']), 'Method seen: linking to gravitational potential energy.');
+        award('rearrange', has(['h=','/g','/10','/9.8']), 'Method seen: rearranging for the height.');
+        break;
+      case 'brakingForceFromKE':
+        award('ke', has(['1/2mv^2','0.5mv^2','ek=']), 'Method seen: finding the kinetic energy.');
+        award('work', has(['w=fs','work=fs','fs=']), 'Method seen: using W = Fs.');
+        award('rearrange', has(['f=','/45','/s']), 'Method seen: rearranging for the braking force.');
+        break;
+      case 'hangingSpringEnergy':
+        award('weight', has(['mg','weight','w=mg']), 'Method seen: finding the weight.');
+        award('hooke', has(['f=ke','k=f/e','springforce','equilibrium','weight=spring']), 'Method seen: linking the weight to the spring force.');
+        award('epe', has(['1/2ke^2','0.5ke^2','ee=']), 'Method seen: using Ee = ½ke².');
+        break;
+      case 'dropWithInitialKE':
+        award('initial', has(['1/2mu^2','0.5mu^2','initialek','ek(initial)','8^2','u^2']), 'Method seen: finding the initial kinetic energy.');
+        award('gpe', has(['mgh','ep=','gpe']), 'Method seen: finding the gravitational potential energy.');
+        award('combine', has(['finalek','ek(final)','totalke','+']), 'Method seen: combining the energies to get the final kinetic energy.');
+        award('rearrange', has(['v=','sqrt','v^2']), 'Method seen: rearranging for the final speed.');
+        break;
+      case 'keToTempNoMass':
+        award('ke', has(['1/2mv^2','0.5mv^2','ek=']), 'Method seen: writing the kinetic energy expression.');
+        award('heat', has(['mcdelta','mcdelta','mcθ','mcΔ']), 'Method seen: writing the thermal energy expression.');
+        award('cancel', has(['cancelm','masscancels','massescancel','/m']), 'Method seen: cancelling the mass correctly.');
+        award('rearrange', has(['deltatheta=','deltaθ=','/390','/c']), 'Method seen: rearranging for the temperature rise.');
+        break;
+      case 'power':
+      case 'elecEnergyPt':
+      case 'elecEnergyIVt':
+      case 'currentFromPV':
+      case 'powerFromIV':
+      case 'shc':
+      case 'deltaT':
+      case 'shcEff':
+      case 'efficiency':
+      default:
+        award('formula', has(['=']), 'Sensible working shown.');
+        if(meta.needsConversion) award('conversion', convertedTime() || convertedPower(), 'Method seen: a conversion step is being attempted.');
+        break;
+    }
+    return {marks, notes};
+  }
+
+  function textIncludesAny(t, arr){ return arr.some(x => t.includes(norm(x))); }
   function countDecimalPlaces(numStr){
     const s = numStr.toLowerCase();
     const base = s.split('e')[0];
@@ -553,15 +642,13 @@ return "";
   }
   function countSigFigs(numStr){
     let s = numStr.toLowerCase();
-    s = s.replace(/^[-+]/,'');
-    s = s.split('e')[0];
+    s = s.replace(/^[-+]/,'').split('e')[0];
     if(s.includes('.')){
       s = s.replace(/^0+/, '').replace('.','').replace(/^0+/, '');
       return Math.max(1, s.length);
-    } else {
-      s = s.replace(/^0+/, '').replace(/0+$/,'');
-      return Math.max(1, s.length || 1);
     }
+    s = s.replace(/^0+/, '').replace(/0+$/,'');
+    return Math.max(1, s.length || 1);
   }
   function roundToDp(x, dp){
     const f = Math.pow(10, dp);
@@ -578,209 +665,496 @@ return "";
     return diff/scale <= rel;
   }
   function roundingMatch(studentVal, trueVal, numStr){
-    if(nearlyEqual(studentVal, trueVal)) return {ok:true, basis:"exact"};
+    if(nearlyEqual(studentVal, trueVal)) return {ok:true};
     const dp = countDecimalPlaces(numStr);
     const sf = countSigFigs(numStr);
-    const tDp = roundToDp(trueVal, dp);
-    if(nearlyEqual(studentVal, tDp, 1e-10, 1e-12)) return {ok:true, basis:`${dp} d.p.`};
-    const tSf = roundToSf(trueVal, sf);
-    if(nearlyEqual(studentVal, tSf, 1e-10, 1e-12)) return {ok:true, basis:`${sf} s.f.`};
+    if(nearlyEqual(studentVal, roundToDp(trueVal, dp), 1e-10, 1e-12)) return {ok:true};
+    if(nearlyEqual(studentVal, roundToSf(trueVal, sf), 1e-10, 1e-12)) return {ok:true};
     return {ok:false};
   }
-  function closeButBadRounding(studentVal, trueVal, numStr, relTolClose){
-    const diff = Math.abs(studentVal-trueVal);
-    const scale = Math.max(Math.abs(trueVal), 1e-12);
-    const rel = diff/scale;
-    const close = rel <= (relTolClose ?? 0.03);
-    if(!close) return null;
-    const dp = countDecimalPlaces(numStr);
-    const sf = countSigFigs(numStr);
-    const base = numStr.toLowerCase().split('e')[0];
-    const hasDot = base.includes('.');
-    const target = hasDot ? roundToDp(trueVal, dp) : roundToSf(trueVal, sf);
-    let hint = "";
-    if(target > studentVal) hint = "You needed to round up.";
-    if(target < studentVal) hint = "You needed to round down.";
-    return {basis: hasDot ? `${dp} d.p.` : `${sf} s.f.`, target, hint, dp: hasDot ? dp : null, sf: hasDot ? null : sf};
-  }
-  function fmtRounded(value, opts){
-    if(opts && Number.isInteger(opts.dp)) return Number(value).toFixed(opts.dp);
-    if(opts && Number.isInteger(opts.sf)) return Number(value).toPrecision(opts.sf);
-    const a = Number(value);
-    return (Math.abs(a) >= 1000 || Math.abs(a) < 0.01) ? a.toExponential(3) : a.toPrecision(4);
-  }
 
-  function qMaxMarks(q){
-    if(Number.isFinite(q.marks)) return q.marks;
-    if(Array.isArray(q.markPoints)) return q.markPoints.length;
-    return 1;
+  function tidyUnitToken(u){
+    if(!u) return null;
+    let t = u.toString().trim();
+    if(!t) return null;
+    t = t.replace(/[–−]/g,'-');
+    t = t.replace(/Ω/g,'ohm');
+    t = t.replace(/²/g,'^2').replace(/³/g,'^3');
+    t = t.replace(/degrees?\s*c/ig,'degC');
+    t = t.replace(/deg\s*c/ig,'degC');
+    t = t.replace(/°\s*c/ig,'degC');
+    t = t.replace(/\s+/g,'');
+    return t;
   }
-  function textIncludesAny(t, arr){ return arr.some(x => t.includes(norm(x))); }
+  function parseShcUnit(raw){
+    const compact = raw.replace(/degrees?\s*c/ig,'degC').replace(/deg\s*c/ig,'degC').replace(/°\s*c/ig,'degC').replace(/\s+/g,'');
+    const okBracket = /^J\/\(kg(?:degC|K)\)$/.test(compact);
+    const okIndex = /^Jkg\^-?1(?:degC|K)\^-?1$/.test(compact);
+    if(!(okBracket || okIndex)) return null;
+    return {type:'shc', canonical:'J kg^-1 °C^-1', scale:1, caseOk:true};
+  }
+  function unitInfo(raw){
+    if(!raw) return null;
+    const eq = want => raw === want;
+    const ieq = want => raw.toLowerCase() === want.toLowerCase();
 
-  function genPIV_Current(){
-    const PkW = rchoice([0.6, 0.9, 1.2, 1.4, 1.8, 2.2, 2.8, 3.0]);
-    const V = 230;
-    const P = PkW*1000;
-    const I = P / V;
-    return {
-      prompt: `A device is rated ${PkW} kW on ${V} V mains. Calculate the current.`,
-      answer: I,
-      unitHint: "A",
-      explanation:
-`Mark scheme:
-Use P = IV, so I = P / V.
-Convert kW to W: P = ${PkW} kW = ${P} W.
-I = ${P} / ${V} = ${I.toPrecision(4)} A.`
-    };
+    if(ieq('kg')) return {type:'mass', canonical:'kg', scale:1, caseOk:eq('kg')};
+    if(ieq('g')) return {type:'mass', canonical:'g', scale:1e-3, caseOk:eq('g')};
+    if(ieq('m')) return {type:'length', canonical:'m', scale:1, caseOk:eq('m')};
+    if(ieq('cm')) return {type:'length', canonical:'cm', scale:1e-2, caseOk:eq('cm')};
+    if(ieq('mm')) return {type:'length', canonical:'mm', scale:1e-3, caseOk:eq('mm')};
+    if(ieq('s')) return {type:'time', canonical:'s', scale:1, caseOk:eq('s')};
+    if(ieq('min') || ieq('mins') || ieq('minute') || ieq('minutes')) return {type:'time', canonical:'min', scale:60, caseOk:true};
+    if(ieq('h') || ieq('hr') || ieq('hour') || ieq('hours')) return {type:'time', canonical:'h', scale:3600, caseOk:true};
+    if(ieq('m/s') || ieq('ms^-1') || ieq('mps')) return {type:'speed', canonical:'m/s', scale:1, caseOk:eq('m/s')};
+    if(ieq('m/s^2') || ieq('ms^-2')) return {type:'acc', canonical:'m/s^2', scale:1, caseOk:eq('m/s^2')};
+    if(ieq('N') || ieq('newton') || ieq('newtons')) return {type:'force', canonical:'N', scale:1, caseOk:eq('N')};
+    if(ieq('N/kg') || ieq('Nkg^-1')) return {type:'gfield', canonical:'N/kg', scale:1, caseOk:eq('N/kg')};
+    if(ieq('N/m') || ieq('Nm^-1')) return {type:'spring', canonical:'N/m', scale:1, caseOk:eq('N/m')};
+    if(ieq('J')) return {type:'energy', canonical:'J', scale:1, caseOk:eq('J')};
+    if(ieq('kJ')) return {type:'energy', canonical:'kJ', scale:1e3, caseOk:eq('kJ')};
+    if(ieq('MJ')) return {type:'energy', canonical:'MJ', scale:1e6, caseOk:eq('MJ')};
+    if(ieq('W')) return {type:'power', canonical:'W', scale:1, caseOk:eq('W')};
+    if(ieq('kW')) return {type:'power', canonical:'kW', scale:1e3, caseOk:eq('kW')};
+    if(ieq('MW')) return {type:'power', canonical:'MW', scale:1e6, caseOk:eq('MW')};
+    if(ieq('V')) return {type:'voltage', canonical:'V', scale:1, caseOk:eq('V')};
+    if(ieq('A')) return {type:'current', canonical:'A', scale:1, caseOk:eq('A')};
+    if(ieq('mA')) return {type:'current', canonical:'mA', scale:1e-3, caseOk:eq('mA')};
+    if(ieq('ohm') || ieq('ohms')) return {type:'resistance', canonical:'Ω', scale:1, caseOk:true};
+    if(raw.includes('ohm')) return {type:'resistance', canonical:'Ω', scale:1, caseOk:true};
+    if(/^degC$/i.test(raw) || /^degreesC$/i.test(raw)) return {type:'tempC', canonical:'°C', scale:1, caseOk:true};
+    if(raw === 'K') return {type:'tempK', canonical:'K', scale:1, caseOk:true};
+    const shc = parseShcUnit(raw);
+    if(shc) return shc;
+    return null;
   }
-  function genPIV_Power(){
-    const V = rchoice([6, 9, 12, 24]);
-    const I = rchoice([0.25, 0.4, 0.6, 0.8, 1.2, 1.5]);
-    const P = V * I;
-    return {prompt:`A motor takes ${I} A from a ${V} V supply. Calculate the power.`, answer:P, unitHint:"W",
-            explanation:`Mark scheme:\nP = IV = ${I} × ${V} = ${P.toPrecision(4)} W.`};
-  }
-  function genOhms_Current(){
-    const V = rchoice([3, 4.5, 6, 9, 12]);
-    const R = rchoice([3.3, 4.7, 6.8, 10, 15, 22, 33]);
-    const I = V / R;
-    return {prompt:`A ${R} Ω resistor is connected to a ${V} V supply. Calculate the current.`, answer:I, unitHint:"A",
-            explanation:`Mark scheme:\nUse V = IR so I = V / R.\nI = ${V} / ${R} = ${I.toPrecision(4)} A.`};
-  }
-  function genOhms_Voltage(){
-    const I = rchoice([0.12, 0.18, 0.25, 0.30, 0.40, 0.55]);
-    const R = rchoice([5.6, 8.2, 10, 12, 15, 22, 47]);
-    const V = I * R;
-    return {prompt:`The current through a resistor is ${I} A and its resistance is ${R} Ω. Calculate the voltage across it.`, answer:V, unitHint:"V",
-            explanation:`Mark scheme:\nUse V = IR.\nV = ${I} × ${R} = ${V.toPrecision(4)} V.`};
-  }
-  function genSeriesTwoResistors(){
-    const R1 = rchoice([4.7, 6.8, 10, 12, 15, 22, 33, 47]);
-    const R2 = rchoice([5.6, 8.2, 10, 18, 27, 39, 56]);
-    const Vs = rchoice([6, 9, 12]);
-    const Rt = R1+R2;
-    const I = Vs/Rt;
-    const V1 = I*R1;
-    const V2 = I*R2;
-    const pick = rchoice(["current","V1","V2","Rt"]);
-    if(pick==="current"){
-      return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are connected in series to a ${Vs} V supply. Calculate the current in the circuit.`, answer:I, unitHint:"A",
-              explanation:`Mark scheme:\nR_total = ${R1} + ${R2} = ${Rt} Ω.\nI = V / R_total = ${Vs} / ${Rt} = ${I.toPrecision(4)} A.`};
-    }
-    if(pick==="V1"){
-      return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are in series on a ${Vs} V supply. Calculate the voltage across the ${R1} Ω resistor.`, answer:V1, unitHint:"V",
-              explanation:`Mark scheme:\nR_total = ${Rt} Ω, so I = ${Vs}/${Rt} = ${I.toPrecision(4)} A.\nV1 = IR1 = ${I.toPrecision(4)} × ${R1} = ${V1.toPrecision(4)} V.`};
-    }
-    if(pick==="V2"){
-      return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are in series on a ${Vs} V supply. Calculate the voltage across the ${R2} Ω resistor.`, answer:V2, unitHint:"V",
-              explanation:`Mark scheme:\nI = ${Vs}/${Rt} = ${I.toPrecision(4)} A.\nV2 = IR2 = ${I.toPrecision(4)} × ${R2} = ${V2.toPrecision(4)} V.`};
-    }
-    return {prompt:`Two resistors ${R1} Ω and ${R2} Ω are connected in series. Calculate the total resistance.`, answer:Rt, unitHint:"Ω",
-            explanation:`Mark scheme:\nIn series, resistances add: R_total = ${R1} + ${R2} = ${Rt} Ω.`};
-  }
-  const GENERATORS = {genPIV_Current, genPIV_Power, genOhms_Current, genOhms_Voltage, genSeriesTwoResistors};
+  function parseQuantity(raw){
+    if(raw === null || raw === undefined) return {ok:false};
+    let s = raw.toString().trim();
+    if(!s) return {ok:false};
+    s = s.replace(/,/g,'').replace(/×/g,'x').replace(/[–−]/g,'-');
+    s = s.replace(/([-+]?(?:\d+(?:\.\d*)?|\.\d+))\s*[x\*]\s*10\^?\s*\(?\s*([-+]?\d+)\s*\)?/gi, '$1e$2');
 
-  function expandQuestion(q){
-    if(q.generator && q.generator.name && GENERATORS[q.generator.name]){
-      const inst = GENERATORS[q.generator.name]();
-      return {...q, ...inst};
+    const frac = s.match(/^\s*([-+]?\d+)\s*\/\s*([1-9]\d*)(.*)$/);
+    if(frac){
+      const a = Number(frac[1]);
+      const b = Number(frac[2]);
+      const suffix = frac[3].trim();
+      const token = tidyUnitToken(suffix);
+      const unitPresent = !!token;
+      return {ok:true, num:a/b, numStr:`${a}/${b}`, unitPresent, unitToken:token, unitInfo: unitPresent ? unitInfo(token) : null, fromFraction:true};
     }
-    return {...q};
+
+    const m = s.match(/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?/i);
+    if(m){
+      const numStr = m[0].replace(/\s+/g,'');
+      const num = Number(numStr);
+      if(!Number.isNaN(num)){
+        const suffix = s.slice(m[0].length).trim();
+        const token = tidyUnitToken(suffix);
+        const unitPresent = !!token;
+        return {ok:true, num, numStr, unitPresent, unitToken:token, unitInfo: unitPresent ? unitInfo(token) : null, fromFraction:false};
+      }
+    }
+
+    const tail = s.match(/([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?)\s*([A-Za-z°Ω/%][A-Za-z°Ω/%()\s^-]*)?\s*$/i);
+    if(tail){
+      const numStr = String(tail[1] || '').replace(/\s+/g,'');
+      const num = Number(numStr);
+      if(!Number.isNaN(num)){
+        const suffix = String(tail[2] || '').trim();
+        const token = tidyUnitToken(suffix);
+        const unitPresent = !!token;
+        return {ok:true, num, numStr, unitPresent, unitToken:token, unitInfo: unitPresent ? unitInfo(token) : null, fromFraction:false, fromTrailing:true};
+      }
+    }
+    return {ok:false};
   }
 
   function expectedUnitInfo(unitHint){
     if(!unitHint) return null;
-    if(unitHint==="Ω") return {type:"resistance", canonical:"Ω", scale:1, caseOk:true, token:"Ω"};
-    const info = unitInfo(unitHint);
-    if(!info) return null;
-    return {...info, token: unitHint};
+    if(unitHint === 'Ω') return {type:'resistance', canonical:'Ω', scale:1};
+    if(unitHint === '°C') return {type:'tempDelta', canonical:'°C', scale:1};
+    if(unitHint === 'J/kg°C' || unitHint === 'J/kg °C') return {type:'shc', canonical:'J kg^-1 °C^-1', scale:1};
+    const info = unitInfo(tidyUnitToken(unitHint));
+    return info ? {type:info.type, canonical:info.canonical, scale:info.scale} : null;
+  }
+  function unitAcceptedForExpected(info, exp){
+    if(!info || !exp) return false;
+    if(exp.type === 'tempDelta') return info.type === 'tempC' || info.type === 'tempK';
+    return info.type === exp.type;
   }
 
-  function checkNumeric(q, raw){
-    const parsed = parseQuantity(raw);
-    if(!parsed.ok) return {checked:false, msg:"Enter a number (you can add units)."};
-    const exp = expectedUnitInfo(q.unitHint || "");
+
+  function scoreWithUnitPenalty(baseScore, max, unitPenalty){
+    const score = clamp(baseScore - (unitPenalty ? 0.5 : 0), 0, max);
+    const status = score <= 0 ? 'wrong' : (score >= max ? 'full' : 'partial');
+    return {score, status};
+  }
+  function candidateOutcome(baseMarks, max, unitPenalty, reason, unitMsg){
+    const scored = scoreWithUnitPenalty(baseMarks, max, unitPenalty);
+    return {checked:true, status:scored.status, score:scored.score, max, reason, unitMsg:unitPenalty ? (unitMsg || 'Unit missing.') : '', auto:false};
+  }
+  function addCalcMarkGuide(meta, reason){
+    const guide = (meta && meta.markGuide)
+      ? meta.markGuide
+      : (() => {
+          const bits = ['Marking idea: 1 for substitution'];
+          if(meta && meta.needsRearrangement) bits.push('1 for rearrangement');
+          bits.push('1 for correct answer');
+          if(meta && meta.needsConversion) bits.push('1 for converting units/time properly');
+          return bits.join(', ') + '. A fully correct final answer gets full marks.';
+        })();
+    return reason ? `${reason}
+${guide}` : guide;
+  }
+  function findCandidate(studentBase, numStr, candidates){
+    let best = null;
+    for(const cand of candidates){
+      if(!cand || !Number.isFinite(cand.value)) continue;
+      if(roundingMatch(studentBase, cand.value, numStr).ok){
+        if(!best || cand.marks > best.marks) best = cand;
+      }
+    }
+    return best;
+  }
+  function numericFallbackReason(meta){
+    if(!meta) return 'Check the formula, your substitution and any unit conversions.';
+    switch(meta.kind){
+      case 'ke': return 'Use Ek = ½mv². Square the speed first, then multiply by the mass and by ½.';
+      case 'gpe': return 'Use GPE = mgh. Multiply the mass, g and the height.';
+      case 'epe': return 'Use Ee = ½ke². Square the extension, then multiply by k and by ½.';
+      case 'work': return 'Use W = Fs. Multiply force by distance moved in the direction of the force.';
+      case 'power': return 'Use P = E / t, with time in seconds.';
+      case 'elecEnergyPt': return 'Use E = Pt, with power in watts and time in seconds.';
+      case 'elecEnergyIVt': return 'Use E = IVt, with time in seconds.';
+      case 'currentFromPV': return 'Use P = IV, so I = P / V. Convert kW to W first if needed.';
+      case 'powerFromIV': return 'Use P = IV. Multiply current by voltage.';
+      case 'shc': return 'Start from ΔE = mcΔθ and rearrange to c = ΔE / (mΔθ).';
+      case 'deltaT': return 'Start from ΔE = mcΔθ and rearrange to Δθ = ΔE / (mc).';
+      case 'shcEff': return 'Use c = (energy that heats the water) / (mΔθ). For the heater, E = Pt and only 80% is useful.';
+      case 'efficiency': return 'Use efficiency = useful output / total input. Give a decimal, or a percentage with %.';
+      case 'gpeToKeSpeed': return 'Find the GPE first, then use the bridge Ep = Ek before solving ½mv² for the speed.';
+      case 'keToGpeHeight': return 'Find the KE first, then use the bridge Ek = Ep before solving mgh for the height.';
+      case 'liftPower': return 'Find the useful energy change first, bridge it to E in P = E/t, and make sure the time is in seconds.';
+      case 'liftInputPowerEff': return 'Find the useful GPE gain, then the useful power, then use efficiency to get the input power.';
+      case 'accelPowerRest': return 'Find the gain in kinetic energy, bridge it to E in P = E/t, then divide by the time.';
+      case 'accelPowerMoving': return 'Find the energy added from power first; that equals the change in KE, not the final KE by itself.';
+      case 'keToTempRise': return 'Find the KE first, bridge it to ΔE, then use ΔE = mcΔθ and rearrange for the temperature rise.';
+      case 'gpeToTempRise': return 'Find the GPE first, bridge it to ΔE, then use ΔE = mcΔθ and rearrange for the temperature rise.';
+      case 'springToSpeed': return 'Find the elastic energy first, bridge Ee = Ek, then rearrange ½mv² for the speed.';
+      case 'springToHeight': return 'Find the elastic energy first, bridge Ee = Ep, then rearrange mgh for the height.';
+      case 'brakingForceFromKE': return 'Find the KE first, bridge it to work done, then use W = Fs and rearrange for the force.';
+      case 'hangingSpringEnergy': return 'Use weight = mg, then at equilibrium weight = spring force, then F = ke, then Ee = ½ke².';
+      case 'dropWithInitialKE': return 'Find the initial KE and the GPE, add them to get the final KE, then rearrange ½mv² for the final speed.';
+      case 'keToTempNoMass': return 'Set ½mv² = mcΔθ and cancel the mass before rearranging for the temperature rise.';
+      default: return 'Check the correct formula, your substitution and any conversions.';
+    }
+  }
+  function diagnoseNumeric(meta, studentBase, numStr){
+    if(!meta) return null;
+    let candidates = [];
+    if(meta.kind === 'ke'){
+      const {m, v} = meta;
+      candidates = [
+        {value:m*v*v, marks:2, reason:'Looks like you forgot the ½ in Ek = ½mv².'},
+        {value:0.5*m*v, marks:1, reason:'Looks like you did not square the speed.'},
+        {value:m*v, marks:1, reason:'Looks like you did not square the speed and may also have missed the ½.'}
+      ];
+    } else if(meta.kind === 'gpe'){
+      const {m, g, h} = meta;
+      candidates = [
+        {value:m*h, marks:1, reason:'Looks like you left out g in GPE = mgh.'},
+        {value:m*g, marks:1, reason:'Looks like you left out the height in GPE = mgh.'},
+        {value:g*h, marks:1, reason:'Looks like you left out the mass in GPE = mgh.'}
+      ];
+    } else if(meta.kind === 'epe'){
+      const {k, e} = meta;
+      candidates = [
+        {value:k*e*e, marks:2, reason:'Looks like you forgot the ½ in Ee = ½ke².'},
+        {value:0.5*k*e, marks:1, reason:'Looks like you did not square the extension.'},
+        {value:k*e, marks:1, reason:'Looks like you did not square the extension and may also have missed the ½.'}
+      ];
+    } else if(meta.kind === 'work'){
+      const {F, s} = meta;
+      candidates = [
+        {value:F/s, marks:1, reason:'Looks like you divided instead of multiplying. Use W = Fs.'},
+        {value:s/F, marks:0.5, reason:'Looks like the quantities have been used the wrong way round. Use W = Fs.'}
+      ];
+    } else if(meta.kind === 'power'){
+      const {E, timeValue, timeSeconds, needsConversion} = meta;
+      if(needsConversion) candidates.push({value:E/timeValue, marks:2, reason:`Looks like you used ${prettyNum(timeValue)} ${meta.timeUnit} directly. Convert time to seconds before using P = E / t.`});
+      candidates.push({value:E*timeSeconds, marks:1.5, reason:'Looks like you multiplied by time. For power, divide energy by time.'});
+      if(needsConversion) candidates.push({value:E*timeValue, marks:1, reason:'Looks like you both used the wrong operation and did not convert the time to seconds.'});
+    } else if(meta.kind === 'elecEnergyPt'){
+      const {powerValue, powerW, timeValue, timeSeconds} = meta;
+      if(Math.abs(powerW - powerValue) > 1e-12) candidates.push({value:powerValue*timeSeconds, marks:2, reason:'Looks like you used kW as if it were W. Convert power to watts first.'});
+      if(Math.abs(timeSeconds - timeValue) > 1e-12) candidates.push({value:powerW*timeValue, marks:2, reason:`Looks like you used ${prettyNum(timeValue)} ${meta.timeUnit} directly. Convert the time to seconds first.`});
+      if(Math.abs(powerW - powerValue) > 1e-12 && Math.abs(timeSeconds - timeValue) > 1e-12) candidates.push({value:powerValue*timeValue, marks:1, reason:'Looks like both the power and the time were left in the given units. Convert to watts and seconds before using E = Pt.'});
+      candidates.push({value:powerW/timeSeconds, marks:1.5, reason:'Looks like you divided by time. For energy transferred here, use E = Pt.'});
+    } else if(meta.kind === 'elecEnergyIVt'){
+      const {I, V, timeValue, timeSeconds} = meta;
+      if(Math.abs(timeSeconds - timeValue) > 1e-12) candidates.push({value:I*V*timeValue, marks:2, reason:`Looks like you used ${prettyNum(timeValue)} ${meta.timeUnit} directly. Convert the time to seconds before using E = IVt.`});
+      candidates.push({value:(I*V)/timeSeconds, marks:1.5, reason:'Looks like you divided by time instead of multiplying by it. Use E = IVt.'});
+    } else if(meta.kind === 'currentFromPV'){
+      const {powerValue, powerW, V} = meta;
+      if(Math.abs(powerW - powerValue) > 1e-12) candidates.push({value:powerValue/V, marks:2, reason:'Looks like you used kW as if it were W. Convert power to watts before finding the current.'});
+      candidates.push({value:powerW*V, marks:1, reason:'Looks like you multiplied by the voltage. From P = IV, rearrange to I = P / V.'});
+      candidates.push({value:V/powerW, marks:0.5, reason:'Looks like the rearrangement went the wrong way. From P = IV, I = P / V.'});
+    } else if(meta.kind === 'powerFromIV'){
+      const {I, V} = meta;
+      candidates = [
+        {value:I/V, marks:1, reason:'Looks like you divided instead of multiplying. Use P = IV.'},
+        {value:V/I, marks:1, reason:'Looks like you divided instead of multiplying. Use P = IV.'}
+      ];
+    } else if(meta.kind === 'shc'){
+      const {E, m, dT} = meta;
+      candidates = [
+        {value:E/m, marks:2, reason:'Looks like you divided by the mass but not by the temperature rise. Use c = ΔE / (mΔθ).'},
+        {value:E/dT, marks:2, reason:'Looks like you divided by the temperature rise but not by the mass. Use c = ΔE / (mΔθ).'},
+        {value:E*m*dT, marks:1.5, reason:'Looks like you multiplied by mΔθ instead of dividing by it when rearranging ΔE = mcΔθ.'},
+        {value:(E/m)*dT, marks:1.5, reason:'Looks like the rearrangement is off. After rearranging, divide by both m and Δθ.'}
+      ];
+    } else if(meta.kind === 'deltaT'){
+      const {E, m, c} = meta;
+      candidates = [
+        {value:E/m, marks:2, reason:'Looks like you divided by the mass but not by c. Use Δθ = ΔE / (mc).'},
+        {value:E/c, marks:2, reason:'Looks like you divided by c but not by the mass. Use Δθ = ΔE / (mc).'},
+        {value:E*m*c, marks:1.5, reason:'Looks like you multiplied by mc instead of dividing by it.'},
+        {value:(E/m)*c, marks:1.5, reason:'Looks like the rearrangement is off. For Δθ, divide by both m and c.'}
+      ];
+    } else if(meta.kind === 'shcEff'){
+      const {powerValue, powerW, timeSeconds, effFraction, effPercent, m, dT, endT} = meta;
+      const usefulEnergy = powerW * timeSeconds * effFraction;
+      candidates = [
+        {value:(powerW * timeSeconds) / (m * dT), marks:2.5, reason:'Looks like you forgot to use only the useful 80% of the heater energy.'},
+        {value:usefulEnergy / (m * endT), marks:2.5, reason:'Looks like you used the final temperature 100 °C instead of the temperature rise 82 °C.'},
+        {value:(powerW * timeSeconds * effPercent) / (m * dT), marks:2, reason:'Looks like you used 80 instead of 0.80 for the efficiency factor.'},
+        {value:(powerValue * timeSeconds * effFraction) / (m * dT), marks:2, reason:'Looks like you left the power in kW instead of converting to W.'}
+      ];
+    } else if(meta.kind === 'efficiency'){
+      const {useful, total} = meta;
+      candidates = [
+        {value:total/useful, marks:1, reason:'Looks like the efficiency fraction has been reversed. Use useful output / total input.'},
+        {value:(useful/total)*100, marks:2, reason:'That is the percentage value. Add % if you want to give the answer as a percentage.'}
+      ];
+    } else if(meta.kind === 'gpeToKeSpeed'){
+      const E = meta.m * meta.g * meta.h;
+      candidates = [
+        {value:E, marks:2, reason:'That looks like the energy in joules. Use Ep = Ek and then solve ½mv² for the speed.'},
+        {value:Math.sqrt(meta.g * meta.h), marks:2, reason:'Looks like the ½ in ½mv² has been missed when finding the speed.'}
+      ];
+    } else if(meta.kind === 'keToGpeHeight'){
+      const E = 0.5 * meta.m * meta.v * meta.v;
+      candidates = [
+        {value:E, marks:2, reason:'That looks like the kinetic energy in joules. After finding it, set Ek = Ep and solve for the height.'},
+        {value:E / meta.g, marks:1.5, reason:'Looks like the mass may have been left out when rearranging mgh.'}
+      ];
+    } else if(meta.kind === 'liftPower'){
+      const E = meta.m * meta.g * meta.h;
+      candidates = [
+        {value:E, marks:2, reason:'That looks like the useful energy gain. Now use P = E/t.'},
+        {value:E / meta.timeValue, marks:3, reason:`Looks like ${prettyNum(meta.timeValue)} ${meta.timeUnit} was used directly. Convert the time to seconds first.`}
+      ];
+    } else if(meta.kind === 'liftInputPowerEff'){
+      const usefulE = meta.m * meta.g * meta.h;
+      const usefulP = usefulE / meta.timeSeconds;
+      candidates = [
+        {value:usefulE, marks:2, reason:'That looks like the useful energy gain, not the input power.'},
+        {value:usefulP, marks:4, reason:'That is the useful output power. One more step is needed: use the efficiency to find the input power.'},
+        {value:usefulP * meta.effFraction, marks:3, reason:'Looks like the efficiency has been used in the wrong direction. Input power should be larger than useful output power.'}
+      ];
+    } else if(meta.kind === 'accelPowerRest'){
+      const E = 0.5 * meta.m * meta.v * meta.v;
+      candidates = [
+        {value:E, marks:2, reason:'That looks like the gain in kinetic energy. Now use P = E/t.'},
+        {value:(meta.m * meta.v * meta.v) / meta.timeSeconds, marks:3, reason:'Looks like the ½ in the kinetic energy equation has been missed.'}
+      ];
+    } else if(meta.kind === 'accelPowerMoving'){
+      const added = meta.powerW * meta.timeSeconds;
+      const initial = 0.5 * meta.m * meta.u * meta.u;
+      candidates = [
+        {value:added, marks:2, reason:'That looks like the energy added by the engine. It equals the change in KE, not the final speed.'},
+        {value:Math.sqrt((2 * added) / meta.m), marks:3, reason:'Looks like only the added energy was used, without including the initial kinetic energy.'}
+      ];
+    } else if(meta.kind === 'keToTempRise'){
+      const E = 0.5 * meta.m * meta.v * meta.v;
+      candidates = [
+        {value:E, marks:2, reason:'That looks like the kinetic energy in joules. Now use ΔE = mcΔθ to find the temperature rise.'},
+        {value:E / meta.c, marks:2.5, reason:'Looks like c was used but the mass was missed when rearranging ΔE = mcΔθ.'}
+      ];
+    } else if(meta.kind === 'gpeToTempRise'){
+      const E = meta.m * meta.g * meta.h;
+      candidates = [
+        {value:E, marks:2, reason:'That looks like the gravitational potential energy in joules. Now use ΔE = mcΔθ.'},
+        {value:E / meta.c, marks:2.5, reason:'Looks like c was used but the mass was missed when rearranging ΔE = mcΔθ.'}
+      ];
+    } else if(meta.kind === 'springToSpeed'){
+      const E = 0.5 * meta.k * meta.e * meta.e;
+      candidates = [
+        {value:E, marks:2, reason:'That looks like the elastic energy in joules. Now set Ee = Ek and solve for the speed.'},
+        {value:Math.sqrt((meta.k * meta.e * meta.e) / meta.m), marks:3, reason:'Looks like the ½ terms were not handled correctly when bridging to the kinetic energy equation.'}
+      ];
+    } else if(meta.kind === 'springToHeight'){
+      const E = 0.5 * meta.k * meta.e * meta.e;
+      candidates = [
+        {value:E, marks:2, reason:'That looks like the elastic energy in joules. Now set Ee = Ep and solve for the height.'},
+        {value:E / meta.g, marks:2, reason:'Looks like the mass may have been left out when rearranging mgh.'}
+      ];
+    } else if(meta.kind === 'brakingForceFromKE'){
+      const E = 0.5 * meta.m * meta.v * meta.v;
+      candidates = [
+        {value:E, marks:2, reason:'That looks like the kinetic energy in joules. Now use W = Fs to find the force.'},
+        {value:E * meta.s, marks:2, reason:'Looks like you multiplied by the distance instead of dividing by it when using W = Fs.'}
+      ];
+    } else if(meta.kind === 'hangingSpringEnergy'){
+      const weight = meta.m * meta.g;
+      const k = weight / meta.e;
+      candidates = [
+        {value:weight, marks:2, reason:'That looks like the weight. You still need F = ke, then Ee = ½ke².'},
+        {value:k, marks:4, reason:'That looks like the spring constant. One more step is needed: Ee = ½ke².'}
+      ];
+    } else if(meta.kind === 'dropWithInitialKE'){
+      const initial = 0.5 * meta.m * meta.u * meta.u;
+      const gpe = meta.m * meta.g * meta.h;
+      candidates = [
+        {value:initial, marks:2, reason:'That looks like only the initial kinetic energy.'},
+        {value:gpe, marks:2, reason:'That looks like only the gravitational potential energy.'},
+        {value:Math.sqrt((2 * gpe) / meta.m), marks:3, reason:'Looks like the fall was treated as if there were no initial speed.'}
+      ];
+    } else if(meta.kind === 'keToTempNoMass'){
+      candidates = [
+        {value:0.5 * meta.v * meta.v, marks:3, reason:'That looks like ½v². After cancelling mass, you still need to divide by c to get the temperature rise.'}
+      ];
+    }
+    return findCandidate(studentBase, numStr, candidates);
+  }
+  function checkNumeric(q, raw, workingRaw){
+    const rawText = (raw ?? '').toString().trim();
+    const workingText = (workingRaw ?? '').toString();
+    const parsed = parseQuantity(rawText || workingText);
+    if(!parsed.ok) return {checked:false, msg:'Enter a number for the final answer (you can add units). Show working separately if you want method marks.'};
+
+    const meta = inferCalcMeta(q);
+    const bridge = evaluateBridge(q);
+    const working = scoreCalcWorking(meta, workingText);
+    const exp = expectedUnitInfo(q.unitHint || '');
     const unitNeeded = !!exp;
     const max = qMaxMarks(q);
-
-    let usedScale = 1;
-    let unitOkForFull = true;
-    let unitMsg = "";
+    let usedScale = exp ? exp.scale : 1;
+    let unitAccepted = !unitNeeded;
+    let unitMsg = '';
+    let unitPenalty = false;
 
     if(unitNeeded){
       if(!parsed.unitPresent){
-        unitOkForFull = false;
-        unitMsg = "Unit missing.";
-        usedScale = exp.scale;
+        unitAccepted = false;
+        unitPenalty = true;
+        unitMsg = 'Unit missing.';
+      } else if(!parsed.unitInfo){
+        unitAccepted = false;
+        unitMsg = 'Unit not recognised.';
+      } else if(!unitAcceptedForExpected(parsed.unitInfo, exp)){
+        unitAccepted = false;
+        unitMsg = 'Unit looks wrong for this quantity.';
+        usedScale = parsed.unitInfo.scale || 1;
       } else {
-        const info = parsed.unitInfo;
-        if(!info){
-          unitOkForFull = false;
-          unitMsg = "Unit not recognised.";
-        } else if(info.type !== exp.type){
-          unitOkForFull = false;
-          unitMsg = "Unit looks wrong for this quantity.";
-          usedScale = info.scale;
-        } else {
-          usedScale = info.scale;
-          if(info.caseOk === false){
-            unitOkForFull = false;
-            unitMsg = `Unit case matters: use ${info.canonical} exactly.`;
-          } else {
-            unitOkForFull = true;
-          }
+        usedScale = parsed.unitInfo.scale || 1;
+        unitAccepted = true;
+      }
+    }
+
+    if(q.allowFractionHalf){
+      const percentMatch = rawText.match(/^\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+))\s*%\s*$/);
+      if(percentMatch){
+        const pctVal = Number(percentMatch[1]);
+        if(!Number.isNaN(pctVal) && roundingMatch(pctVal / 100, q.answer, percentMatch[1]).ok){
+          return {checked:true, status:'full', score:max, max, unitMsg:'', auto:false};
         }
       }
     }
 
     const trueInStudentUnits = unitNeeded ? (q.answer / usedScale) : q.answer;
-    const rm = roundingMatch(parsed.num, trueInStudentUnits, parsed.numStr);
-    const okNumeric = rm.ok;
-
-    let status="wrong", score=0, reason="";
-    if(okNumeric && (!unitNeeded || unitOkForFull)){
-      status="full"; score=max;
-    } else if(okNumeric && unitNeeded){
-      status="partial"; score=max/2;
-      reason = unitMsg || "Number correct but unit not accepted.";
-    } else {
-      // partial for "close but wrong rounding" isn't included in this simplified rebuild
-      status="wrong"; score=0;
+    const okNumeric = roundingMatch(parsed.num, trueInStudentUnits, parsed.numStr).ok;
+    if(okNumeric){
+      if(parsed.fromFraction && q.allowFractionHalf){
+        return {checked:true, status:'partial', score:max/2, max, reason:addCalcMarkGuide(meta, 'Equivalent value, but write the efficiency as a decimal or percentage.'), unitMsg:'', auto:false};
+      }
+      const scored = scoreWithUnitPenalty(max, max, unitPenalty);
+      const reasonParts = [];
+      if(unitPenalty) reasonParts.push('Number correct, but include the unit.');
+      if(working.notes.length) reasonParts.push('Method credit seen: ' + working.notes.join(' '));
+      if(bridge.attempted && !bridge.correct) reasonParts.push(bridge.note);
+      const reason = reasonParts.length ? addCalcMarkGuide(meta, reasonParts.join('\n')) : '';
+      return {checked:true, status:scored.status, score:scored.score, max, reason, unitMsg:unitPenalty ? unitMsg : '', auto:false};
     }
-    return {checked:true, status, score, max, reason, unitMsg, auto:false};
+
+    if(parsed.fromFraction && q.allowFractionHalf){
+      const fracBase = parsed.num;
+      if(roundingMatch(fracBase, q.answer, parsed.numStr).ok){
+        return {checked:true, status:'partial', score:max/2, max, reason:addCalcMarkGuide(meta, 'Equivalent value, but write the efficiency as a decimal or percentage.'), unitMsg:'', auto:false};
+      }
+    }
+
+    let studentBase = parsed.num;
+    if(unitNeeded && parsed.unitInfo && unitAcceptedForExpected(parsed.unitInfo, exp)){
+      studentBase = parsed.num * (parsed.unitInfo.scale || 1);
+    }
+    const diag = diagnoseNumeric(meta, studentBase, parsed.numStr);
+    if(diag){
+      const methodMarks = Math.max(diag.marks || 0, working.marks || 0);
+      const totalMarks = Math.min(Math.max(0, max - 1), methodMarks + (bridge.correct ? bridge.marks : 0));
+      const pieces = [diag.reason];
+      if(working.notes.length) pieces.push('Method credit seen: ' + working.notes.join(' '));
+      if(bridge.attempted) pieces.push(bridge.note);
+      const reason = addCalcMarkGuide(meta, pieces.filter(Boolean).join('\n'));
+      return candidateOutcome(totalMarks, max, unitPenalty, reason, unitMsg);
+    }
+
+    const methodOnly = Math.min(Math.max(0, max - 1), (working.marks || 0) + (bridge.correct ? bridge.marks : 0));
+    const fallbackParts = [numericFallbackReason(meta)];
+    if(working.notes.length) fallbackParts.push('Method credit seen: ' + working.notes.join(' '));
+    if(bridge.attempted) fallbackParts.push(bridge.note);
+    const fallback = addCalcMarkGuide(meta, fallbackParts.filter(Boolean).join('\n'));
+    if(methodOnly > 0) return candidateOutcome(methodOnly, max, unitPenalty, fallback, unitMsg);
+    return {checked:true, status:'wrong', score:0, max, reason:fallback, unitMsg:unitPenalty ? unitMsg : '', auto:false};
+  }
+
+  function checkUncertaintyQuestion(raw){
+    const max = 2;
+    const compact = (raw || '').toString().trim().replace(/\s+/g,'');
+    if(!compact) return {checked:false, msg:'Type an answer first.'};
+    const unitPresent = /s$/i.test(compact);
+    let numText = compact.replace(/(?:\+\/\-|\+\-|±)/g,'');
+    numText = numText.replace(/s$/i,'');
+    const num = Number(numText);
+    if(Number.isNaN(num)) return {checked:true, status:'wrong', score:0, max, auto:false};
+    if(nearlyEqual(Math.abs(num), 0.02, 1e-8, 1e-10)){
+      if(unitPresent) return {checked:true, status:'full', score:max, max, auto:false};
+      return {checked:true, status:'partial', score:max/2, max, reason:'Correct uncertainty but include the unit s.', unitMsg:'Unit missing.', auto:false};
+    }
+    return {checked:true, status:'wrong', score:0, max, auto:false};
   }
 
   function checkShortMarkPoints(q, raw){
-    const rawTrim = (raw ?? "").toString().trim();
+    if(q.id === 'data_handling_1') return checkUncertaintyQuestion(raw);
+    const rawTrim = (raw ?? '').toString().trim();
     const t = norm(rawTrim);
 
-    // Special handling for "state the formula" style questions:
-    // Full marks if symbols are correct *and* case is correct (e.g. V=IR).
-    // Half marks if symbols are correct but case is wrong (e.g. v=ir).
-    // Worded statements can still earn full marks.
     if(Array.isArray(q.expectedSymbolic) && q.expectedSymbolic.length){
       const max = qMaxMarks(q);
-
-      // Full credit for a fully-correct worded statement (keyword-based).
       if(Array.isArray(q.markPoints) && q.markPoints.length){
         const gotWord = q.markPoints.every(mp => !mp.any || textIncludesAny(t, mp.any));
-        if(gotWord) return {score:max, max, status:"full", missing:[], auto:true};
+        if(gotWord) return {score:max, max, status:'full', missing:[], auto:true};
       }
-
-      // Normalise symbolic: remove spaces and multiplication dots/crosses.
       const compact = rawTrim.replace(/\s+/g,'').replace(/[×*·]/g,'');
-
-      // Full (case-sensitive) match
       if(q.expectedSymbolic.some(a => compact === a)){
-        return {score:max, max, status:"full", missing:[], auto:true};
+        return {score:max, max, status:'full', missing:[], auto:true};
       }
-
-      // Partial (case-insensitive) match
       const lower = compact.toLowerCase();
       if(q.expectedSymbolic.some(a => lower === a.toLowerCase())){
-        return {score:max/2, max, status:"partial", missing:["Case matters for symbols (e.g. V, I, R)."], auto:true};
+        return {score:max/2, max, status:'partial', missing:['Case matters for symbols.'], auto:true};
       }
-      // Fall through to generic marking
     }
 
     const points = q.markPoints || [];
@@ -793,637 +1167,321 @@ I = ${P} / ${V} = ${I.toPrecision(4)} A.`
       }
     }
     const max = qMaxMarks(q);
-    const status = (got===0) ? "wrong" : (got===max ? "full" : "partial");
+    const status = (got===0) ? 'wrong' : (got===max ? 'full' : 'partial');
     return {score:got, max, status, missing, auto:true};
   }
 
-  function getSelectedTopics(){
-    return Array.from(document.querySelectorAll(".topicCb")).filter(cb=>cb.checked).map(cb=>cb.value);
-  }
-  function applyDifficultyFilter(list, mix){
-    if(mix === "all") return list;
-    if(mix === "easy") return list.filter(q => q.difficulty==="easy" || q.difficulty==="med");
-    if(mix === "med") return list.filter(q => q.difficulty!=="easy");
-    if(mix === "hard") return list.filter(q => q.difficulty==="hard");
-    return list;
-  }
-
-  // ---------------- Overall stats across sets (this device only) ----------------
-  const OVERALL_KEY = "preibphysics_trilogy_mag_em_overall_v1";
-  function loadOverall(){
-    try{
-      const raw = localStorage.getItem(OVERALL_KEY);
-      if(!raw) return {items:{}, seen:{}};
-      const obj = JSON.parse(raw);
-      if(!obj || typeof obj !== "object") return {items:{}};
-      if(!obj.items || typeof obj.items !== "object") obj.items = {};
-      if(!obj.seen || typeof obj.seen !== "object") obj.seen = {};
-      return obj;
-    }catch(e){
-      return {items:{}, seen:{}};
-    }
-  }
-  function saveOverall(obj){
-    try{ localStorage.setItem(OVERALL_KEY, JSON.stringify(obj)); }catch(e){}
-  }
-  function computeOverallSeen(){
-    const o = loadOverall();
-    const seen = o.seen || {};
-    return {seenCount: Object.keys(seen).length};
-  }
-  function computeOverallTotals(){
-    const o = loadOverall();
-    let totalScore = 0;
-    let totalMax = 0;
-    for(const k of Object.keys(o.items)){
-      const it = o.items[k];
-      if(it && typeof it === "object" && Number.isFinite(it.score) && Number.isFinite(it.max)){
-        totalScore += it.score;
-        totalMax += it.max;
-      }
-    }
-    return {totalScore, totalMax, count:Object.keys(o.items).length};
-  }
-  function updateOverallForInstance(qid, baseId, score, max){
-    const o = loadOverall();
-    if(!o.items) o.items = {};
-    o.items[qid] = {score:Number(score)||0, max:Number(max)||0, t:Date.now()};
-    if(baseId){ if(!o.seen) o.seen = {}; o.seen[baseId] = 1; }
-    saveOverall(o);
-  }
-  function resetOverall(){
-    try{ localStorage.removeItem(OVERALL_KEY); }catch(e){}
-  }
-  function resetDeck(){
-    try{ localStorage.removeItem(DECK_KEY); }catch(e){}
-  }
-// ---------------- Shuffle-deck (no repeats until exhausted) ----------------
-  const DECK_KEY = "preibphysics_trilogy_energy_deck_v1";
-
-  function fnv1a(str){
-    let h = 2166136261;
-    for(let i=0;i<str.length;i++){
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return (h>>>0).toString(16);
-  }
-
-  function loadDeck(){
-    try{
-      const raw = localStorage.getItem(DECK_KEY);
-      if(!raw) return null;
-      const obj = JSON.parse(raw);
-      if(!obj || typeof obj !== "object") return null;
-      return obj;
-    }catch(e){ return null; }
-  }
-
-  function saveDeck(obj){
-    try{ localStorage.setItem(DECK_KEY, JSON.stringify(obj)); }catch(e){}
-  }
-
-  function buildDeckSignature(pool, topics, diffMix){
-    // Signature changes whenever the pool changes (topics/difficulty), so we can safely reuse a deck across sets.
-    const ids = pool.map(q=>q.id).slice().sort().join("|");
-    const sigStr = `${ids}||${topics.slice().sort().join(",")}||${diffMix}`;
-    return fnv1a(sigStr);
-  }
-
-  function getNextFromDeck(pool, topics, diffMix, nWanted){
-    const need = clamp(nWanted, 5, pool.length);
-
-    const sig = buildDeckSignature(pool, topics, diffMix);
-    let deck = loadDeck();
-
-    // Build id list and map
-    const poolMap = new Map();
-    for(const q of pool){
-      if(!poolMap.has(q.id)) poolMap.set(q.id, q);
-    }
-    const poolIds = Array.from(poolMap.keys());
-
-    // (Re)initialise deck if missing/mismatched
-    if(!deck || deck.sig !== sig || !Array.isArray(deck.order) || typeof deck.cursor !== "number"){
-      deck = {sig, order: shuffle(poolIds.slice()), cursor: 0};
-    }
-
-    function familyOfId(id){
-      const m = id.match(/^(.*)_\d+$/);
-      return m ? m[1] : id;
-    }
-
-    // Cap how many from “near-identical series” can appear in a single set.
-    const caps = {
-      "stores_scenario": 2,
-      "transfer_path": 2,
-      "formula_recall": 2,
-      "ke_calc": 2,
-      "gpe_calc": 2,
-      "epe_calc": 2,
-      "work_calc": 2,
-      "power_calc": 2,
-      "elec_work_calc": 2,
-      "shc_calc": 2,
-      "shc_practical": 1,
-      "data_handling": 2,
-      "eff_calc": 2,
-      "dissipation": 2,
-      "insulation": 2,
-      "resources": 2,
-      "grid": 2
-    };
-
-    const counts = {};
-    const chosenIds = [];
-
-    let i = deck.cursor;
-    let safety = 0;
-    let relax = false;
-
-    while(chosenIds.length < need && safety < 5000){
-      safety += 1;
-
-      if(i >= deck.order.length){
-        // reached end of deck: reshuffle for next cycle
-        deck.order = shuffle(poolIds.slice());
-        i = 0;
-        // if we're struggling to fill because caps are too strict, relax
-        relax = true;
-      }
-
-      const id = deck.order[i];
-      i += 1;
-
-      if(chosenIds.includes(id)) continue;
-
-      const fam = familyOfId(id);
-      const cap = (relax ? 999 : (caps[fam] ?? ((fam!==id) ? 2 : 999)));
-      if((counts[fam] ?? 0) >= cap) continue;
-
-      chosenIds.push(id);
-      counts[fam] = (counts[fam] ?? 0) + 1;
-    }
-
-    deck.cursor = i;
-    saveDeck(deck);
-
-    // Convert ids to questions
-    const chosen = [];
-    for(const id of chosenIds){
-      const q = poolMap.get(id);
-      if(q) chosen.push(q);
-    }
-    return chosen;
-  }
-
-let currentSet = [];
-  let answered = new Map();
-
-  function qMaxMarksSafe(q){ return qMaxMarks(q); }
-  function totalMaxMarks(){ return currentSet.reduce((s,q)=> s + qMaxMarksSafe(q), 0); }
-  function totalScore(){
-    let s=0;
-    for(const v of answered.values()){
-      if(v.checked) s += (v.score ?? 0);
-    }
-    return s;
-  }
-  function renderKPIs(){
-    const vals = Array.from(answered.values());
-    const checked = vals.filter(x => x.checked).length;
-    const full = vals.filter(x => x.checked && x.status==="full").length;
-    const partial = vals.filter(x => x.checked && x.status==="partial").length;
-    const wrong = vals.filter(x => x.checked && x.status==="wrong").length;
-
-    els.kpiChecked.textContent = checked;
-    els.kpiFull.textContent = full;
-    els.kpiPartial.textContent = partial;
-    els.kpiWrong.textContent = wrong;
-
-    const max = totalMaxMarks();
-    const s = totalScore();
-    els.scoreLine.textContent = max ? `${s.toFixed(1)} / ${max}` : "-";
-    els.summaryLine.innerHTML = currentSet.length
-      ? `<b>${full}</b> full, <b>${partial}</b> partial, <b>${wrong}</b> wrong, <b>${currentSet.length-checked}</b> unchecked.`
-      : "Start a set to begin.";
-// Update header stats (always visible)
-    const checkedN = Array.from(answered.values()).filter(v => v && v.checked).length;
-    const setN = currentSet.length || 0;
-    const maxSet = totalMaxMarks();
-    const sSet = totalScore();
-    const pctSet = maxSet ? (100*sSet/maxSet) : 0;
-
-    if(els.statSet){
-      const prog = setN ? (100*checkedN/setN) : 0;
-      els.statSet.textContent = setN ? `${checkedN}/${setN} tackled • ${pctSet.toFixed(0)}% score` : "–";
-    }
-
-    if(els.statOverall){
-      const tot = computeOverallTotals();
-      const seen = computeOverallSeen();
-      const pctO = tot.totalMax ? (100*tot.totalScore/tot.totalMax) : 0;
-      const bankN = Array.isArray(BANK) ? BANK.length : 0;
-      const seenPct = bankN ? (100*seen.seenCount/bankN) : 0;
-      els.statOverall.textContent = bankN ? `${seen.seenCount}/${bankN} seen (${seenPct.toFixed(0)}%) • ${pctO.toFixed(0)}% score` : "–";
-    }
-
-  }
-
-  function renderChoice(q, idx){
-    const name = `q_${q._instanceId}`;
-    const choice = q.choices[idx];
-
-    let inner = "";
-    if(choice && typeof choice === "object" && choice.symbolKind){
-      inner = `<div class="choiceText"><div class="choiceTitle">${escapeHtml(choice.label || String.fromCharCode(65+idx))}</div>
-               <div class="choiceViz">${symbolSVG(choice.symbolKind)}</div></div>`;
-    } else if(choice && typeof choice === "object" && choice.graphKind){
-      inner = `<div class="choiceText"><div class="choiceTitle">${escapeHtml(choice.label || String.fromCharCode(65+idx))}</div>
-               ${graphSVG(choice.graphKind)}
-               ${choice.caption ? `<div class="small">${escapeHtml(choice.caption)}</div>` : ``}</div>`;
-
-    } else if(choice && typeof choice === "object" && choice.svgKind){
-      inner = `<div class="choiceText"><div class="choiceTitle">${escapeHtml(choice.label || String.fromCharCode(65+idx))}</div>
-               <div class="choiceViz">${customSVG(choice.svgKind)}</div>
-               ${choice.caption ? `<div class="small">${escapeHtml(choice.caption)}</div>` : ``}</div>`;
-    } else {
-      inner = `<div class="choiceText">${escapeHtml(choice)}</div>`;
-    }
-
-    return `<label class="choice">
-        <input type="radio" name="${name}" value="${idx}" />
-        ${inner}
-      </label>`;
-  }
-
-  function renderQuestionCard(q, index){
-    const qnum = index+1;
-    const tags = (q.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("");
-    let inputHTML = "";
-
-    if(q.type==="mcq"){
-      inputHTML = q.choices.map((_,i)=>renderChoice(q,i)).join("")
-        + `<div style="margin-top:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-             <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
-             <span class="small">Tip: click an option then press Enter.</span>
-           </div>`;
-    } else if(q.type==="short"){
-      inputHTML = `<div class="answerbox">
-        <textarea id="in_${q._instanceId}" placeholder="Type your answer…"></textarea>
-        <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
-      </div>
-      <div class="small">Enter submits. Shift+Enter = new line.</div>`;
-    } else if(q.type==="long"){
-      inputHTML = `<div class="answerbox">
-        <textarea id="in_${q._instanceId}" placeholder="Type your answer… (aim for full sentences)"></textarea>
-        <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
-      </div>
-      <div class="small">Enter submits. Shift+Enter = new line.</div>`;
-    } else {
-      inputHTML = `<div class="answerbox">
-        <input type="text" id="in_${q._instanceId}" placeholder="Type a number (include units if you can)" />
-        <button class="btn" data-action="check" data-qid="${q._instanceId}">Check</button>
-      </div>
-      <div class="small">Tip: press Enter to submit this question.</div>`;
-    }
-
-    return `<div class="qcard" id="card_${q._instanceId}">
-        <div class="qhead">
-          <div>
-            <div class="qnum">Q${qnum} • ${qMaxMarksSafe(q)} mark${qMaxMarksSafe(q)===1?"":"s"}</div>
-            <div class="qtext">${escapeHtml(q.prompt)}</div>
-          </div>
-          <div class="tags">${tags}<button class="btn mini" data-action="report" data-qid="${q._instanceId}" title="Report this question">Report</button></div>
-        </div>
-        ${inputHTML}
-        <div id="fb_${q._instanceId}"></div>
-      </div>`;
-  }
-
-  function renderQuiz(){
-    els.quiz.innerHTML = currentSet.map(renderQuestionCard).join("");
-    
-  // Extra safety: if focus is on a radio option, Enter submits that question.
-  document.addEventListener("keydown", (e) => {
-    if(e.key !== "Enter") return;
-    const t = e.target;
-    if(!t) return;
-    if(t.matches && t.matches('input[type="radio"]')){
-      const card = t.closest('.qcard');
-      if(card){
-        const id = card.id.replace('card_','');
-        if(id){ e.preventDefault(); checkAndShow(id); }
-      }
-    }
-  });
-
-renderKPIs();
-    els.statusPill.textContent = "In progress";
-    els.setPill.textContent = `${currentSet.length} Q set`;
-    els.newSetBtn.disabled = false;
-    els.revealAllBtn.disabled = false;
-
-    for(const q of currentSet){
-      const inp = document.getElementById(`in_${q._instanceId}`);
-      if(inp){
-        inp.addEventListener("keydown", (e) => {
-          if(e.key === "Enter"){
-            if((q.type === "short" || q.type==="long") && !e.shiftKey){
-              e.preventDefault();
-              checkAndShow(q._instanceId);
-            }
-            if(!(q.type === "short" || q.type==="long")){
-              e.preventDefault();
-              checkAndShow(q._instanceId);
-            }
-          }
-        });
-      }
-      if(q.type === "mcq"){
-        const card = document.getElementById(`card_${q._instanceId}`);
-        if(card){
-          card.addEventListener("keydown", (e) => {
-            if(e.key === "Enter"){
-              const active = document.activeElement;
-              if(card.contains(active)){
-                e.preventDefault();
-                checkAndShow(q._instanceId);
-              }
-            }
-          });
-          card.setAttribute("tabindex","-1");
-        }
-      }
-    }
-  }
-
   function getMCQSelection(q){
-    const name = `q_${q._instanceId}`;
-    const sel = document.querySelector(`input[name="${name}"]:checked`);
+    const sel = document.querySelector(`input[name="q_${q._instanceId}"]:checked`);
     return sel ? Number(sel.value) : null;
   }
-
   function checkQuestion(q){
-    if(q.type==="mcq"){
+    if(q.type === 'mcq'){
       const sel = getMCQSelection(q);
-      if(sel === null) return {checked:false, msg:"Choose an option first."};
+      if(sel === null) return {checked:false, msg:'Choose an option first.'};
       const correct = sel === q.answerIndex;
-      const max = qMaxMarksSafe(q);
-      return {checked:true, status: correct ? "full" : "wrong", score: correct ? max : 0, max, auto:false};
+      const max = qMaxMarks(q);
+      return {checked:true, status: correct ? 'full' : 'wrong', score: correct ? max : 0, max, auto:false};
     }
-    if(q.type==="numeric"){
+    if(q.type === 'numeric'){
       const input = document.getElementById(`in_${q._instanceId}`);
-      return checkNumeric(q, input ? input.value : "");
+      const work = document.getElementById(`work_${q._instanceId}`);
+      return checkNumeric(q, input ? input.value : '', work ? work.value : '');
     }
-    if(q.type==="short" || q.type==="long"){
+    if(q.type === 'short' || q.type === 'long'){
       const input = document.getElementById(`in_${q._instanceId}`);
-      const raw = input ? input.value : "";
-      if(!raw.trim()) return {checked:false, msg:"Type an answer first."};
-      const out = checkShortMarkPoints(q, raw);
-      return {checked:true, ...out};
+      const raw = input ? input.value : '';
+      if(!raw.trim()) return {checked:false, msg:'Type an answer first.'};
+      return {checked:true, ...checkShortMarkPoints(q, raw)};
     }
-    return {checked:false, msg:"Unsupported question type."};
+    return {checked:false, msg:'Unsupported question type.'};
   }
 
   function correctLine(q){
-    if(q.type==="mcq"){
-      const c = q.choices[q.answerIndex];
-      if(c && typeof c === "object"){
-        return `Correct answer: ${c.label || "option"}`;
-      }
-      return `Correct answer: ${(""+c).trim()}`;
+    if(q.id === 'data_handling_1') return 'Correct answer: ±0.02 s';
+    if(q.type === 'mcq') return `Correct answer: ${escapeHtml(String(q.choices[q.answerIndex] ?? ''))}`;
+    if(q.type === 'numeric'){
+      let unitShow = q.unitHint || '';
+      if(unitShow === 'J/kg°C') unitShow = 'J/(kg °C)';
+      if(unitShow === '°C') unitShow = '°C (K also accepted for temperature change)';
+      const bridgeLine = q.bridge ? ` • Bridge: ${(q.bridge.correct && [q.bridge.correct.lhs, q.bridge.correct.relation, q.bridge.correct.rhs].filter(Boolean).join(' ')) || ''}` : '';
+      if(q.allowFractionHalf) return `Correct answer: ${prettyNum(q.answer)} (or ${prettyNum(q.answer * 100)}%)${bridgeLine}`;
+      return `Correct answer: ${prettyNum(q.answer)}${unitShow ? ' ' + unitShow : ''}${bridgeLine}`;
     }
-    if(q.type==="numeric"){
-      const a = q.answer;
-      const rounded = prettyNum(a);
-      const unitShow = q.unitHint ? q.unitHint : "";
-      return `Correct answer: ${rounded}${unitShow ? " " + unitShow : ""}`;
-    }
-    if(q.type==="short" || q.type==="long"){
-      return `Mark scheme: ${qMaxMarksSafe(q)} point(s).`;
-    }
-    return "";
+    if(q.type === 'short' || q.type === 'long') return `Mark scheme: ${qMaxMarks(q)} point(s).`;
+    return '';
   }
-
   function autoWarnHTML(){
     return `<div class="autoWarn">
-        <div class="h">AUTO-MARKING WARNING (NOT AI MARKING)</div>
-        <div class="b">
-          This written answer has <b>not</b> been properly marked. The checker only looks for the
-          <b>presence of a few keywords/phrases</b>. It can miss good answers and it can also give credit to weak answers.
-          Use the mark scheme and judge it yourself.
-        </div>
-      </div>`;
+      <div class="h">AUTO-MARKING WARNING (NOT AI MARKING)</div>
+      <div class="b">This written answer has <b>not</b> been properly marked. The checker only looks for the <b>presence of a few keywords/phrases</b>. It can miss good answers and it can also give credit to weak answers. Use the mark scheme and judge it yourself.</div>
+    </div>`;
   }
-
   function adjustMarksHTML(qid, maxMarks){
     return `<div class="adjustRow">
-        <div class="note"><b>Optional:</b> adjust marks for this question (0 to ${maxMarks}). This updates the totals.</div>
-        <input type="number" min="0" max="${maxMarks}" step="0.5" data-adjust="${qid}" />
-        <button class="btn" data-action="applyAdjust" data-qid="${qid}">Apply</button>
-      </div>`;
+      <div class="note"><b>Optional:</b> adjust marks for this written answer (0 to ${maxMarks}). This updates the totals.</div>
+      <input type="number" min="0" max="${maxMarks}" step="0.5" data-adjust="${qid}" />
+      <button class="btn" data-action="applyAdjust" data-qid="${qid}" type="button">Apply</button>
+    </div>`;
   }
-
   function showFeedback(q, outcome){
     const fb = document.getElementById(`fb_${q._instanceId}`);
     if(!fb) return;
-
     if(!outcome.checked){
       fb.innerHTML = `<div class="feedback bad"><div class="title">Not checked</div><p class="explain">${escapeHtml(outcome.msg)}</p></div>`;
       return;
     }
-    const max = outcome.max ?? qMaxMarksSafe(q);
-    const good = outcome.status === "full";
-    const partial = outcome.status === "partial";
-    const title = good ? "Correct" : (partial ? "Partly correct" : "Not quite");
-    const cls = good ? "good" : (partial ? "" : "bad");
-
-    let diag = "";
-    if(outcome.unitMsg) diag += outcome.unitMsg + "\n";
-    if(outcome.reason) diag += outcome.reason + "\n";
-    if(outcome.auto){
-      if(outcome.status !== "full" && outcome.missing && outcome.missing.length){
-        diag += `Missing ideas (examples): ${outcome.missing.slice(0,3).join("; ")}\n`;
-      }
+    const max = outcome.max ?? qMaxMarks(q);
+    const statusCls = outcome.status === 'full' ? 'good' : (outcome.status === 'partial' ? 'partial' : 'bad');
+    const title = outcome.status === 'full' ? 'Correct' : (outcome.status === 'partial' ? 'Partly correct' : 'Not quite');
+    let diag = '';
+    if(outcome.unitMsg) diag += outcome.unitMsg + '\n';
+    if(outcome.reason) diag += outcome.reason + '\n';
+    if(outcome.auto && outcome.status !== 'full' && outcome.missing && outcome.missing.length){
+      diag += `Missing ideas (examples): ${outcome.missing.slice(0,3).join('; ')}\n`;
     }
+    const explainText = (diag ? diag + '\n' : '') + (q.explanation || '');
+    const warn = outcome.auto ? autoWarnHTML() : '';
+    fb.innerHTML = `<div class="feedback ${statusCls}">
+      <div class="title">${title} (${(outcome.score ?? 0).toFixed(1)} / ${max.toFixed(1)} marks)</div>
+      <p class="explain">${escapeHtml(correctLine(q))}</p>
+      ${warn}
+      <details open>
+        <summary>${outcome.status === 'full' ? 'Show explanation' : 'Explanation (mark-scheme style)'}</summary>
+        <p class="model">${escapeHtml(explainText)}</p>
+      </details>
+      ${(q.type === 'short' || q.type === 'long') ? adjustMarksHTML(q._instanceId, max) : ``}
+    </div>`;
+  }
 
-    const explainText = (diag ? (diag + "\n") : "") + (q.explanation || "");
-    const open = true;
-    const warn = outcome.auto ? autoWarnHTML() : "";
+  function setPrimaryButtonMode(mode){
+    const btn = document.getElementById('primaryActionBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    if(!btn) return;
+    if(mode === 'next'){
+      btn.textContent = 'Next question';
+      btn.dataset.mode = 'next';
+      if(skipBtn) skipBtn.disabled = true;
+    } else {
+      btn.textContent = 'Check answer';
+      btn.dataset.mode = 'check';
+      if(skipBtn) skipBtn.disabled = false;
+    }
+  }
 
-    fb.innerHTML = `<div class="feedback ${cls}">
-        <div class="title">${title} (${(outcome.score??0).toFixed(1)} / ${max.toFixed(1)} marks)</div>
-        <p class="explain">${escapeHtml(correctLine(q))}</p>
-        ${warn}
-        <details ${open ? "open" : ""}>
-          <summary>${good ? "Show explanation" : "Explanation (mark-scheme style)"}</summary>
-          <p class="model">${escapeHtml(explainText)}</p>
-        </details>
-        ${(q.type!=="mcq") ? adjustMarksHTML(q._instanceId, max) : ``}
+  function renderQuestion(){
+    if(!currentQuestion){
+      els.quiz.innerHTML = `<div class="emptyState">Choose your settings, then press <b>Start / restart drill</b>.</div>`;
+      return;
+    }
+    const q = currentQuestion;
+    const tags = (q.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+    let inputHTML = '';
+    if(q.type === 'mcq'){
+      inputHTML = `${q.choices.map((choice, i) => `<label class="choice"><input type="radio" name="q_${q._instanceId}" value="${i}" /> <span>${escapeHtml(choice)}</span></label>`).join('')}`;
+    } else if(q.type === 'short' || q.type === 'long'){
+      inputHTML = `<div class="answerbox"><textarea id="in_${q._instanceId}" placeholder="${q.type === 'long' ? 'Type your answer… (aim for full sentences)' : 'Type your answer…'}"></textarea></div>`;
+    } else {
+      inputHTML = `${bridgeMarkup(q)}
+      <div class="calcFields">
+        <div class="answerbox calcField">
+          <label class="fieldLabel" for="in_${q._instanceId}">Final answer</label>
+          <input type="text" id="in_${q._instanceId}" placeholder="Type the final answer here (include units if you can)" />
+        </div>
+        <div class="answerbox calcField calcFieldWide">
+          <label class="fieldLabel" for="work_${q._instanceId}">Working (optional)</label>
+          <textarea id="work_${q._instanceId}" placeholder="Show substitutions, conversions and equations here. Sensible working can earn method marks."></textarea>
+        </div>
       </div>`;
-  }
-
-  function updateSetFromUI(){
-    const topics = getSelectedTopics();
-    let pool = BANK.filter(q => (q.tags||[]).some(t => topics.includes(t)));
-    pool = applyDifficultyFilter(pool, els.diffMix.value);
-    const n = Number(els.numQ.value);
-
-    if(pool.length < 1){
-      els.quiz.innerHTML = `<div class="hint">No questions available — select at least one topic.</div>`;
-      els.startBtn.disabled = false;
-      return false;
     }
-
-    // Immediate feedback so it never feels "dead"
-    els.statusPill.textContent = "Building set…";
-    els.startBtn.disabled = true;
-    els.newSetBtn.disabled = true;
-    els.revealAllBtn.disabled = true;
-
-    // Shuffle-deck selection: no repeats until exhausted, then reshuffle.
-    const chosen = getNextFromDeck(pool, topics, els.diffMix.value, n).map(expandQuestion);
-
-    const now = Date.now().toString(36);
-    currentSet = chosen.map((q,i)=> ({...q, _instanceId:`${q.id}_${now}_${i}`}));
-
-    answered = new Map();
-    renderQuiz();
-
-    els.setPill.textContent = `Set ${now.toUpperCase()}`;
-    els.statusPill.textContent = "In progress";
-    els.revealAllBtn.disabled = false;
-    els.newSetBtn.disabled = false;
-    els.startBtn.disabled = false;
-
-    renderKPIs();
-    return true;
+    els.quiz.innerHTML = `<div class="qcard" id="card_${q._instanceId}">
+      <div class="qhead">
+        <div>
+          <div class="qnum">${qMaxMarks(q)} mark${qMaxMarks(q) === 1 ? '' : 's'}</div>
+          <div class="qtext">${escapeHtml(q.prompt)}</div>
+        </div>
+        <div class="tags">${tags}<button class="btn mini" data-action="report" data-qid="${q._instanceId}" type="button">Report</button></div>
+      </div>
+      ${inputHTML}
+      <div class="actionRow">
+        <button class="btn primary" id="primaryActionBtn" data-mode="check" data-action="primary" data-qid="${q._instanceId}" type="button">Check answer</button>
+        <button class="btn" id="skipBtn" data-action="skip" data-qid="${q._instanceId}" type="button">Skip</button>
+        <span class="small">Enter = check / next. Shift+Enter = new line.</span>
+      </div>
+      <div id="fb_${q._instanceId}"></div>
+    </div>`;
+    setPrimaryButtonMode('check');
+    els.questionMetaPill.textContent = `${activePool.length} possible • ${TYPE_LABELS[questionKindOf(q)] || 'Question'} • difficulty ${q.difficultyRating || '?'}`;
+    wireInputHandlers(q);
+    applyHeaderOffset();
   }
 
-  function checkAndShow(qid){
-    const q = currentSet.find(x => x._instanceId === qid);
-    if(!q) return;
-    const outcome = checkQuestion(q);
-    showFeedback(q, outcome);
+  function focusCurrentInput(){
+    if(!currentQuestion) return;
+    const text = document.getElementById(`in_${currentQuestion._instanceId}`);
+    if(text){ text.focus(); return; }
+    const radio = document.querySelector(`input[name="q_${currentQuestion._instanceId ? `q_${currentQuestion._instanceId}` : ''}"]`);
+    if(radio) radio.focus();
+  }
+
+  function nextQuestion(){
+    if(!activePool.length){
+      currentQuestion = null;
+      els.statusPill.textContent = 'No questions';
+      renderQuestion();
+      renderStats();
+      return;
+    }
+    currentQuestion = getNextQuestionFromDeck(activePool);
+    markSeen(currentQuestion.id);
+    els.statusPill.textContent = 'In progress';
+    renderStats();
+    renderQuestion();
+    setTimeout(focusCurrentInput, 0);
+  }
+
+  function startOrRestart(){
+    activePool = buildPool();
+    if(!activePool.length){
+      currentQuestion = null;
+      els.statusPill.textContent = 'No questions';
+      els.questionMetaPill.textContent = 'No questions in current settings';
+      els.quiz.innerHTML = `<div class="emptyState">No questions are available with the current settings. Tick at least one topic, or loosen the type/difficulty filters.</div>`;
+      renderStats();
+      return;
+    }
+    nextQuestion();
+  }
+
+  function handlePrimary(){
+    if(!currentQuestion) return;
+    const btn = document.getElementById('primaryActionBtn');
+    if(btn && btn.dataset.mode === 'next'){
+      nextQuestion();
+      return;
+    }
+    const outcome = checkQuestion(currentQuestion);
+    showFeedback(currentQuestion, outcome);
     if(outcome.checked){
-      answered.set(q._instanceId, {checked:true, status: outcome.status, score: outcome.score, max: outcome.max ?? qMaxMarksSafe(q), auto: !!outcome.auto});
-      updateOverallForInstance(q._instanceId, q.id, outcome.score, outcome.max ?? qMaxMarksSafe(q));
-      renderKPIs();
+      saveOutcome(currentQuestion.id, outcome, false);
+      renderStats();
+      els.statusPill.textContent = outcome.status === 'full' ? 'Right' : (outcome.status === 'partial' ? 'Partial' : 'Checked');
+      setPrimaryButtonMode('next');
+      applyHeaderOffset();
+    }
+  }
+  function handleSkip(){
+    if(!currentQuestion) return;
+    saveSkip(currentQuestion.id);
+    renderStats();
+    els.statusPill.textContent = 'Skipped';
+    nextQuestion();
+  }
+
+  function wireInputHandlers(q){
+    const bindEnter = (el, allowShiftNewline) => {
+      if(!el) return;
+      el.addEventListener('keydown', (e) => {
+        if(e.key !== 'Enter') return;
+        const primary = document.getElementById('primaryActionBtn');
+        if(allowShiftNewline && e.shiftKey) return;
+        e.preventDefault();
+        if(primary && primary.dataset.mode === 'next') nextQuestion();
+        else handlePrimary();
+      });
+    };
+    const input = document.getElementById(`in_${q._instanceId}`);
+    bindEnter(input, q.type === 'short' || q.type === 'long' || q.type === 'numeric');
+    if(q.type === 'numeric'){
+      const work = document.getElementById(`work_${q._instanceId}`);
+      bindEnter(work, true);
+    }
+    if(q.type === 'mcq'){
+      const card = document.getElementById(`card_${q._instanceId}`);
+      if(card){
+        card.addEventListener('keydown', (e) => {
+          if(e.key !== 'Enter') return;
+          e.preventDefault();
+          const primary = document.getElementById('primaryActionBtn');
+          if(primary && primary.dataset.mode === 'next') nextQuestion();
+          else handlePrimary();
+        });
+      }
     }
   }
 
-  els.startBtn.addEventListener("click", updateSetFromUI);
-  els.newSetBtn.addEventListener("click", updateSetFromUI);
+  function buildReportFormUrl(q, qid){
+    if(!REPORT_FORM || !REPORT_FORM.formUrl) return null;
+    try{
+      const u = new URL(REPORT_FORM.formUrl, window.location.href);
+      if(REPORT_FORM.entryTestName) u.searchParams.set(REPORT_FORM.entryTestName, META.title || 'Trilogy Energy Quiz');
+      if(REPORT_FORM.entryBaseId) u.searchParams.set(REPORT_FORM.entryBaseId, q ? q.id : '(unknown)');
+      if(REPORT_FORM.entryInstanceId) u.searchParams.set(REPORT_FORM.entryInstanceId, qid || '');
+      if(REPORT_FORM.entryPrompt) u.searchParams.set(REPORT_FORM.entryPrompt, q ? q.prompt : '');
+      return u.toString();
+    }catch(_){ return null; }
+  }
 
-  els.revealAllBtn.addEventListener("click", () => {
-    currentSet.forEach(q => {
-      const fb = document.getElementById(`fb_${q._instanceId}`);
-      const warn = (q.type==="short" && q.markPoints) ? autoWarnHTML() : "";
-      fb.innerHTML = `<div class="feedback">
-          <div class="title">Mark scheme</div>
-          <p class="explain">${escapeHtml(correctLine(q))}</p>
-          ${warn}
-          <details open><summary>Explanation</summary><p class="model">${escapeHtml(q.explanation || "")}</p></details>
-          ${(q.type!=='mcq' ? adjustMarksHTML(q._instanceId, qMaxMarksSafe(q)) : ``)}
-        </div>`;
-    });
-    els.statusPill.textContent = "Revealed";
-  });
-
-  els.quiz.addEventListener("click", (e) => {
-const repBtn = e.target.closest("button[data-action='report']");
-    if(repBtn){
-      const qid = repBtn.getAttribute("data-qid");
-      const q = currentSet.find(x => x._instanceId === qid);
-      const baseId = q ? q.id : "(unknown)";
-      const payload = `Please check this question:\n\nTopic: 6.1 Energy\nbase id: ${baseId}\ninstance id: ${qid}\n\nPrompt:\n${q ? q.prompt : ""}\n`;
-      const banner = document.getElementById("reportBanner");
-      if(banner){
-        banner.style.display = "block";
-        banner.innerHTML = `
-          <div class="reportRow">
-            <div>
-              <b>Report a dodgy question</b>
-              <div class="small">Paste the text below into an email (it identifies the exact question).</div>
-            </div>
-            <button class="btn mini" type="button" id="closeReportBtn">Close</button>
-          </div>
-          <textarea class="reportBox" readonly>${escapeHtml(payload)}</textarea>
-          <div class="reportActions">
-            <button class="btn mini" type="button" id="copyReportBtn">Copy</button>
-            <span class="small">If copy is blocked, just select the text and copy manually.</span>
-          </div>
-        `;
-        const cbtn = document.getElementById("copyReportBtn");
-        if(cbtn){
-          cbtn.addEventListener("click", ()=>{
-            if(navigator.clipboard && navigator.clipboard.writeText){
-              navigator.clipboard.writeText(payload).catch(()=>{});
-            }
-          }, {once:true});
-        }
-        const xbtn = document.getElementById("closeReportBtn");
-        if(xbtn){
-          xbtn.addEventListener("click", ()=>{ banner.style.display="none"; }, {once:true});
-        }
-        // Auto-hide after 15 seconds
-        setTimeout(()=>{ try{ banner.style.display="none"; }catch(_){} }, 15000);
-        banner.scrollIntoView({behavior:"smooth", block:"start"});
-        // Attempt immediate clipboard copy
-        if(navigator.clipboard && navigator.clipboard.writeText){
-          navigator.clipboard.writeText(payload).catch(()=>{});
-        }
-      } else {
-        alert(payload);
-      }
+  function showReport(qid){
+    const q = currentQuestion && currentQuestion._instanceId === qid ? currentQuestion : null;
+    const formUrl = buildReportFormUrl(q, qid);
+    if(formUrl){
+      const opened = window.open(formUrl, '_blank', 'noopener');
+      if(!opened) window.location.href = formUrl;
+      els.statusPill.textContent = 'Report form opened';
       return;
     }
+    els.statusPill.textContent = 'Report form unavailable';
+  }
 
-    const btnCheck = e.target.closest("button[data-action='check']");
-    if(btnCheck){
-      checkAndShow(btnCheck.getAttribute("data-qid"));
-      return;
-    }
-    const btnAdj = e.target.closest("button[data-action='applyAdjust']");
-    if(btnAdj){
-      const qid = btnAdj.getAttribute("data-qid");
-      const q = currentSet.find(x => x._instanceId === qid);
-      if(!q) return;
+  document.addEventListener('click', (e) => {
+    const primary = e.target.closest("button[data-action='primary']");
+    if(primary){ handlePrimary(); return; }
+    const skip = e.target.closest("button[data-action='skip']");
+    if(skip){ handleSkip(); return; }
+    const report = e.target.closest("button[data-action='report']");
+    if(report){ showReport(report.getAttribute('data-qid')); return; }
+    const adj = e.target.closest("button[data-action='applyAdjust']");
+    if(adj){
+      const qid = adj.getAttribute('data-qid');
+      if(!currentQuestion || currentQuestion._instanceId !== qid) return;
       const input = document.querySelector(`input[data-adjust="${qid}"]`);
       if(!input) return;
       const val = Number(input.value);
       if(Number.isNaN(val)) return;
-
-      const max = qMaxMarksSafe(q);
-      const adj = clamp(val, 0, max);
-      const status = (adj===0) ? "wrong" : (adj===max ? "full" : "partial");
-      answered.set(qid, {checked:true, status, score:adj, max, auto:(q.type==="short" && Array.isArray(q.markPoints)), selfOverride:true});
-      updateOverallForInstance(qid, q.id, adj, max);
-
+      const max = qMaxMarks(currentQuestion);
+      const adjScore = clamp(val, 0, max);
+      const status = adjScore === 0 ? 'wrong' : (adjScore === max ? 'full' : 'partial');
+      const outcome = {checked:true, status, score:adjScore, max, auto:(currentQuestion.type === 'short' || currentQuestion.type === 'long')};
+      saveOutcome(currentQuestion.id, outcome, true);
       const fb = document.getElementById(`fb_${qid}`);
       if(fb){
-        const titleEl = fb.querySelector(".feedback .title");
-        if(titleEl) titleEl.textContent = `Marks set (${adj.toFixed(1)} / ${max.toFixed(1)} marks)`;
+        const titleEl = fb.querySelector('.feedback .title');
+        if(titleEl) titleEl.textContent = `Marks set (${adjScore.toFixed(1)} / ${max.toFixed(1)} marks)`;
       }
-      renderKPIs();
+      renderStats();
+      els.statusPill.textContent = 'Adjusted';
+      setPrimaryButtonMode('next');
       return;
     }
   });
 
-  if(els.resetOverallBtn){
-    els.resetOverallBtn.addEventListener('click', ()=>{
-      resetOverall();
-      renderKPIs();
-    });
-  }
-  if(els.resetDeckBtn){
-    els.resetDeckBtn.addEventListener('click', ()=>{
-      resetDeck();
-      els.statusPill.textContent = "Deck reset";
-      // Next set will start a fresh shuffled order
-    });
-  }
+  els.startBtn.addEventListener('click', startOrRestart);
+  els.resetOverallBtn.addEventListener('click', () => {
+    if(window.confirm && !window.confirm('Reset saved progress on this device?')) return;
+    resetProgress();
+    renderStats();
+    els.statusPill.textContent = 'Progress reset';
+  });
+  els.resetDeckBtn.addEventListener('click', () => {
+    resetDeck();
+    els.statusPill.textContent = 'Order reset';
+  });
+  els.questionType.addEventListener('change', renderStats);
+  els.difficultyRating.addEventListener('change', renderStats);
+  els.electricityDone.addEventListener('change', renderStats);
+  document.querySelectorAll('.topicCb').forEach(cb => cb.addEventListener('change', renderStats));
 
-  renderKPIs();
+  renderStats();
+  renderQuestion();
 })();
