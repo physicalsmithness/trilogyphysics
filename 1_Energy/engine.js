@@ -31,6 +31,9 @@
   els.title.textContent = META.title || "Trilogy Energy Quiz";
   els.subtitle.textContent = META.subtitle || "";
 
+  if(els.resetOverallBtn) els.resetOverallBtn.remove();
+  if(els.resetDeckBtn) els.resetDeckBtn.remove();
+
   const PROGRESS_KEY = "preibphysics_trilogy_energy_progress_v4";
   const DECK_KEY = "preibphysics_trilogy_energy_deck_v4";
 
@@ -66,7 +69,7 @@
     if(q.bridge) rating += 1;
     if(calcMeta && calcMeta.needsRearrangement) rating += 0.5;
     if(calcMeta && calcMeta.needsConversion) rating += 0.5;
-    const hardKinds = new Set(['accelPowerMoving','dropWithInitialKE','keToTempNoMass','hangingSpringEnergy','brakingForceFromKE']);
+    const hardKinds = new Set(['accelPowerMoving','dropWithInitialKE','keToTempNoMass','hangingSpringEnergy','brakingForceFromKE','gpeToKeEnergy','keToWorkBraking','keToGpeEnergy']);
     if(calcMeta && hardKinds.has(calcMeta.kind)) rating += 0.5;
     rating = Math.round(rating);
     return clamp(rating, 1, 5);
@@ -616,6 +619,34 @@
         award('cancel', has(['cancelm','masscancels','massescancel','/m']), 'Method seen: cancelling the mass correctly.');
         award('rearrange', has(['deltatheta=','deltaθ=','/390','/c']), 'Method seen: rearranging for the temperature rise.');
         break;
+      case 'gpeToKeEnergy':
+        award('gpe', has(['mgh','ep=','gpe']), 'Method seen: finding the gravitational potential energy change.');
+        award('bridge', has(['ep=ek','gpe=ke','ep becomes ek','ek=ep']), 'Method seen: linking the GPE change to kinetic energy.');
+        break;
+      case 'keToWorkBraking':
+        award('ke', has(['1/2mv^2','0.5mv^2','ek=']), 'Method seen: finding the kinetic energy first.');
+        award('bridge', has(['ek=w','w=ek','work=ke','ke lost = work','work done by brakes']), 'Method seen: linking the KE lost to work done by braking.');
+        break;
+      case 'keToGpeEnergy':
+        award('ke', has(['1/2mv^2','0.5mv^2','ek=']), 'Method seen: finding the launch kinetic energy.');
+        award('bridge', has(['ek=ep','ke=gpe','ek becomes ep','ep=ek']), 'Method seen: linking the launch KE to the gain in GPE.');
+        break;
+      case 'liftWorkFromGPE':
+        award('gpe', has(['mgh','ep=','gpe']), 'Method seen: finding the GPE gain.');
+        award('bridge', has(['w=ep','ep=w','work=gpe','gpe = work','useful work']), 'Method seen: linking the useful work done to the GPE gain.');
+        break;
+      case 'springToWork':
+        award('epe', has(['1/2ke^2','0.5ke^2','ee=','elast']), 'Method seen: finding the elastic potential energy first.');
+        award('bridge', has(['ee=w','w=ee','work=ee','elastic energy = work']), 'Method seen: linking the stored elastic energy to work done by the spring.');
+        break;
+      case 'tempToElectricalEnergy':
+        award('heat', has(['mcdelta','mcΔ','mcθ','deltae=mc','de=mc']), 'Method seen: finding the thermal energy change.');
+        award('bridge', has(['e=deltae','e=de','electrical energy = deltae','de=e','Δe=e']), 'Method seen: linking the electrical energy transferred to the thermal energy gain.');
+        break;
+      case 'gpeToThermalEnergy':
+        award('gpe', has(['mgh','ep=','gpe']), 'Method seen: finding the lost GPE.');
+        award('bridge', has(['ep=deltae','gpe=deltae','ep=de','de=ep','Δe=ep']), 'Method seen: linking the lost GPE to the thermal energy gained.');
+        break;
       case 'power':
       case 'elecEnergyPt':
       case 'elecEnergyIVt':
@@ -848,6 +879,13 @@ ${guide}` : guide;
       case 'hangingSpringEnergy': return 'Use weight = mg, then at equilibrium weight = spring force, then F = ke, then Ee = ½ke².';
       case 'dropWithInitialKE': return 'Find the initial KE and the GPE, add them to get the final KE, then rearrange ½mv² for the final speed.';
       case 'keToTempNoMass': return 'Set ½mv² = mcΔθ and cancel the mass before rearranging for the temperature rise.';
+      case 'gpeToKeEnergy': return 'Find the GPE change first, then use the bridge Ep = Ek. The numerical value in joules is the same, but the quantity asked for is kinetic energy.';
+      case 'keToWorkBraking': return 'Find the kinetic energy first, then link the KE lost to the work done by the brakes. The answer should be in joules.';
+      case 'keToGpeEnergy': return 'Find the launch kinetic energy first, then use the bridge Ek = Ep to get the GPE gain at the top.';
+      case 'liftWorkFromGPE': return 'Find the GPE gain first, then link that to the useful work done on the load.';
+      case 'springToWork': return 'Find the elastic potential energy first, then link that stored energy to the work done by the spring.';
+      case 'tempToElectricalEnergy': return 'Use ΔE = mcΔθ first, then link that thermal energy gain to the electrical energy transferred.';
+      case 'gpeToThermalEnergy': return 'Find the GPE lost first, then link it to the thermal energy gained using the assumption given.';
       default: return 'Check the correct formula, your substitution and any conversions.';
     }
   }
@@ -1025,6 +1063,31 @@ ${guide}` : guide;
     } else if(meta.kind === 'keToTempNoMass'){
       candidates = [
         {value:0.5 * meta.v * meta.v, marks:3, reason:'That looks like ½v². After cancelling mass, you still need to divide by c to get the temperature rise.'}
+      ];
+    } else if(meta.kind === 'gpeToKeEnergy'){
+      candidates = [
+        {value:meta.m * meta.h, marks:1.5, reason:'Looks like g may have been left out. Start with Ep = mgh, then use Ep = Ek.'},
+        {value:meta.m * meta.g, marks:1.5, reason:'Looks like the height may have been left out. Start with Ep = mgh, then use Ep = Ek.'}
+      ];
+    } else if(meta.kind === 'keToWorkBraking' || meta.kind === 'keToGpeEnergy'){
+      candidates = [
+        {value:meta.m * meta.v * meta.v, marks:2, reason:'Looks like the ½ in Ek = ½mv² has been missed.'},
+        {value:0.5 * meta.m * meta.v, marks:1, reason:'Looks like the speed was not squared.'}
+      ];
+    } else if(meta.kind === 'liftWorkFromGPE' || meta.kind === 'gpeToThermalEnergy'){
+      candidates = [
+        {value:meta.m * meta.h, marks:1.5, reason:'Looks like g may have been left out. Start with Ep = mgh and then link it to the quantity asked for.'},
+        {value:meta.m * meta.g, marks:1.5, reason:'Looks like the height may have been left out. Start with Ep = mgh and then link it to the quantity asked for.'}
+      ];
+    } else if(meta.kind === 'springToWork'){
+      candidates = [
+        {value:meta.k * meta.e * meta.e, marks:2, reason:'Looks like the ½ in Ee = ½ke² has been missed.'},
+        {value:0.5 * meta.k * meta.e, marks:1, reason:'Looks like the extension was not squared.'}
+      ];
+    } else if(meta.kind === 'tempToElectricalEnergy'){
+      candidates = [
+        {value:meta.m * meta.c, marks:1.5, reason:'Looks like the temperature change was left out. Start with ΔE = mcΔθ, then link that to the electrical energy transferred.'},
+        {value:meta.c * meta.dT, marks:1.5, reason:'Looks like the mass was left out. Start with ΔE = mcΔθ, then link that to the electrical energy transferred.'}
       ];
     }
     return findCandidate(studentBase, numStr, candidates);
@@ -1466,22 +1529,42 @@ ${guide}` : guide;
     }
   });
 
+
+  function injectClearTopicsControl(){
+    const details = document.getElementById('topicDetails');
+    if(!details) return;
+    let host = details.querySelector('.topicClearRow');
+    if(!host){
+      host = document.createElement('div');
+      host.className = 'topicClearRow';
+      host.style.margin = '0 0 10px 0';
+      host.style.display = 'flex';
+      host.style.justifyContent = 'flex-end';
+      host.style.gap = '8px';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ghostBtn';
+      btn.textContent = 'Clear all topics';
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.topicCb').forEach(cb => { cb.checked = false; });
+        renderStats();
+        renderQuestion();
+        els.statusPill.textContent = 'Topics cleared — tick the ones you want';
+      });
+      host.appendChild(btn);
+      const grid = details.querySelector('.topicGrid');
+      if(grid) details.insertBefore(host, grid);
+      else details.appendChild(host);
+    }
+  }
+
   els.startBtn.addEventListener('click', startOrRestart);
-  els.resetOverallBtn.addEventListener('click', () => {
-    if(window.confirm && !window.confirm('Reset saved progress on this device?')) return;
-    resetProgress();
-    renderStats();
-    els.statusPill.textContent = 'Progress reset';
-  });
-  els.resetDeckBtn.addEventListener('click', () => {
-    resetDeck();
-    els.statusPill.textContent = 'Order reset';
-  });
   els.questionType.addEventListener('change', renderStats);
   els.difficultyRating.addEventListener('change', renderStats);
   els.electricityDone.addEventListener('change', renderStats);
   document.querySelectorAll('.topicCb').forEach(cb => cb.addEventListener('change', renderStats));
 
+  injectClearTopicsControl();
   renderStats();
   renderQuestion();
 })();
