@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-WKYGJYERSR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-WKYGJYERSR');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AQA Physics Driller</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --success: #16a34a;
+            --error: #dc2626;
+            --warning: #ca8a04;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            width: 100%;
+            max-width: 650px;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            background: none;
+            border: 2px solid transparent;
+            color: var(--text-muted);
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        h1 { margin: 0; font-size: 1.3rem; color: var(--text-muted); }
+        
+        .score-display {
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .history-ticks {
+            display: flex;
+            gap: 4px;
+            margin-top: 5px;
+            justify-content: flex-end;
+            height: 24px;
+            font-size: 1.1rem;
+        }
+
+        .prompt {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .question {
+            font-size: 3.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 1.5rem 0;
+            letter-spacing: -1px;
+            color: var(--primary);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1rem;
+            align-items: stretch;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 1.2rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        #input-unit-label {
+            display: none;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            background-color: var(--primary);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+        
+        .btn-secondary {
+            background-color: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            width: 100%;
+            margin-top: 1rem;
+        }
+        
+        .btn-secondary:hover { background-color: var(--bg); }
+
+        .feedback {
+            min-height: 60px;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .feedback.correct {
+            display: block;
+            background-color: #dcfce7;
+            color: var(--success);
+        }
+
+        .feedback.incorrect {
+            display: block;
+            background-color: #fee2e2;
+            color: var(--error);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .feedback.warning {
+            display: block;
+            background-color: #fef08a;
+            color: var(--warning);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #stats-view { display: none; }
+        #drill-view { display: block; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        th { background-color: var(--bg); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tabs">
+        <button class="tab-btn active" id="tab-prefixes">Prefixes</button>
+        <button class="tab-btn" id="tab-units">Units</button>
+    </div>
+
+    <div class="header">
+        <h1 id="mode-title">Physics Skill Driller</h1>
+        <div class="score-display">
+            <div id="overall-score">Score: 0/0 (0%)</div>
+            <div class="history-ticks" id="history-ticks"></div>
+        </div>
+    </div>
+
+    <div id="drill-view">
+        <div class="prompt" id="prompt-text">Convert this to standard form:</div>
+        <div class="question" id="question-display">--</div>
+        
+        <div class="input-group">
+            <input type="text" id="answer-input" placeholder="" autocomplete="off">
+            <span id="input-unit-label">V</span>
+            <button id="action-btn">Submit</button>
+        </div>
+
+        <div id="feedback-box" class="feedback"></div>
+
+        <button class="btn-secondary" id="toggle-stats-btn">View Detailed Stats</button>
+    </div>
+
+    <div id="stats-view">
+        <h2>Performance Stats</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Hidden during gameplay to prevent order-guessing.</p>
+        <table id="stats-table">
+            <thead>
+                <tr>
+                    <th>Target</th>
+                    <th>Last 10</th>
+                    <th>Overall</th>
+                </tr>
+            </thead>
+            <tbody id="stats-tbody"></tbody>
+        </table>
+        <button class="btn-secondary" id="back-to-drill-btn">Back to Driller</button>
+    </div>
+</div>
+
+<script>
+    // --- DATA ---
+    const prefixTargets = [
+        { id: 'tera', name: 'Tera (T)', symbol: 'T', mult: 1e12 },
+        { id: 'giga', name: 'Giga (G)', symbol: 'G', mult: 1e9 },
+        { id: 'mega', name: 'Mega (M)', symbol: 'M', mult: 1e6 },
+        { id: 'kilo', name: 'kilo (k)', symbol: 'k', mult: 1e3 },
+        { id: 'centi', name: 'centi (c)', symbol: 'c', mult: 1e-2 },
+        { id: 'milli', name: 'milli (m)', symbol: 'm', mult: 1e-3 },
+        { id: 'micro', name: 'micro (μ)', symbol: 'μ', mult: 1e-6 },
+        { id: 'nano', name: 'nano (n)', symbol: 'n', mult: 1e-9 },
+        { id: 'mins', name: 'Minutes to s', symbol: ' minutes', mult: 60 },
+        { id: 'hours', name: 'Hours to s', symbol: ' hours', mult: 3600 },
+        { id: 'g_to_kg', name: 'Grams to kg', symbol: ' g', mult: 1e-3 },
+        { id: 'mg_to_kg', name: 'Milligrams to kg', symbol: ' mg', mult: 1e-6 },
+        { id: 'percent', name: 'Percentage', symbol: '%', mult: 0.01 }
+    ];
+
+    const standardBaseUnits = ['A', 'V', 'W', 'J', 'Hz', 'm', 's', 'N', 'C', 'Ω'];
+
+    const unitTargets = [
+        { id: 'energy', q: 'energy', sym: 'J', names: ['joule', 'joules'] },
+        { id: 'mass', q: 'mass', sym: 'kg', names: ['kilogram', 'kilograms'] },
+        { id: 'speed', q: 'speed', sym: 'm/s', names: ['meters per second', 'metres per second'] },
+        { id: 'spring_constant', q: 'spring constant', sym: 'N/m', names: ['newtons per meter', 'newtons per metre'] },
+        { id: 'force', q: 'force / weight', sym: 'N', names: ['newton', 'newtons'] },
+        { id: 'distance', q: 'distance / extension / wavelength', sym: 'm', names: ['meter', 'metre', 'meters', 'metres'] },
+        { id: 'g_field', q: 'gravitational field strength', sym: 'N/kg', names: ['newtons per kilogram'] },
+        { id: 'temp', q: 'temperature change', sym: '°C', alt: ['C', 'c'], names: ['celsius', 'degrees celsius'] },
+        { id: 'shc', q: 'specific heat capacity', sym: 'J/(kg°C)', alt: ['J/kg°C', 'J/kgC', 'J/(kgC)'], names: ['joules per kilogram celsius'] },
+        { id: 'power', q: 'power', sym: 'W', names: ['watt', 'watts'] },
+        { id: 'time', q: 'time / period', sym: 's', names: ['second', 'seconds'] },
+        { id: 'charge', q: 'charge', sym: 'C', names: ['coulomb', 'coulombs'] },
+        { id: 'current', q: 'current', sym: 'A', names: ['amp', 'amps', 'ampere', 'amperes'] },
+        { id: 'pd', q: 'potential difference', sym: 'V', names: ['volt', 'volts'] },
+        { id: 'resistance', q: 'resistance', sym: 'Ω', alt: ['ohm', 'ohms'], names: ['ohm', 'ohms'] },
+        { id: 'density', q: 'density', sym: 'kg/m^3', alt: ['kg/m3'], names: ['kilograms per cubic meter'] },
+        { id: 'volume', q: 'volume', sym: 'm^3', alt: ['m3'], names: ['cubic meters', 'cubic metres'] },
+        { id: 'slh', q: 'specific latent heat', sym: 'J/kg', names: ['joules per kilogram'] },
+        { id: 'accel', q: 'acceleration', sym: 'm/s^2', alt: ['m/s2'], names: ['meters per second squared'] },
+        { id: 'momentum', q: 'momentum', sym: 'kgm/s', alt: ['kg m/s'], names: ['kilogram meters per second'] },
+        { id: 'freq', q: 'frequency', sym: 'Hz', names: ['hertz'] },
+        { id: 'mag_flux', q: 'magnetic flux density', sym: 'T', names: ['tesla', 'teslas'] }
+    ];
+
+    // --- STATE ---
+    let state = {
+        mode: 'prefixes',
+        phase: 'answering',
+        currentQ: null,
+        
+        prefixStats: { history: [], overallCorrect: 0, overallTotal: 0, targets: {} },
+        unitStats: { history: [], overallCorrect: 0, overallTotal: 0, targets: {} }
+    };
+
+    // Initialize stats
+    prefixTargets.forEach(t => state.prefixStats.targets[t.id] = { history: [], correct: 0, total: 0, name: t.name });
+    unitTargets.forEach(t => state.unitStats.targets[t.id] = { history: [], correct: 0, total: 0, name: t.q });
+
+    // --- DOM ELEMENTS ---
+    const DOM = {
+        tabPrefixes: document.getElementById('tab-prefixes'),
+        tabUnits: document.getElementById('tab-units'),
+        modeTitle: document.getElementById('mode-title'),
+        promptText: document.getElementById('prompt-text'),
+        question: document.getElementById('question-display'),
+        input: document.getElementById('answer-input'),
+        inputUnitLabel: document.getElementById('input-unit-label'),
+        btn: document.getElementById('action-btn'),
+        feedback: document.getElementById('feedback-box'),
+        score: document.getElementById('overall-score'),
+        ticks: document.getElementById('history-ticks'),
+        drillView: document.getElementById('drill-view'),
+        statsView: document.getElementById('stats-view'),
+        statsBody: document.getElementById('stats-tbody'),
+        toggleStatsBtn: document.getElementById('toggle-stats-btn'),
+        backToDrillBtn: document.getElementById('back-to-drill-btn')
+    };
+
+    // --- LOGIC ---
+    function setMode(newMode) {
+        state.mode = newMode;
+        DOM.tabPrefixes.classList.toggle('active', newMode === 'prefixes');
+        DOM.tabUnits.classList.toggle('active', newMode === 'units');
+        
+        if (newMode === 'units') {
+            DOM.modeTitle.innerText = "Standard Units";
+            DOM.promptText.innerText = "What is the standard unit for:";
+            DOM.input.placeholder = "e.g. N or newtons";
+            DOM.inputUnitLabel.style.display = 'none';
+        } else {
+            DOM.modeTitle.innerText = "Physics Skill Driller";
+        }
+        
+        updateScoreDisplay();
+        generateQuestion();
+    }
+
+    function generateQuestion() {
+        if (state.mode === 'prefixes') {
+            const target = prefixTargets[Math.floor(Math.random() * prefixTargets.length)];
+            let num = Math.floor(Math.random() * 999) + 1;
+            if (Math.random() > 0.7) num = +(Math.random() * 100).toFixed(1);
+            
+            let displayUnit = '';
+            let destUnit = '';
+
+            // Bulletproof Unit Assignment
+            if (target.id === 'percent') {
+                displayUnit = '%';
+                destUnit = '';
+                num = Math.floor(num); 
+            } else if (target.id === 'mins') {
+                displayUnit = ' minutes';
+                destUnit = 's';
+            } else if (target.id === 'hours') {
+                displayUnit = ' hours';
+                destUnit = 's';
+            } else if (target.id === 'g_to_kg') {
+                displayUnit = ' g';
+                destUnit = 'kg';
+            } else if (target.id === 'mg_to_kg') {
+                displayUnit = ' mg';
+                destUnit = 'kg';
+            } else {
+                // Attach a random base unit to standard prefixes (e.g. 'T' + 'W' = 'TW')
+                let randomBase = standardBaseUnits[Math.floor(Math.random() * standardBaseUnits.length)];
+                displayUnit = target.symbol + randomBase; 
+                destUnit = randomBase;
+            }
+
+            // 60% chance to provide the unit box, 40% chance to force them to type it.
+            let uiMode = (Math.random() > 0.4 || !destUnit) ? 'provide_unit' : 'require_unit';
+
+            state.currentQ = { target, baseNumber: num, correctAnswer: num * target.mult, displayUnit, destUnit, uiMode };
+            
+            DOM.question.innerText = `${num}${displayUnit}`;
+
+            if (uiMode === 'provide_unit' && destUnit) {
+                DOM.promptText.innerText = `Convert this to standard form:`;
+                DOM.inputUnitLabel.innerText = destUnit;
+                DOM.inputUnitLabel.style.display = 'flex';
+                DOM.input.placeholder = "e.g. 0.109";
+            } else {
+                DOM.promptText.innerHTML = `Convert to standard form AND <b>include the final unit</b>:`;
+                DOM.inputUnitLabel.style.display = 'none';
+                DOM.input.placeholder = destUnit ? `e.g. 0.109 ${destUnit}` : `e.g. 0.109`;
+            }
+
+        } else {
+            const target = unitTargets[Math.floor(Math.random() * unitTargets.length)];
+            state.currentQ = { target: target };
+            DOM.question.innerText = target.q;
+        }
+
+        DOM.input.value = '';
+        DOM.input.disabled = false;
+        DOM.input.focus();
+        DOM.feedback.className = 'feedback';
+        DOM.btn.innerText = 'Submit';
+        state.phase = 'answering';
+    }
+
+    function handleSubmission() {
+        if (state.phase === 'feedback') {
+            generateQuestion();
+            return;
+        }
+
+        const inputStr = DOM.input.value.trim();
+        if (!inputStr) return;
+
+        let score = 0; // 0 = wrong, 0.5 = half, 1 = correct
+        let errorMsg = "";
+        let feedbackClass = "incorrect";
+
+        if (state.mode === 'prefixes') {
+            const userVal = parsePrefixInput(inputStr);
+            const correctVal = state.currentQ.correctAnswer;
+            const target = state.currentQ.target;
+            
+            if (isNaN(userVal)) {
+                errorMsg = "Unrecognized number format.";
+            } else {
+                const ratio = userVal / correctVal;
+                const logRatio = Math.round(Math.log10(ratio));
+                const numIsCorrect = Math.abs(userVal - correctVal) < 1e-12 * Math.abs(correctVal);
+
+                if (numIsCorrect) {
+                    if (state.currentQ.uiMode === 'require_unit' && state.currentQ.destUnit) {
+                        if (inputStr.endsWith(state.currentQ.destUnit)) {
+                            score = 1;
+                        } else {
+                            score = 0.5;
+                            feedbackClass = "warning";
+                            errorMsg = `Correct number, but you missed or used the wrong case for the unit (<b>${state.currentQ.destUnit}</b>). Half mark!`;
+                        }
+                    } else {
+                        score = 1;
+                    }
+                } else {
+                    const expectedPower = Math.round(Math.log10(target.mult));
+                    if (logRatio === 1 || logRatio === -1) errorMsg = "Wrong by 1 power of ten.";
+                    else if (logRatio === 2 || logRatio === -2) errorMsg = "Wrong by 2 powers of ten.";
+                    else if (target.id === 'mins' && ratio > 59 && ratio < 61) errorMsg = "Mixed up minutes and hours (multiplied by 3600 instead of 60).";
+                    else if (target.id === 'hours' && Math.abs(ratio - 1/60) < 0.05) errorMsg = "Mixed up minutes and hours (multiplied by 60 instead of 3600).";
+                    else if (expectedPower !== 0 && logRatio === -2 * expectedPower) errorMsg = "Mixed up positive and negative powers.";
+                    else errorMsg = "Incorrect value.";
+                    
+                    let displayCorrect = (Math.abs(correctVal) >= 0.001 && Math.abs(correctVal) <= 100000) ? correctVal.toString() : correctVal.toExponential();
+                    if (state.currentQ.destUnit) displayCorrect += ` ${state.currentQ.destUnit}`;
+                    errorMsg += `<br><span style="font-weight:normal;">Expected: <b>${displayCorrect}</b></span>`;
+                }
+            }
+        } else {
+            const target = state.currentQ.target;
+            const inputLower = inputStr.toLowerCase();
+            const validAlts = target.alt ? target.alt.map(a => a.toLowerCase()) : [];
+            const validNames = target.names.map(n => n.toLowerCase());
+
+            if (inputStr === target.sym || validNames.includes(inputLower) || validAlts.includes(inputLower)) {
+                score = 1;
+            } else if (inputLower === target.sym.toLowerCase()) {
+                score = 0; 
+                feedbackClass = "warning";
+                errorMsg = `Watch your case! The correct symbol is <b>${target.sym}</b>.<br><span style="font-size:0.9em; font-weight:normal;">(Case matters to distinguish between prefixes and units)</span>`;
+            } else {
+                score = 0;
+                errorMsg = `Incorrect. The unit for ${target.q} is <b>${target.sym}</b> (${target.names[0]}).`;
+            }
+        }
+
+        updateStats(score);
+        showFeedback(score, feedbackClass, errorMsg);
+        
+        state.phase = 'feedback';
+        DOM.btn.innerText = 'Next Question';
+        DOM.input.disabled = true;
+    }
+
+    function parsePrefixInput(str) {
+        let clean = str.replace(/\s/g, ''); // Removed toLowerCase so case checking for units works properly
+        clean = clean.toLowerCase(); // But need it lower for parsing math part
+        clean = clean.replace(/x10\^/g, 'e').replace(/\*10\^/g, 'e');
+        return parseFloat(clean);
+    }
+
+    function updateStats(score) {
+        const stats = state.mode === 'prefixes' ? state.prefixStats : state.unitStats;
+        stats.overallTotal++;
+        stats.overallCorrect += score;
+        stats.history.push(score);
+        if (stats.history.length > 10) stats.history.shift();
+
+        const tStats = stats.targets[state.currentQ.target.id];
+        tStats.total++;
+        tStats.correct += score;
+        tStats.history.push(score);
+        if (tStats.history.length > 10) tStats.history.shift();
+
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        const stats = state.mode === 'prefixes' ? state.prefixStats : state.unitStats;
+        const pct = stats.overallTotal === 0 ? 0 : Math.round((stats.overallCorrect / stats.overallTotal) * 100);
+        DOM.score.innerText = `Score: ${stats.overallCorrect}/${stats.overallTotal} (${pct}%)`;
+        
+        DOM.ticks.innerHTML = stats.history.map(s => {
+            if (s === 1) return '✅';
+            if (s === 0.5) return '⚠️';
+            return '❌';
+        }).join('');
+    }
+
+    function showFeedback(score, feedbackClass, errorMsg) {
+        if (score === 1) {
+            DOM.feedback.className = 'feedback correct';
+            DOM.feedback.innerHTML = `<strong>Correct!</strong>`;
+        } else {
+            DOM.feedback.className = `feedback ${feedbackClass}`;
+            DOM.feedback.innerHTML = `<strong>${errorMsg}</strong>`;
+        }
+    }
+
+    function renderStatsTable() {
+        const stats = state.mode === 'prefixes' ? state.prefixStats : state.unitStats;
+        const targets = state.mode === 'prefixes' ? prefixTargets : unitTargets;
+        
+        DOM.statsBody.innerHTML = '';
+        targets.forEach(t => {
+            const s = stats.targets[t.id];
+            const pct = s.total === 0 ? 0 : Math.round((s.correct / s.total) * 100);
+            
+            const historyIcons = s.history.map(c => {
+                if (c === 1) return '✅';
+                if (c === 0.5) return '⚠️';
+                return '❌';
+            }).join('') || '-';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${s.name}</strong></td>
+                <td style="font-size: 0.8rem; letter-spacing: -1px;">${historyIcons}</td>
+                <td>${s.correct}/${s.total} (${pct}%)</td>
+            `;
+            DOM.statsBody.appendChild(tr);
+        });
+    }
+
+    // --- EVENT LISTENERS ---
+    DOM.tabPrefixes.addEventListener('click', () => setMode('prefixes'));
+    DOM.tabUnits.addEventListener('click', () => setMode('units'));
+
+    DOM.btn.addEventListener('click', handleSubmission);
+    DOM.input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSubmission(); });
+    document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && state.phase === 'feedback') handleSubmission();
+    });
+
+    DOM.toggleStatsBtn.addEventListener('click', () => {
+        DOM.drillView.style.display = 'none';
+        DOM.statsView.style.display = 'block';
+        renderStatsTable();
+    });
+
+    DOM.backToDrillBtn.addEventListener('click', () => {
+        DOM.statsView.style.display = 'none';
+        DOM.drillView.style.display = 'block';
+        if(state.phase === 'answering') DOM.input.focus();
+    });
+
+    // Start
+    setMode('prefixes');
+</script>
+
+</body>
+</html>
