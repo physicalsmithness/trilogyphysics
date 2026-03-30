@@ -1,15 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-WKYGJYERSR"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-WKYGJYERSR');
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AQA Physics Driller</title>
@@ -172,6 +163,7 @@
             text-align: center;
             font-weight: 500;
             display: none;
+            margin-bottom: 1rem;
         }
 
         .feedback.correct {
@@ -196,6 +188,28 @@
             display: flex;
             flex-direction: column;
             gap: 5px;
+        }
+
+        .live-stats-box {
+            display: none;
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .live-stats-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+            color: var(--error);
+        }
+
+        .live-stats-box ul {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--text-main);
         }
 
         #stats-view { display: none; }
@@ -232,7 +246,7 @@
     </div>
 
     <div id="drill-view">
-        <div class="prompt" id="prompt-text">Convert this to standard form:</div>
+        <div class="prompt" id="prompt-text">Convert this into the form you would usually enter into a physics equation:</div>
         <div class="question" id="question-display">--</div>
         
         <div class="input-group">
@@ -242,6 +256,11 @@
         </div>
 
         <div id="feedback-box" class="feedback"></div>
+
+        <div id="live-error-panel" class="live-stats-box">
+            <h3>Live Error Tracking</h3>
+            <ul id="live-error-list"></ul>
+        </div>
 
         <button class="btn-secondary" id="toggle-stats-btn">View Detailed Stats</button>
     </div>
@@ -281,14 +300,17 @@
         { id: 'percent', name: 'Percentage', symbol: '%', mult: 0.01 }
     ];
 
-    const standardBaseUnits = ['A', 'V', 'W', 'J', 'Hz', 'm', 's', 'N', 'C', 'Ω'];
+    // Removed 'Ω' from standard base units to avoid typing issues
+    const standardBaseUnits = ['A', 'V', 'W', 'J', 'Hz', 'm', 's', 'N', 'C'];
 
+    // Removed Resistance/Ohms entirely from the units drill
     const unitTargets = [
         { id: 'energy', q: 'energy', sym: 'J', names: ['joule', 'joules'] },
         { id: 'mass', q: 'mass', sym: 'kg', names: ['kilogram', 'kilograms'] },
         { id: 'speed', q: 'speed', sym: 'm/s', names: ['meters per second', 'metres per second'] },
         { id: 'spring_constant', q: 'spring constant', sym: 'N/m', names: ['newtons per meter', 'newtons per metre'] },
-        { id: 'force', q: 'force / weight', sym: 'N', names: ['newton', 'newtons'] },
+        { id: 'force', q: 'force', sym: 'N', names: ['newton', 'newtons'] },
+        { id: 'weight', q: 'weight', sym: 'N', names: ['newton', 'newtons'] },
         { id: 'distance', q: 'distance / extension / wavelength', sym: 'm', names: ['meter', 'metre', 'meters', 'metres'] },
         { id: 'g_field', q: 'gravitational field strength', sym: 'N/kg', names: ['newtons per kilogram'] },
         { id: 'temp', q: 'temperature change', sym: '°C', alt: ['C', 'c'], names: ['celsius', 'degrees celsius'] },
@@ -298,7 +320,6 @@
         { id: 'charge', q: 'charge', sym: 'C', names: ['coulomb', 'coulombs'] },
         { id: 'current', q: 'current', sym: 'A', names: ['amp', 'amps', 'ampere', 'amperes'] },
         { id: 'pd', q: 'potential difference', sym: 'V', names: ['volt', 'volts'] },
-        { id: 'resistance', q: 'resistance', sym: 'Ω', alt: ['ohm', 'ohms'], names: ['ohm', 'ohms'] },
         { id: 'density', q: 'density', sym: 'kg/m^3', alt: ['kg/m3'], names: ['kilograms per cubic meter'] },
         { id: 'volume', q: 'volume', sym: 'm^3', alt: ['m3'], names: ['cubic meters', 'cubic metres'] },
         { id: 'slh', q: 'specific latent heat', sym: 'J/kg', names: ['joules per kilogram'] },
@@ -315,7 +336,24 @@
         currentQ: null,
         
         prefixStats: { history: [], overallCorrect: 0, overallTotal: 0, targets: {} },
-        unitStats: { history: [], overallCorrect: 0, overallTotal: 0, targets: {} }
+        unitStats: { history: [], overallCorrect: 0, overallTotal: 0, targets: {} },
+
+        // Track specific error types
+        errorLog: {
+            powerOfTen: 0,
+            signMixup: 0,
+            timeMixup: 0,
+            unitFormat: 0,
+            wrongValue: 0
+        }
+    };
+
+    const errorLabels = {
+        powerOfTen: "Wrong by 1 or 2 powers of ten",
+        signMixup: "Mixed up positive/negative powers",
+        timeMixup: "Minutes/hours conversion mix-up",
+        unitFormat: "Unit missing or wrong case",
+        wrongValue: "Incorrect number/calculation"
     };
 
     // Initialize stats
@@ -339,7 +377,9 @@
         statsView: document.getElementById('stats-view'),
         statsBody: document.getElementById('stats-tbody'),
         toggleStatsBtn: document.getElementById('toggle-stats-btn'),
-        backToDrillBtn: document.getElementById('back-to-drill-btn')
+        backToDrillBtn: document.getElementById('back-to-drill-btn'),
+        errorPanel: document.getElementById('live-error-panel'),
+        errorList: document.getElementById('live-error-list')
     };
 
     // --- LOGIC ---
@@ -370,7 +410,6 @@
             let displayUnit = '';
             let destUnit = '';
 
-            // Bulletproof Unit Assignment
             if (target.id === 'percent') {
                 displayUnit = '%';
                 destUnit = '';
@@ -388,13 +427,11 @@
                 displayUnit = ' mg';
                 destUnit = 'kg';
             } else {
-                // Attach a random base unit to standard prefixes (e.g. 'T' + 'W' = 'TW')
                 let randomBase = standardBaseUnits[Math.floor(Math.random() * standardBaseUnits.length)];
                 displayUnit = target.symbol + randomBase; 
                 destUnit = randomBase;
             }
 
-            // 60% chance to provide the unit box, 40% chance to force them to type it.
             let uiMode = (Math.random() > 0.4 || !destUnit) ? 'provide_unit' : 'require_unit';
 
             state.currentQ = { target, baseNumber: num, correctAnswer: num * target.mult, displayUnit, destUnit, uiMode };
@@ -402,12 +439,12 @@
             DOM.question.innerText = `${num}${displayUnit}`;
 
             if (uiMode === 'provide_unit' && destUnit) {
-                DOM.promptText.innerText = `Convert this to standard form:`;
+                DOM.promptText.innerText = `Convert this into the format you would usually enter into a physics equation:`;
                 DOM.inputUnitLabel.innerText = destUnit;
                 DOM.inputUnitLabel.style.display = 'flex';
                 DOM.input.placeholder = "e.g. 0.109";
             } else {
-                DOM.promptText.innerHTML = `Convert to standard form AND <b>include the final unit</b>:`;
+                DOM.promptText.innerHTML = `Convert this into the correct equation format AND <b>include the final unit</b>:`;
                 DOM.inputUnitLabel.style.display = 'none';
                 DOM.input.placeholder = destUnit ? `e.g. 0.109 ${destUnit}` : `e.g. 0.109`;
             }
@@ -422,6 +459,7 @@
         DOM.input.disabled = false;
         DOM.input.focus();
         DOM.feedback.className = 'feedback';
+        DOM.feedback.style.display = 'none';
         DOM.btn.innerText = 'Submit';
         state.phase = 'answering';
     }
@@ -446,6 +484,7 @@
             
             if (isNaN(userVal)) {
                 errorMsg = "Unrecognized number format.";
+                logError('wrongValue');
             } else {
                 const ratio = userVal / correctVal;
                 const logRatio = Math.round(Math.log10(ratio));
@@ -459,18 +498,32 @@
                             score = 0.5;
                             feedbackClass = "warning";
                             errorMsg = `Correct number, but you missed or used the wrong case for the unit (<b>${state.currentQ.destUnit}</b>). Half mark!`;
+                            logError('unitFormat');
                         }
                     } else {
                         score = 1;
                     }
                 } else {
                     const expectedPower = Math.round(Math.log10(target.mult));
-                    if (logRatio === 1 || logRatio === -1) errorMsg = "Wrong by 1 power of ten.";
-                    else if (logRatio === 2 || logRatio === -2) errorMsg = "Wrong by 2 powers of ten.";
-                    else if (target.id === 'mins' && ratio > 59 && ratio < 61) errorMsg = "Mixed up minutes and hours (multiplied by 3600 instead of 60).";
-                    else if (target.id === 'hours' && Math.abs(ratio - 1/60) < 0.05) errorMsg = "Mixed up minutes and hours (multiplied by 60 instead of 3600).";
-                    else if (expectedPower !== 0 && logRatio === -2 * expectedPower) errorMsg = "Mixed up positive and negative powers.";
-                    else errorMsg = "Incorrect value.";
+                    if (logRatio === 1 || logRatio === -1) {
+                        errorMsg = "Wrong by 1 power of ten.";
+                        logError('powerOfTen');
+                    } else if (logRatio === 2 || logRatio === -2) {
+                        errorMsg = "Wrong by 2 powers of ten.";
+                        logError('powerOfTen');
+                    } else if (target.id === 'mins' && ratio > 59 && ratio < 61) {
+                        errorMsg = "Mixed up minutes and hours (multiplied by 3600 instead of 60).";
+                        logError('timeMixup');
+                    } else if (target.id === 'hours' && Math.abs(ratio - 1/60) < 0.05) {
+                        errorMsg = "Mixed up minutes and hours (multiplied by 60 instead of 3600).";
+                        logError('timeMixup');
+                    } else if (expectedPower !== 0 && logRatio === -2 * expectedPower) {
+                        errorMsg = "Mixed up positive and negative powers.";
+                        logError('signMixup');
+                    } else {
+                        errorMsg = "Incorrect value.";
+                        logError('wrongValue');
+                    }
                     
                     let displayCorrect = (Math.abs(correctVal) >= 0.001 && Math.abs(correctVal) <= 100000) ? correctVal.toString() : correctVal.toExponential();
                     if (state.currentQ.destUnit) displayCorrect += ` ${state.currentQ.destUnit}`;
@@ -489,25 +542,53 @@
                 score = 0; 
                 feedbackClass = "warning";
                 errorMsg = `Watch your case! The correct symbol is <b>${target.sym}</b>.<br><span style="font-size:0.9em; font-weight:normal;">(Case matters to distinguish between prefixes and units)</span>`;
+                logError('unitFormat');
             } else {
                 score = 0;
                 errorMsg = `Incorrect. The unit for ${target.q} is <b>${target.sym}</b> (${target.names[0]}).`;
+                logError('wrongValue');
             }
         }
 
         updateStats(score);
+        
+        // Emphasize requirement to press Enter/Next
+        errorMsg += `<br><br><span style="font-size:0.85em; opacity: 0.8;">(Press Enter to continue)</span>`;
         showFeedback(score, feedbackClass, errorMsg);
         
         state.phase = 'feedback';
-        DOM.btn.innerText = 'Next Question';
+        DOM.btn.innerText = 'Next Question (Enter)';
         DOM.input.disabled = true;
     }
 
     function parsePrefixInput(str) {
-        let clean = str.replace(/\s/g, ''); // Removed toLowerCase so case checking for units works properly
-        clean = clean.toLowerCase(); // But need it lower for parsing math part
+        let clean = str.replace(/\s/g, ''); 
+        clean = clean.toLowerCase(); 
         clean = clean.replace(/x10\^/g, 'e').replace(/\*10\^/g, 'e');
         return parseFloat(clean);
+    }
+
+    function logError(errorType) {
+        state.errorLog[errorType]++;
+        renderLiveErrorPanel();
+    }
+
+    function renderLiveErrorPanel() {
+        let hasErrors = false;
+        DOM.errorList.innerHTML = '';
+        
+        for (const [type, count] of Object.entries(state.errorLog)) {
+            if (count > 0) {
+                hasErrors = true;
+                const li = document.createElement('li');
+                li.innerHTML = `${errorLabels[type]}: <strong>${count}</strong>`;
+                DOM.errorList.appendChild(li);
+            }
+        }
+
+        if (hasErrors) {
+            DOM.errorPanel.style.display = 'block';
+        }
     }
 
     function updateStats(score) {
@@ -541,7 +622,7 @@
     function showFeedback(score, feedbackClass, errorMsg) {
         if (score === 1) {
             DOM.feedback.className = 'feedback correct';
-            DOM.feedback.innerHTML = `<strong>Correct!</strong>`;
+            DOM.feedback.innerHTML = `<strong>Correct!</strong> <br><br><span style="font-size:0.85em; opacity: 0.8;">(Press Enter to continue)</span>`;
         } else {
             DOM.feedback.className = `feedback ${feedbackClass}`;
             DOM.feedback.innerHTML = `<strong>${errorMsg}</strong>`;
