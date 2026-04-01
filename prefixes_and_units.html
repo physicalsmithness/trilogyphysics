@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-WKYGJYERSR"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-WKYGJYERSR');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WKYGJYERSR"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-WKYGJYERSR');
+    </script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AQA Physics Driller</title>
@@ -21,7 +20,9 @@
             --card-bg: #ffffff;
             --text-main: #0f172a;
             --text-muted: #64748b;
-            --success: #16a34a;
+            --success-bg: #ecfdf5;
+            --success-text: #065f46;
+            --success-border: #a7f3d0;
             --error: #dc2626;
             --warning: #ca8a04;
             --border: #e2e8f0;
@@ -42,7 +43,7 @@
             border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
             width: 100%;
-            max-width: 650px;
+            max-width: 950px;
             padding: 2rem;
             position: relative;
         }
@@ -93,6 +94,16 @@
             justify-content: flex-end;
             height: 24px;
             font-size: 1.1rem;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .main-layout { grid-template-columns: 1.8fr 1fr; }
         }
 
         .prompt {
@@ -166,76 +177,156 @@
         .btn-secondary:hover { background-color: var(--bg); }
 
         .feedback {
-            min-height: 60px;
-            padding: 1rem;
+            padding: 1.5rem;
             border-radius: 8px;
             text-align: center;
             font-weight: 500;
             display: none;
             margin-bottom: 1rem;
+            animation: fadeIn 0.3s ease;
         }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
         .feedback.correct {
             display: block;
-            background-color: #dcfce7;
-            color: var(--success);
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid var(--success-border);
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.1);
         }
+        
+        .feedback.correct .main-message { font-size: 1.3rem; font-weight: bold; }
 
         .feedback.incorrect {
             display: block;
             background-color: #fee2e2;
             color: var(--error);
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+            border: 1px solid #fca5a5;
         }
+        
+        .feedback.incorrect .main-message { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; }
 
         .feedback.warning {
             display: block;
             background-color: #fef08a;
             color: var(--warning);
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+            border: 1px solid #fde047;
         }
 
-        .live-stats-box {
-            display: none;
+        .feedback-alternatives {
+            text-align: left; 
+            background: rgba(255,255,255,0.6); 
+            padding: 12px; 
+            border-radius: 6px; 
+            margin-top: 15px; 
+            font-size: 0.95rem; 
+            color: var(--text-main);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .sidebar-panels {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .stats-box {
             background-color: var(--bg);
             border: 1px solid var(--border);
             padding: 1rem;
             border-radius: 8px;
-            margin-bottom: 1rem;
             font-size: 0.9rem;
         }
 
-        .live-stats-box h3 {
+        .stats-box h3 {
             margin: 0 0 10px 0;
-            font-size: 1rem;
-            color: var(--error);
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
         }
 
-        .live-stats-box ul {
+        .stats-box ul {
             margin: 0;
-            padding-left: 20px;
+            padding: 0;
+            list-style: none;
             color: var(--text-main);
         }
 
-        #stats-view { display: none; }
-        #drill-view { display: block; }
+        .stats-box li {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .stats-box li:last-child { border-bottom: none; }
         
+        .error-val { font-weight: bold; color: var(--error); }
+        .format-val { font-weight: bold; color: var(--primary); }
+
+        #stats-view { display: none; }
+        
+        .matrix-container {
+            overflow-x: auto;
+            margin-bottom: 2rem;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1rem;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
+            min-width: 600px;
         }
+        
         th, td {
-            text-align: left;
-            padding: 10px;
+            text-align: center;
+            padding: 10px 8px;
             border-bottom: 1px solid var(--border);
+            border-right: 1px solid var(--border);
         }
-        th { background-color: var(--bg); }
+        
+        th:first-child, td:first-child { text-align: left; background-color: var(--bg); font-weight: bold; position: sticky; left: 0; }
+        th:last-child, td:last-child { border-right: none; }
+        th { background-color: var(--bg); position: sticky; top: 0; }
+        
+        .zero-val { color: #cbd5e1; }
+        .active-val { font-weight: bold; color: var(--primary); }
+        .active-err { font-weight: bold; color: var(--error); }
+        
+        .stats-hero {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--bg);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        
+        .stats-hero > div { flex: 1; text-align: center; }
+        .stats-hero h3 { margin: 0; color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; }
+        .stats-hero .big-num { font-size: 2.5rem; font-weight: bold; color: var(--primary); margin-top: 5px; }
+
+        .enter-prompt {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 15px;
+            animation: pulse 1.5s infinite;
+            font-weight: normal;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
     </style>
 </head>
 <body>
@@ -254,65 +345,115 @@
         </div>
     </div>
 
-    <div id="drill-view">
-        <div class="prompt" id="prompt-text">Convert this into the form you would usually enter into a physics equation:</div>
-        <div class="question" id="question-display">--</div>
-        
-        <div class="input-group">
-            <input type="text" id="answer-input" placeholder="" autocomplete="off">
-            <span id="input-unit-label">V</span>
-            <button id="action-btn">Submit</button>
+    <div id="drill-view" class="main-layout">
+        <div class="drill-content">
+            <div class="prompt" id="prompt-text">Convert this into the form you would usually enter into a physics equation:</div>
+            <div class="question" id="question-display">--</div>
+            
+            <div class="input-group">
+                <input type="text" id="answer-input" placeholder="" autocomplete="off">
+                <span id="input-unit-label">V</span>
+                <button id="action-btn">Submit</button>
+            </div>
+
+            <div id="feedback-box" class="feedback"></div>
+
+            <button class="btn-secondary" id="toggle-stats-btn">View Detailed Stats</button>
         </div>
 
-        <div id="feedback-box" class="feedback"></div>
+        <div class="sidebar-panels" id="sidebar">
+            <div class="stats-box" id="error-panel">
+                <h3>Session Errors</h3>
+                <ul id="error-list">
+                    <li><span style="color:var(--text-muted);font-style:italic;">No errors yet!</span></li>
+                </ul>
+            </div>
 
-        <div id="live-error-panel" class="live-stats-box">
-            <h3>Live Error Tracking</h3>
-            <ul id="live-error-list"></ul>
+            <div class="stats-box" id="format-panel">
+                <h3>Submitted Formats</h3>
+                <ul id="format-list">
+                    <li><span style="color:var(--text-muted);font-style:italic;">No inputs yet.</span></li>
+                </ul>
+            </div>
         </div>
-
-        <button class="btn-secondary" id="toggle-stats-btn">View Detailed Stats</button>
     </div>
 
     <div id="stats-view">
-        <h2>Performance Stats</h2>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Hidden during gameplay to prevent order-guessing.</p>
-        <table id="stats-table">
-            <thead>
-                <tr>
-                    <th>Target</th>
-                    <th>Last 10</th>
-                    <th>Overall</th>
-                </tr>
-            </thead>
-            <tbody id="stats-tbody"></tbody>
-        </table>
-        <button class="btn-secondary" id="back-to-drill-btn">Back to Driller</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="margin: 0;">Performance Diagnostics</h2>
+            <button class="btn-secondary" id="back-to-drill-btn" style="width: auto; margin: 0;">Back to Driller</button>
+        </div>
+        
+        <div class="stats-hero">
+            <div>
+                <h3>Overall Accuracy</h3>
+                <div class="big-num" id="hero-accuracy">0%</div>
+            </div>
+            <div>
+                <h3>Correct / Total</h3>
+                <div class="big-num" id="hero-ratio">0 / 0</div>
+            </div>
+        </div>
+
+        <h3 style="margin-bottom: 10px; color: var(--text-main);">Input Format by Prefix</h3>
+        <div class="matrix-container">
+            <table id="format-matrix">
+                <thead>
+                    <tr>
+                        <th>target</th>
+                        <th>number</th>
+                        <th>SI / eng (x10^)</th>
+                        <th>standard form</th>
+                        <th>E-notation</th>
+                        <th>calculation</th>
+                    </tr>
+                </thead>
+                <tbody id="format-matrix-body"></tbody>
+            </table>
+        </div>
+
+        <h3 style="margin-bottom: 10px; color: var(--text-main);">Error Types by Prefix</h3>
+        <div class="matrix-container">
+            <table id="error-matrix">
+                <thead>
+                    <tr>
+                        <th>target</th>
+                        <th>1 pow 10</th>
+                        <th>2 pow 10</th>
+                        <th>>2 pow 10</th>
+                        <th>comma</th>
+                        <th>sign mixup</th>
+                        <th>time mixup</th>
+                        <th>wrong num</th>
+                        <th>other</th>
+                    </tr>
+                </thead>
+                <tbody id="error-matrix-body"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <script>
     // --- DATA ---
     const prefixTargets = [
-        { id: 'tera', name: 'Tera (T)', symbol: 'T', mult: 1e12 },
-        { id: 'giga', name: 'Giga (G)', symbol: 'G', mult: 1e9 },
-        { id: 'mega', name: 'Mega (M)', symbol: 'M', mult: 1e6 },
+        { id: 'tera', name: 'tera (T)', symbol: 'T', mult: 1e12 },
+        { id: 'giga', name: 'giga (G)', symbol: 'G', mult: 1e9 },
+        { id: 'mega', name: 'mega (M)', symbol: 'M', mult: 1e6 },
         { id: 'kilo', name: 'kilo (k)', symbol: 'k', mult: 1e3 },
         { id: 'centi', name: 'centi (c)', symbol: 'c', mult: 1e-2 },
         { id: 'milli', name: 'milli (m)', symbol: 'm', mult: 1e-3 },
         { id: 'micro', name: 'micro (μ)', symbol: 'μ', mult: 1e-6 },
         { id: 'nano', name: 'nano (n)', symbol: 'n', mult: 1e-9 },
-        { id: 'mins', name: 'Minutes to s', symbol: ' minutes', mult: 60 },
-        { id: 'hours', name: 'Hours to s', symbol: ' hours', mult: 3600 },
-        { id: 'g_to_kg', name: 'Grams to kg', symbol: ' g', mult: 1e-3 },
-        { id: 'mg_to_kg', name: 'Milligrams to kg', symbol: ' mg', mult: 1e-6 },
-        { id: 'percent', name: 'Percentage', symbol: '%', mult: 0.01 }
+        { id: 'mins', name: 'minutes to s', symbol: ' minutes', mult: 60 },
+        { id: 'hours', name: 'hours to s', symbol: ' hours', mult: 3600 },
+        { id: 'g_to_kg', name: 'grams to kg', symbol: ' g', mult: 1e-3 },
+        { id: 'mg_to_kg', name: 'milligrams to kg', symbol: ' mg', mult: 1e-6 },
+        { id: 'percent', name: 'percentage', symbol: '%', mult: 0.01 }
     ];
 
-    // Removed 'Ω' from standard base units to avoid typing issues
     const standardBaseUnits = ['A', 'V', 'W', 'J', 'Hz', 'm', 's', 'N', 'C'];
 
-    // Removed Resistance/Ohms entirely from the units drill
     const unitTargets = [
         { id: 'energy', q: 'energy', sym: 'J', names: ['joule', 'joules'] },
         { id: 'mass', q: 'mass', sym: 'kg', names: ['kilogram', 'kilograms'] },
@@ -343,30 +484,56 @@
         mode: 'prefixes',
         phase: 'answering',
         currentQ: null,
-        
         prefixStats: { history: [], overallCorrect: 0, overallTotal: 0, targets: {} },
         unitStats: { history: [], overallCorrect: 0, overallTotal: 0, targets: {} },
 
-        // Track specific error types
         errorLog: {
-            powerOfTen: 0,
+            powerOfTen1: 0,
+            powerOfTen2: 0,
+            powerOfTenMore: 0,
+            comma: 0,
             signMixup: 0,
             timeMixup: 0,
-            unitFormat: 0,
-            wrongValue: 0
+            wrongValue: 0,
+            other: 0
+        },
+        
+        formatLog: {
+            straight: 0,
+            scientific: 0,
+            standardForm: 0,
+            eNotation: 0,
+            calculation: 0
         }
     };
 
     const errorLabels = {
-        powerOfTen: "Wrong by 1 or 2 powers of ten",
-        signMixup: "Mixed up positive/negative powers",
-        timeMixup: "Minutes/hours conversion mix-up",
-        unitFormat: "Unit missing or wrong case",
-        wrongValue: "Incorrect number/calculation"
+        powerOfTen1: "1 power of 10",
+        powerOfTen2: "2 powers of 10",
+        powerOfTenMore: ">2 powers of 10",
+        comma: "comma used",
+        signMixup: "sign/op mixup",
+        timeMixup: "mins/hrs error",
+        wrongValue: "wrong number",
+        other: "other calc error"
     };
 
-    // Initialize stats
-    prefixTargets.forEach(t => state.prefixStats.targets[t.id] = { history: [], correct: 0, total: 0, name: t.name });
+    const formatLabels = {
+        straight: "number",
+        scientific: "SI / eng (x10^)",
+        standardForm: "standard form",
+        eNotation: "E-notation",
+        calculation: "calculation"
+    };
+
+    // Initialize individual stats with nested objects for matrices
+    prefixTargets.forEach(t => {
+        state.prefixStats.targets[t.id] = { 
+            history: [], correct: 0, total: 0, name: t.name,
+            formats: { straight: 0, scientific: 0, standardForm: 0, eNotation: 0, calculation: 0 },
+            errors: { powerOfTen1: 0, powerOfTen2: 0, powerOfTenMore: 0, comma: 0, signMixup: 0, timeMixup: 0, wrongValue: 0, other: 0 }
+        };
+    });
     unitTargets.forEach(t => state.unitStats.targets[t.id] = { history: [], correct: 0, total: 0, name: t.q });
 
     // --- DOM ELEMENTS ---
@@ -384,11 +551,15 @@
         ticks: document.getElementById('history-ticks'),
         drillView: document.getElementById('drill-view'),
         statsView: document.getElementById('stats-view'),
-        statsBody: document.getElementById('stats-tbody'),
         toggleStatsBtn: document.getElementById('toggle-stats-btn'),
         backToDrillBtn: document.getElementById('back-to-drill-btn'),
-        errorPanel: document.getElementById('live-error-panel'),
-        errorList: document.getElementById('live-error-list')
+        sidebar: document.getElementById('sidebar'),
+        errorList: document.getElementById('error-list'),
+        formatList: document.getElementById('format-list'),
+        formatMatrixBody: document.getElementById('format-matrix-body'),
+        errorMatrixBody: document.getElementById('error-matrix-body'),
+        heroAccuracy: document.getElementById('hero-accuracy'),
+        heroRatio: document.getElementById('hero-ratio')
     };
 
     // --- LOGIC ---
@@ -402,8 +573,12 @@
             DOM.promptText.innerText = "What is the standard unit for:";
             DOM.input.placeholder = "e.g. N or newtons";
             DOM.inputUnitLabel.style.display = 'none';
+            DOM.sidebar.style.display = 'none'; 
+            DOM.toggleStatsBtn.style.display = 'none'; 
         } else {
             DOM.modeTitle.innerText = "Physics Skill Driller";
+            DOM.sidebar.style.display = 'flex';
+            DOM.toggleStatsBtn.style.display = 'block';
         }
         
         updateScoreDisplay();
@@ -413,50 +588,45 @@
     function generateQuestion() {
         if (state.mode === 'prefixes') {
             const target = prefixTargets[Math.floor(Math.random() * prefixTargets.length)];
-            let num = Math.floor(Math.random() * 999) + 1;
-            if (Math.random() > 0.7) num = +(Math.random() * 100).toFixed(1);
-            
+            let num;
             let displayUnit = '';
             let destUnit = '';
 
             if (target.id === 'percent') {
+                num = (Math.random() * 99) + 1;
+                num = Math.random() > 0.5 ? +num.toFixed(1) : Math.floor(num);
                 displayUnit = '%';
                 destUnit = '';
-                num = Math.floor(num); 
-            } else if (target.id === 'mins') {
-                displayUnit = ' minutes';
-                destUnit = 's';
-            } else if (target.id === 'hours') {
-                displayUnit = ' hours';
-                destUnit = 's';
-            } else if (target.id === 'g_to_kg') {
-                displayUnit = ' g';
-                destUnit = 'kg';
-            } else if (target.id === 'mg_to_kg') {
-                displayUnit = ' mg';
-                destUnit = 'kg';
             } else {
-                let randomBase = standardBaseUnits[Math.floor(Math.random() * standardBaseUnits.length)];
-                displayUnit = target.symbol + randomBase; 
-                destUnit = randomBase;
+                num = Math.floor(Math.random() * 999) + 1;
+                if (Math.random() > 0.7) num = +(Math.random() * 100).toFixed(1);
+                
+                if (target.id === 'mins') {
+                    displayUnit = ' minutes';
+                    destUnit = 's';
+                } else if (target.id === 'hours') {
+                    displayUnit = ' hours';
+                    destUnit = 's';
+                } else if (target.id === 'g_to_kg') {
+                    displayUnit = ' g';
+                    destUnit = 'kg';
+                } else if (target.id === 'mg_to_kg') {
+                    displayUnit = ' mg';
+                    destUnit = 'kg';
+                } else {
+                    let randomBase = standardBaseUnits[Math.floor(Math.random() * standardBaseUnits.length)];
+                    displayUnit = target.symbol + randomBase; 
+                    destUnit = randomBase;
+                }
             }
 
-            let uiMode = (Math.random() > 0.4 || !destUnit) ? 'provide_unit' : 'require_unit';
-
-            state.currentQ = { target, baseNumber: num, correctAnswer: num * target.mult, displayUnit, destUnit, uiMode };
+            state.currentQ = { target, baseNumber: num, correctAnswer: num * target.mult, displayUnit, destUnit };
             
             DOM.question.innerText = `${num}${displayUnit}`;
-
-            if (uiMode === 'provide_unit' && destUnit) {
-                DOM.promptText.innerText = `Convert this into the format you would usually enter into a physics equation:`;
-                DOM.inputUnitLabel.innerText = destUnit;
-                DOM.inputUnitLabel.style.display = 'flex';
-                DOM.input.placeholder = "e.g. 0.109";
-            } else {
-                DOM.promptText.innerHTML = `Convert this into the correct equation format AND <b>include the final unit</b>:`;
-                DOM.inputUnitLabel.style.display = 'none';
-                DOM.input.placeholder = destUnit ? `e.g. 0.109 ${destUnit}` : `e.g. 0.109`;
-            }
+            DOM.promptText.innerText = `Convert this into the form you would usually enter into a physics equation:`;
+            DOM.inputUnitLabel.innerText = destUnit;
+            DOM.inputUnitLabel.style.display = destUnit ? 'flex' : 'none';
+            DOM.input.placeholder = "e.g. 0.045, 4.5x10^-2, 45/1000";
 
         } else {
             const target = unitTargets[Math.floor(Math.random() * unitTargets.length)];
@@ -473,6 +643,51 @@
         state.phase = 'answering';
     }
 
+    function detectFormat(str) {
+        let clean = str.replace(/\s/g, '').toLowerCase();
+        
+        let mathSymbols = clean.replace(/x10\^/g, '').replace(/\*10\^/g, '').replace(/e[-+0-9]+/g, '');
+        
+        if (mathSymbols.includes('/') || mathSymbols.includes('*') || mathSymbols.match(/\dx\d/)) {
+            return 'calculation';
+        }
+        
+        if (clean.includes('x10^') || clean.includes('*10^')) {
+            let parts = clean.split(/x10\^|\*10\^/);
+            let mantissa = parseFloat(parts[0]);
+            if (Math.abs(mantissa) >= 1 && Math.abs(mantissa) < 10) {
+                return 'standardForm';
+            }
+            return 'scientific';
+        }
+        
+        if (clean.includes('e') && clean.match(/\d[e]\+?\-?\d/)) {
+            return 'eNotation';
+        }
+        
+        return 'straight';
+    }
+
+    function parsePrefixInput(str) {
+        let clean = str.replace(/\s/g, ''); 
+        clean = clean.replace(/,/g, '.'); 
+        clean = clean.toLowerCase(); 
+        
+        clean = clean.replace(/x10\^/g, 'e').replace(/\*10\^/g, 'e');
+        clean = clean.replace(/(\d)x(\d)/g, '$1*$2'); 
+
+        let mathPart = clean.replace(/[a-zΩμ%°]+$/i, '');
+
+        if (/^[0-9\.\+\-\*\/\(\)e]+$/.test(mathPart) && mathPart.length > 0) {
+            try {
+                return Function('"use strict";return (' + mathPart + ')')();
+            } catch (e) {
+                return NaN;
+            }
+        }
+        return parseFloat(clean);
+    }
+
     function handleSubmission() {
         if (state.phase === 'feedback') {
             generateQuestion();
@@ -482,64 +697,100 @@
         const inputStr = DOM.input.value.trim();
         if (!inputStr) return;
 
-        let score = 0; // 0 = wrong, 0.5 = half, 1 = correct
+        let score = 0;
         let errorMsg = "";
         let feedbackClass = "incorrect";
 
         if (state.mode === 'prefixes') {
+            const hasComma = inputStr.includes(',');
             const userVal = parsePrefixInput(inputStr);
             const correctVal = state.currentQ.correctAnswer;
             const target = state.currentQ.target;
+            const targetId = target.id;
             
+            if (!isNaN(userVal)) {
+                let formatType = detectFormat(inputStr);
+                state.formatLog[formatType]++;
+                state.prefixStats.targets[targetId].formats[formatType]++;
+                renderSidebar();
+            }
+
             if (isNaN(userVal)) {
-                errorMsg = "Unrecognized number format.";
-                logError('wrongValue');
+                errorMsg = "Unrecognized number or math format.";
+                logError('wrongValue', targetId);
             } else {
                 const ratio = userVal / correctVal;
-                const logRatio = Math.round(Math.log10(ratio));
+                const logRatio = Math.round(Math.log10(Math.abs(ratio)));
                 const numIsCorrect = Math.abs(userVal - correctVal) < 1e-12 * Math.abs(correctVal);
 
                 if (numIsCorrect) {
-                    if (state.currentQ.uiMode === 'require_unit' && state.currentQ.destUnit) {
-                        if (inputStr.endsWith(state.currentQ.destUnit)) {
-                            score = 1;
-                        } else {
-                            score = 0.5;
-                            feedbackClass = "warning";
-                            errorMsg = `Correct number, but you missed or used the wrong case for the unit (<b>${state.currentQ.destUnit}</b>). Half mark!`;
-                            logError('unitFormat');
-                        }
+                    if (hasComma) {
+                        score = 0;
+                        feedbackClass = "incorrect";
+                        errorMsg = "Used a comma instead of a decimal point.";
+                        logError('comma', targetId);
                     } else {
                         score = 1;
+                        feedbackClass = "correct";
+                        errorMsg = "Correct!";
                     }
                 } else {
                     const expectedPower = Math.round(Math.log10(target.mult));
-                    if (logRatio === 1 || logRatio === -1) {
+                    const base = state.currentQ.baseNumber;
+                    
+                    const invertedVal = (target.id === 'mins' || target.id === 'hours') ? base / target.mult : base / Math.pow(10, expectedPower);
+                    
+                    if (target.id === 'mins' && ratio > 59 && ratio < 61) {
+                        errorMsg = "Time mixup: multiplied by 3600 instead of 60.";
+                        logError('timeMixup', targetId);
+                    } else if (target.id === 'hours' && Math.abs(ratio - 1/60) < 0.05) {
+                        errorMsg = "Time mixup: multiplied by 60 instead of 3600.";
+                        logError('timeMixup', targetId);
+                    } else if (Math.abs(userVal - invertedVal) < 1e-10 * Math.abs(userVal)) {
+                        errorMsg = "Flipped sign on power or mixed up multiply/divide.";
+                        logError('signMixup', targetId);
+                    } else if (logRatio === 1 || logRatio === -1) {
                         errorMsg = "Wrong by 1 power of ten.";
-                        logError('powerOfTen');
+                        logError('powerOfTen1', targetId);
                     } else if (logRatio === 2 || logRatio === -2) {
                         errorMsg = "Wrong by 2 powers of ten.";
-                        logError('powerOfTen');
-                    } else if (target.id === 'mins' && ratio > 59 && ratio < 61) {
-                        errorMsg = "Mixed up minutes and hours (multiplied by 3600 instead of 60).";
-                        logError('timeMixup');
-                    } else if (target.id === 'hours' && Math.abs(ratio - 1/60) < 0.05) {
-                        errorMsg = "Mixed up minutes and hours (multiplied by 60 instead of 3600).";
-                        logError('timeMixup');
-                    } else if (expectedPower !== 0 && logRatio === -2 * expectedPower) {
-                        errorMsg = "Mixed up positive and negative powers.";
-                        logError('signMixup');
+                        logError('powerOfTen2', targetId);
+                    } else if (Math.abs(logRatio) > 2 && Math.abs(logRatio) < 15) {
+                        errorMsg = "Wrong by more than 2 powers of ten.";
+                        logError('powerOfTenMore', targetId);
                     } else {
-                        errorMsg = "Incorrect value.";
-                        logError('wrongValue');
+                        errorMsg = "Incorrect number or calculation.";
+                        logError('wrongValue', targetId);
                     }
-                    
-                    let displayCorrect = (Math.abs(correctVal) >= 0.001 && Math.abs(correctVal) <= 100000) ? correctVal.toString() : correctVal.toExponential();
-                    if (state.currentQ.destUnit) displayCorrect += ` ${state.currentQ.destUnit}`;
-                    errorMsg += `<br><span style="font-weight:normal;">Expected: <b>${displayCorrect}</b></span>`;
                 }
             }
+
+            // ALWAYS GENERATE FEEDBACK ALTERNATIVES FOR PREFIXES
+            let baseFormat = (Math.abs(correctVal) >= 0.001 && Math.abs(correctVal) <= 100000) ? correctVal.toString() : null;
+            let sciForm = correctVal.toExponential();
+            let stdFormDisplay = sciForm.replace('e', 'x10^');
+            let calcForm = `${state.currentQ.baseNumber} * ${target.mult}`;
+            if(target.mult < 1) calcForm = `${state.currentQ.baseNumber} / ${1/target.mult}`;
+
+            let altHtml = `
+                <div class="feedback-alternatives">
+                    <strong>Acceptable formats for this answer:</strong><br>
+                    <ul style="margin: 8px 0 0 20px; padding: 0; line-height: 1.6;">
+                        ${baseFormat ? `<li><b>number:</b> <code>${baseFormat}</code></li>` : ''}
+                        <li><b>SI / standard form:</b> <code>${stdFormDisplay}</code> <br><span style="color:var(--text-muted); font-size: 0.85em;">(You can type <code>x10^</code> to get × 10<sup>...</sup>)</span></li>
+                        <li><b>calculation:</b> <code>${calcForm}</code></li>
+                        <li><b>E-notation:</b> <code>${sciForm}</code> <br><span style="color:var(--warning); font-size: 0.85em;">(&say OK here, but <b>do not</b> write this in your Physics exam!)</span></li>
+                    </ul>
+                </div>
+            `;
+            
+            let finalMsg = `<div class="main-message">${errorMsg}</div> ${altHtml}`;
+            
+            // Note: showFeedback now just applies the HTML directly, allowing finalMsg to display for both correct and incorrect.
+            showFeedback(score, feedbackClass, finalMsg);
+
         } else {
+            // Units logic unchanged
             const target = state.currentQ.target;
             const inputLower = inputStr.toLowerCase();
             const validAlts = target.alt ? target.alt.map(a => a.toLowerCase()) : [];
@@ -547,57 +798,53 @@
 
             if (inputStr === target.sym || validNames.includes(inputLower) || validAlts.includes(inputLower)) {
                 score = 1;
+                feedbackClass = "correct";
+                showFeedback(1, "correct", `<div class="main-message">Correct!</div>`);
             } else if (inputLower === target.sym.toLowerCase()) {
                 score = 0; 
                 feedbackClass = "warning";
-                errorMsg = `Watch your case! The correct symbol is <b>${target.sym}</b>.<br><span style="font-size:0.9em; font-weight:normal;">(Case matters to distinguish between prefixes and units)</span>`;
-                logError('unitFormat');
+                showFeedback(0, "warning", `<div class="main-message">Watch your case! The correct symbol is <b>${target.sym}</b>.</div>`);
             } else {
                 score = 0;
-                errorMsg = `Incorrect. The unit for ${target.q} is <b>${target.sym}</b> (${target.names[0]}).`;
-                logError('wrongValue');
+                showFeedback(0, "incorrect", `<div class="main-message">Incorrect. The unit for ${target.q} is <b>${target.sym}</b> (${target.names[0]}).</div>`);
             }
         }
 
         updateStats(score);
-        
-        // Emphasize requirement to press Enter/Next
-        errorMsg += `<br><br><span style="font-size:0.85em; opacity: 0.8;">(Press Enter to continue)</span>`;
-        showFeedback(score, feedbackClass, errorMsg);
         
         state.phase = 'feedback';
         DOM.btn.innerText = 'Next Question (Enter)';
         DOM.input.disabled = true;
     }
 
-    function parsePrefixInput(str) {
-        let clean = str.replace(/\s/g, ''); 
-        clean = clean.toLowerCase(); 
-        clean = clean.replace(/x10\^/g, 'e').replace(/\*10\^/g, 'e');
-        return parseFloat(clean);
-    }
-
-    function logError(errorType) {
+    function logError(errorType, targetId) {
         state.errorLog[errorType]++;
-        renderLiveErrorPanel();
+        if (targetId) {
+            state.prefixStats.targets[targetId].errors[errorType]++;
+        }
+        renderSidebar();
     }
 
-    function renderLiveErrorPanel() {
+    function renderSidebar() {
         let hasErrors = false;
-        DOM.errorList.innerHTML = '';
-        
+        let errHtml = '';
         for (const [type, count] of Object.entries(state.errorLog)) {
             if (count > 0) {
                 hasErrors = true;
-                const li = document.createElement('li');
-                li.innerHTML = `${errorLabels[type]}: <strong>${count}</strong>`;
-                DOM.errorList.appendChild(li);
+                errHtml += `<li><span>${errorLabels[type]}</span> <span class="error-val">${count}</span></li>`;
             }
         }
+        if (hasErrors) DOM.errorList.innerHTML = errHtml;
 
-        if (hasErrors) {
-            DOM.errorPanel.style.display = 'block';
+        let hasFormats = false;
+        let fmtHtml = '';
+        for (const [type, count] of Object.entries(state.formatLog)) {
+            if (count > 0) {
+                hasFormats = true;
+                fmtHtml += `<li><span>${formatLabels[type]}</span> <span class="format-val">${count}</span></li>`;
+            }
         }
+        if (hasFormats) DOM.formatList.innerHTML = fmtHtml;
     }
 
     function updateStats(score) {
@@ -628,39 +875,66 @@
         }).join('');
     }
 
-    function showFeedback(score, feedbackClass, errorMsg) {
-        if (score === 1) {
-            DOM.feedback.className = 'feedback correct';
-            DOM.feedback.innerHTML = `<strong>Correct!</strong> <br><br><span style="font-size:0.85em; opacity: 0.8;">(Press Enter to continue)</span>`;
-        } else {
-            DOM.feedback.className = `feedback ${feedbackClass}`;
-            DOM.feedback.innerHTML = `<strong>${errorMsg}</strong>`;
-        }
+    function showFeedback(score, feedbackClass, contentHtml) {
+        DOM.feedback.className = `feedback ${feedbackClass}`;
+        DOM.feedback.innerHTML = contentHtml + `<div class="enter-prompt" style="color: inherit;">[ Press Enter to continue ]</div>`;
     }
 
-    function renderStatsTable() {
-        const stats = state.mode === 'prefixes' ? state.prefixStats : state.unitStats;
-        const targets = state.mode === 'prefixes' ? prefixTargets : unitTargets;
+    function renderDetailedStats() {
+        if (state.mode !== 'prefixes') return;
+
+        const stats = state.prefixStats;
+        const pct = stats.overallTotal === 0 ? 0 : Math.round((stats.overallCorrect / stats.overallTotal) * 100);
         
-        DOM.statsBody.innerHTML = '';
-        targets.forEach(t => {
-            const s = stats.targets[t.id];
-            const pct = s.total === 0 ? 0 : Math.round((s.correct / s.total) * 100);
-            
-            const historyIcons = s.history.map(c => {
-                if (c === 1) return '✅';
-                if (c === 0.5) return '⚠️';
-                return '❌';
-            }).join('') || '-';
-            
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${s.name}</strong></td>
-                <td style="font-size: 0.8rem; letter-spacing: -1px;">${historyIcons}</td>
-                <td>${s.correct}/${s.total} (${pct}%)</td>
-            `;
-            DOM.statsBody.appendChild(tr);
+        DOM.heroAccuracy.innerText = `${pct}%`;
+        DOM.heroRatio.innerText = `${stats.overallCorrect} / ${stats.overallTotal}`;
+
+        // Render Format Matrix
+        DOM.formatMatrixBody.innerHTML = '';
+        prefixTargets.forEach(t => {
+            const f = stats.targets[t.id].formats;
+            const totalF = f.straight + f.scientific + f.standardForm + f.eNotation + f.calculation;
+            if(totalF > 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${t.name}</td>
+                    <td class="${f.straight > 0 ? 'active-val' : 'zero-val'}">${f.straight}</td>
+                    <td class="${f.scientific > 0 ? 'active-val' : 'zero-val'}">${f.scientific}</td>
+                    <td class="${f.standardForm > 0 ? 'active-val' : 'zero-val'}">${f.standardForm}</td>
+                    <td class="${f.eNotation > 0 ? 'active-val' : 'zero-val'}">${f.eNotation}</td>
+                    <td class="${f.calculation > 0 ? 'active-val' : 'zero-val'}">${f.calculation}</td>
+                `;
+                DOM.formatMatrixBody.appendChild(tr);
+            }
         });
+        if(DOM.formatMatrixBody.innerHTML === '') {
+            DOM.formatMatrixBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 20px;">No formats logged yet.</td></tr>`;
+        }
+
+        // Render Error Matrix
+        DOM.errorMatrixBody.innerHTML = '';
+        prefixTargets.forEach(t => {
+            const e = stats.targets[t.id].errors;
+            const totalE = e.powerOfTen1 + e.powerOfTen2 + e.powerOfTenMore + e.comma + e.signMixup + e.timeMixup + e.wrongValue + e.other;
+            if(totalE > 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${t.name}</td>
+                    <td class="${e.powerOfTen1 > 0 ? 'active-err' : 'zero-val'}">${e.powerOfTen1}</td>
+                    <td class="${e.powerOfTen2 > 0 ? 'active-err' : 'zero-val'}">${e.powerOfTen2}</td>
+                    <td class="${e.powerOfTenMore > 0 ? 'active-err' : 'zero-val'}">${e.powerOfTenMore}</td>
+                    <td class="${e.comma > 0 ? 'active-err' : 'zero-val'}">${e.comma}</td>
+                    <td class="${e.signMixup > 0 ? 'active-err' : 'zero-val'}">${e.signMixup}</td>
+                    <td class="${e.timeMixup > 0 ? 'active-err' : 'zero-val'}">${e.timeMixup}</td>
+                    <td class="${e.wrongValue > 0 ? 'active-err' : 'zero-val'}">${e.wrongValue}</td>
+                    <td class="${e.other > 0 ? 'active-err' : 'zero-val'}">${e.other}</td>
+                `;
+                DOM.errorMatrixBody.appendChild(tr);
+            }
+        });
+        if(DOM.errorMatrixBody.innerHTML === '') {
+            DOM.errorMatrixBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--text-muted); padding: 20px;">No errors logged yet.</td></tr>`;
+        }
     }
 
     // --- EVENT LISTENERS ---
@@ -670,18 +944,21 @@
     DOM.btn.addEventListener('click', handleSubmission);
     DOM.input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSubmission(); });
     document.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && state.phase === 'feedback') handleSubmission();
+        if (e.key === 'Enter' && state.phase === 'feedback') {
+            e.preventDefault(); 
+            handleSubmission();
+        }
     });
 
     DOM.toggleStatsBtn.addEventListener('click', () => {
         DOM.drillView.style.display = 'none';
         DOM.statsView.style.display = 'block';
-        renderStatsTable();
+        renderDetailedStats();
     });
 
     DOM.backToDrillBtn.addEventListener('click', () => {
         DOM.statsView.style.display = 'none';
-        DOM.drillView.style.display = 'block';
+        DOM.drillView.style.display = 'grid';
         if(state.phase === 'answering') DOM.input.focus();
     });
 
