@@ -262,6 +262,9 @@
   /* double-headed measurement arrow with a label, in PIXEL space         */
   function measureArrow(x1, y1, x2, y2, label, opts) {
     opts = opts || {};
+    /* house style: lambda renders as the symbol; no leading question marks
+       on deliberately-wrong annotations (they telegraph the distractor) */
+    if (label) label = String(label).replace(/lambda/g, "\u03BB").replace(/\?+$/, "");
     var g = el("g");
     var col = opts.color || C.accent;
     var ang = Math.atan2(y2 - y1, x2 - x1);
@@ -405,7 +408,7 @@
         svg.appendChild(line(x, m, x, h - m, { color: C.ink, width: 2 }));
       }
       /* direction-of-travel ray arrow */
-      svg.appendChild(CORE.forceArrow(m + dpx * 0.3, h / 2, w - m * 0.6, h / 2,
+      svg.appendChild(rayLine(m + dpx * 0.3, h / 2, w - m * 0.6, h / 2,
         { color: C.muted, width: 1.6, label: "" }));
       if (params.mark && params.mark.wavelength && n >= 2) {
         var xa = m + dpx * 0.5, xb = m + dpx * 1.5, yL = h - m + 0;
@@ -688,6 +691,18 @@
     g.appendChild(line(x, yFeet - h * 0.35, x + h * 0.18, yFeet, { color: c, width: 1.6 }));
     return g;
   }
+  /* ray convention: a ray is a full-length line with its arrowhead ALONG the
+     length (mid-ray), never on the tip. opts: {color, width, frac} */
+  function rayLine(x1, y1, x2, y2, opts) {
+    opts = opts || {};
+    var col = opts.color || C.accent, wdt = opts.width || 1.8;
+    var g = el("g");
+    g.appendChild(line(x1, y1, x2, y2, { color: col, width: wdt }));
+    var ang = Math.atan2(y2 - y1, x2 - x1);
+    var f = (opts.frac == null) ? 0.55 : opts.frac;
+    g.appendChild(arrowHead(x1 + (x2 - x1) * f, y1 + (y2 - y1) * f, ang, Math.max(7, wdt * 3.4), col));
+    return g;
+  }
   function waterBand(svg, x0, x1, yTop, yBot, lambdaPx, opts) {
     opts = opts || {};
     svg.appendChild(el("rect", { x: x0, y: yTop, width: x1 - x0, height: yBot - yTop,
@@ -715,20 +730,25 @@
     var mk = params.mark || {}, val = params.values || {};
 
     if (v === "shore") {
-      waterBand(svg, 20, w - 90, 70, h - 30, 46, { amp: 6 });
-      /* beach wedge on the right */
-      svg.appendChild(el("path", { d: "M" + (w - 90) + "," + (h - 30) + " L" + (w - 20) + "," + (h - 70) +
-        " L" + (w - 20) + "," + (h - 30) + " Z", fill: "rgba(180,150,90,.35)", stroke: C.ink2, "stroke-width": 1.2 }));
-      svg.appendChild(CORE.forceArrow(60, 55, w - 110, 55, { color: C.muted, width: 1.6 }));
-      svg.appendChild(txt(w / 2 - 30, 46, "waves travel toward the shore", { fill: C.ink2, "font-size": 11.5, "text-anchor": "middle" }));
+      /* gentle ripples on a LOW waterline; the beach rises above the water
+         (the old 140px-deep water wall against a tiny wedge read as a
+         tsunami). */
+      waterBand(svg, 20, w - 70, 150, h - 30, 50, { amp: 4 });
+      svg.appendChild(el("path", { d: "M" + (w - 120) + "," + (h - 30) + " L" + (w - 20) + ",118" +
+        " L" + (w - 20) + "," + (h - 30) + " Z", fill: "rgba(180,150,90,.5)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(rayLine(60, 132, w - 140, 132, { color: C.muted, width: 1.6 }));
+      if (params.caption !== false)
+        svg.appendChild(txt(w / 2 - 30, 46, params.caption || "ripples travel toward the shore", { fill: C.ink2, "font-size": 11.5, "text-anchor": "middle" }));
       if (mk.distance) svg.appendChild(measureArrow(50, h - 18, w - 130, h - 18, (val.distance || "d"), { ldy: 12 }));
     } else if (v === "pier") {
       waterBand(svg, 20, w - 20, 95, h - 24, 40, { amp: 6 });
       /* pier post + person counting */
       svg.appendChild(el("rect", { x: w * 0.5 - 6, y: 70, width: 12, height: h - 24 - 70, fill: "rgba(120,90,60,.5)", stroke: C.ink2, "stroke-width": 1 }));
       svg.appendChild(stickPerson(w * 0.5, 70, 40, C.ink));
-      svg.appendChild(txt(w * 0.5 + 16, 40, "counts waves passing a point", { fill: C.ink2, "font-size": 11.5 }));
-      svg.appendChild(txt(w * 0.5 + 16, 56, "in a measured time -> f = count / time", { fill: C.muted, "font-size": 10.5 }));
+      if (params.caption !== false) {
+        svg.appendChild(txt(w * 0.5 + 16, 40, params.caption || "counts waves passing a point", { fill: C.ink2, "font-size": 11.5 }));
+        if (!params.caption) svg.appendChild(txt(w * 0.5 + 16, 56, "in a measured time", { fill: C.muted, "font-size": 10.5 }));
+      }
       if (mk.count) svg.appendChild(txt(40, 120, "N = " + (val.count || "?") + " waves", { fill: C.accent, "font-size": 12 }));
       if (mk.time) svg.appendChild(txt(40, 138, "t = " + (val.time || "?") + " s", { fill: C.accent, "font-size": 12 }));
     } else if (v === "sonar") {
@@ -737,9 +757,10 @@
       svg.appendChild(el("rect", { x: 20, y: 60, width: w - 40, height: h - 90, fill: "rgba(60,110,150,.12)" }));
       svg.appendChild(el("path", { d: "M" + (w / 2 - 28) + ",54 q28,16 56,0 z", fill: "rgba(120,90,60,.7)", stroke: C.ink2, "stroke-width": 1 }));
       svg.appendChild(el("rect", { x: 20, y: h - 30, width: w - 40, height: 16, fill: "rgba(120,90,60,.4)", stroke: C.ink2, "stroke-width": 1 }));
-      svg.appendChild(CORE.forceArrow(w / 2 - 6, 64, w / 2 - 6, h - 32, { color: C.accent, width: 1.6 }));
-      svg.appendChild(CORE.forceArrow(w / 2 + 6, h - 32, w / 2 + 6, 64, { color: C.ok, width: 1.6 }));
-      svg.appendChild(txt(w / 2 + 14, h / 2, "pulse down, echo back: depth = v t / 2", { fill: C.ink2, "font-size": 11 }));
+      svg.appendChild(rayLine(w / 2 - 6, 64, w / 2 - 6, h - 32, { color: C.accent, width: 1.6 }));
+      svg.appendChild(rayLine(w / 2 + 6, h - 32, w / 2 + 6, 64, { color: C.ok, width: 1.6 }));
+      if (params.caption !== false)
+        svg.appendChild(txt(w / 2 + 14, h / 2, params.caption || "pulse goes down, echo comes back", { fill: C.ink2, "font-size": 11 }));
       if (mk.time) svg.appendChild(txt(40, 80, "echo time t = " + (val.time || "?") + " s", { fill: C.accent, "font-size": 12 }));
       if (mk.distance) svg.appendChild(measureArrow(34, 64, 34, h - 32, (val.depth || "depth"), { ldx: -2, ldy: 0, anchor: "end" }));
     } else if (v === "speed_clap") {
@@ -749,8 +770,12 @@
       svg.appendChild(stickPerson(w - 60, h - 40, 46, C.ink));
       svg.appendChild(txt(60, h - 96, "claps", { fill: C.ink2, "font-size": 11, "text-anchor": "middle" }));
       svg.appendChild(txt(w - 60, h - 96, "stopwatch", { fill: C.ink2, "font-size": 11, "text-anchor": "middle" }));
-      svg.appendChild(el("path", { d: "M70," + (h - 70) + " q40,-12 80,0", fill: "none", stroke: C.accent, "stroke-width": 1.4, "stroke-dasharray": "4 3" }));
-      svg.appendChild(txt(w / 2, 30, "sound over a measured distance: v = d / t", { fill: C.ink2, "font-size": 11.5, "text-anchor": "middle" }));
+      var scx = 84, scy = h - 58;
+      [12, 20, 28].forEach(function (rr) { svg.appendChild(el("path", { d: "M" + scx + "," + (scy - rr) + " A" + rr + "," + rr + " 0 0 1 " + scx + "," + (scy + rr),
+        fill: "none", stroke: C.accent, "stroke-width": 1.3, "stroke-opacity": 0.6 })); });
+      svg.appendChild(txt(scx + 34, scy - 30, "sound", { "font-size": 9.5, fill: C.muted }));
+      if (params.caption !== false)
+        svg.appendChild(txt(w / 2, 30, params.caption || "sound travels a measured distance", { fill: C.ink2, "font-size": 11.5, "text-anchor": "middle" }));
       if (mk.distance) svg.appendChild(measureArrow(60, h - 22, w - 60, h - 22, (val.distance || "d"), { ldy: 12 }));
       if (mk.time) svg.appendChild(txt(w - 60, h - 110, "t = " + (val.time || "?") + " s", { fill: C.accent, "font-size": 11, "text-anchor": "middle" }));
     } else if (v === "echo_wall" || v === "clap_rhythm") {
@@ -759,12 +784,13 @@
       svg.appendChild(el("rect", { x: w - 40, y: 50, width: 20, height: h - 90, fill: "rgba(120,120,120,.5)", stroke: C.ink2, "stroke-width": 1.2 }));
       svg.appendChild(txt(w - 30, 44, "wall", { fill: C.ink2, "font-size": 10.5, "text-anchor": "middle" }));
       svg.appendChild(stickPerson(70, h - 40, 46, C.ink));
-      svg.appendChild(CORE.forceArrow(86, h - 70, w - 48, h - 70, { color: C.accent, width: 1.5 }));
-      svg.appendChild(CORE.forceArrow(w - 48, h - 86, 86, h - 86, { color: C.ok, width: 1.5 }));
+      svg.appendChild(rayLine(86, h - 70, w - 48, h - 70, { color: C.accent, width: 1.5 }));
+      svg.appendChild(rayLine(w - 48, h - 86, 86, h - 86, { color: C.ok, width: 1.5 }));
       var msg = (v === "clap_rhythm")
-        ? "clap in rhythm with each echo: t between claps = 2d / v"
-        : "time the echo: v = 2d / t";
-      svg.appendChild(txt(w / 2, 30, msg, { fill: C.ink2, "font-size": 11, "text-anchor": "middle" }));
+        ? "clap in rhythm with each echo"
+        : "time between the clap and the echo";
+      if (params.caption !== false)
+        svg.appendChild(txt(w / 2, 30, params.caption || msg, { fill: C.ink2, "font-size": 11, "text-anchor": "middle" }));
       if (mk.distance) svg.appendChild(measureArrow(70, h - 22, w - 30, h - 22, (val.distance || "d"), { ldy: 12 }));
       if (mk.time) svg.appendChild(txt(120, h - 100, "t = " + (val.time || "?") + " s", { fill: C.accent, "font-size": 11 }));
     }
@@ -794,13 +820,17 @@
     /* tank with water + straight wavefronts (plan-ish, seen edge-on) */
     var tx0 = 40, tx1 = w - 40, ty = 96, tb = 124;
     svg.appendChild(el("rect", { x: tx0, y: ty, width: tx1 - tx0, height: tb - ty, fill: "rgba(60,110,150,.14)", stroke: C.ink2, "stroke-width": 1.3 }));
+    var rwn = nWaves + 1, rwi, rwx;
+    for (rwi = 1; rwi <= rwn; rwi++) { rwx = tx0 + 28 + (tx1 - tx0 - 40) * (rwi - 0.5) / rwn;
+      svg.appendChild(line(rwx, ty + 3, rwx, tb - 3, { color: "rgba(60,110,150,.75)", width: 1.4 })); }
+    svg.appendChild(txt(tx1 - 2, tb + 11, "water with ripples", { "text-anchor": "end", "font-size": 9.5, fill: C.muted }));
     /* vibrating beam at left makes the ripples */
     svg.appendChild(el("rect", { x: tx0 - 6, y: ty - 10, width: 14, height: 12, fill: "rgba(120,90,60,.6)", stroke: C.ink2, "stroke-width": 1 }));
     svg.appendChild(txt(tx0 + 4, ty - 14, "vibrating beam (frequency f)", { fill: C.ink2, "font-size": 10 }));
     /* screen below with projected wavefronts and a ruler */
     var sy = 150, sb = h - 40;
     svg.appendChild(el("rect", { x: tx0, y: sy, width: tx1 - tx0, height: sb - sy, fill: C.paper, stroke: C.ink2, "stroke-width": 1.2 }));
-    svg.appendChild(txt(tx0, sy - 6, "screen: shadows of the wavefronts", { fill: C.muted, "font-size": 10.5 }));
+    svg.appendChild(txt(tx0, sy - 6, "screen (shadows of the ripples)", { fill: C.muted, "font-size": 10.5 }));
     var span = tx1 - tx0 - 30, lamPx = span / (nWaves + 1), i, x;
     for (i = 1; i <= nWaves + 1; i++) {
       x = tx0 + 15 + lamPx * (i - 0.5);
@@ -808,12 +838,12 @@
     }
     /* ruler measuring across n wavelengths */
     var rx0 = tx0 + 15 + lamPx * 0.5, rx1 = rx0 + lamPx * nWaves;
-    svg.appendChild(CORE.ruler ? el("g") : el("g"));
     if (params.mark && params.mark.distance) {
-      svg.appendChild(measureArrow(rx0, sb - 14, rx1, sb - 14,
-        (nWaves + " wavelengths"), { ldy: 12 }));
-      svg.appendChild(txt(tx1, sy - 6, "lambda = distance / " + nWaves, { fill: C.muted, "font-size": 10, "text-anchor": "end" }));
+      svg.appendChild(txt(rx0 - 4, sb - 16, "ruler", { "text-anchor": "end", "font-size": 9, fill: C.muted }));
+      svg.appendChild(measureArrow(rx0, sb - 16, rx1, sb - 16, (nWaves + " wavelengths"), { ldy: 11 }));
+      svg.appendChild(txt(tx1, sy - 6, "λ = distance / " + nWaves, { fill: C.muted, "font-size": 10, "text-anchor": "end" }));
     }
+    svg.appendChild(txt(w / 2, h - 5, "freeze the ripples (strobe or photo), then measure across several wavelengths", { "text-anchor": "middle", "font-size": 8.5, fill: C.muted }));
     return svg;
   }
 
@@ -1028,20 +1058,44 @@
      nucleus, radio from oscillations of charge in a circuit/aerial, the
      rest in between.
      params: { regions:["gamma","radio"] | "all", label }                 */
+  /* A labelled reference: each region connects by a line down to its origin.
+     Author can blank chosen origins (gaps) for a fill-in question.
+     params: { regions:[...]|"all", blanks:[...]|"all", title, label }     */
+  var EM_ORIGIN_SHORT = {
+    radio: ["charges oscillating", "in a circuit/aerial"],
+    microwave: ["electron", "oscillations"],
+    infrared: ["warm and hot", "objects"],
+    visible: ["very hot", "objects"],
+    ultraviolet: ["very hot objects;", "electron jumps"],
+    xray: ["fast electrons on", "a metal target"],
+    gamma: ["the nucleus", "of an atom"]
+  };
   function em_origins(params) {
     params = params || {};
-    var regions = (params.regions && params.regions !== "all") ? params.regions : WavesModels.EM.order.slice();
-    var w = params.w || 560, h = params.h || 96 + regions.length * 18;
+    var all = WavesModels.EM.order.slice();
+    var regions = (params.regions && params.regions !== "all") ? params.regions : all;
+    var bl = params.blanks;
+    var blanks = (bl === "all" || (bl && bl[0] === "all")) ? all.slice() : (bl || []);
+    var w = params.w || 660, h = params.h || 152;
     var svg = makeSVG(w, h, params.label || "origins of EM radiation");
-    var band = emBand(svg, { x0: 30, x1: w - 30, y: 30, bh: 30, highlight: regions });
-    svg.appendChild(txt(w / 2, 18, "Where each region comes from", { "text-anchor": "middle", fill: C.ink2, "font-size": 11.5, "font-style": "italic" }));
-    var yy = band.y + band.bh + 18, i, r;
+    svg.appendChild(txt(w / 2, 16, params.title || "Where does each region come from?", { "text-anchor": "middle", fill: C.ink2, "font-size": 12, "font-style": "italic" }));
+    var band = emBand(svg, { x0: 24, x1: w - 24, y: 26, bh: 26 });
+    var bandBot = band.y + band.bh, by = bandBot + 22, boxH = 32, i, r, cx, boxW, li, lines;
     for (i = 0; i < regions.length; i++) {
-      r = regions[i];
-      svg.appendChild(el("rect", { x: band.centres[r] - 3, y: band.y + band.bh, width: 6, height: 6, fill: C.ink2 }));
-      svg.appendChild(txt(34, yy + i * 17, WavesModels.EM.region[r].label + ": " + WavesModels.EM.region[r].origin,
-        { "font-size": 10.5, fill: C.ink2 }));
+      r = regions[i]; if (band.centres[r] == null) continue;
+      cx = band.centres[r]; boxW = Math.min(band.segW - 6, 96);
+      svg.appendChild(line(cx, bandBot, cx, by, { color: C.ink2, width: 1 }));
+      svg.appendChild(circle(cx, bandBot, 2.2, { fill: C.ink2, stroke: "none" }));
+      if (blanks.indexOf(r) >= 0) {
+        svg.appendChild(el("rect", { x: cx - boxW / 2, y: by, width: boxW, height: boxH, rx: 4, fill: C.paper, stroke: C.ink2, "stroke-width": 1, "stroke-dasharray": "4 3" }));
+      } else {
+        svg.appendChild(el("rect", { x: cx - boxW / 2, y: by, width: boxW, height: boxH, rx: 4, fill: "rgba(255,253,246,.9)", stroke: C.line, "stroke-width": 1 }));
+        lines = EM_ORIGIN_SHORT[r] || [WavesModels.EM.region[r].origin];
+        for (li = 0; li < lines.length; li++)
+          svg.appendChild(txt(cx, by + 14 + li * 11, lines[li], { "text-anchor": "middle", "font-size": 8.5, fill: C.ink2 }));
+      }
     }
+    if (blanks.length) svg.appendChild(txt(w / 2, h - 6, "fill in where each region is produced", { "text-anchor": "middle", "font-size": 9, fill: C.muted }));
     return svg;
   }
 
@@ -1123,6 +1177,21 @@
 
   /* ===================== STATIC RENDERERS: refraction ================== */
   var D2R = Math.PI / 180, R2D = 180 / Math.PI;
+  /* Exit point where the infinite line through (bx,by) along (dx,dy) leaves
+     the rect, travelling +direction. Wavefronts are drawn B -> exit so each
+     keeps its TRUE angle inside the medium; per-axis clamping was rotating
+     and squashing them at the edges/corners (the reported bug). */
+  function rayExit(bx, by, dx, dy, xmin, xmax, ymin, ymax) {
+    var t = Infinity;
+    if (dx > 1e-9) t = Math.min(t, (xmax - bx) / dx);
+    else if (dx < -1e-9) t = Math.min(t, (xmin - bx) / dx);
+    if (dy > 1e-9) t = Math.min(t, (ymax - by) / dy);
+    else if (dy < -1e-9) t = Math.min(t, (ymin - by) / dy);
+    if (!isFinite(t) || t < 0) t = 0;
+    return [bx + t * dx, by + t * dy];
+  }
+  /* law of reflection: reflect direction (dx,dy) about unit normal (nx,ny) */
+  function reflectDir(dx, dy, nx, ny) { var d = 2 * (dx * nx + dy * ny); return [dx - d * nx, dy - d * ny]; }
   /* small-angle arc for marking an angle from the normal, in pixels */
   function angleArc(svg, ox, oy, fromAng, toAng, r, label, col) {
     var p0 = [ox + r * Math.cos(fromAng), oy + r * Math.sin(fromAng)];
@@ -1182,18 +1251,20 @@
       var dAlong = lam1 / Math.sin(t1r);          /* boundary trace spacing */
       var perp1 = [Math.cos(t1r), -Math.sin(t1r)];/* up into medium1        */
       var perp2 = [-Math.cos(t2r), Math.sin(t2r)]; /* down-left into medium2 */
-      var L = 78, j, bx;
-      for (j = -6; j <= 6; j++) {
+      var j, bx, e1, e2;
+      for (j = -8; j <= 8; j++) {
         bx = ox + j * dAlong;
-        if (bx < xL + 4 || bx > xR - 4) continue;
-        svg.appendChild(line(bx, yB, clamp(bx + L * perp1[0], xL, xR), clamp(yB + L * perp1[1], 16, yB), { color: C.ink, width: 1.8 }));
-        svg.appendChild(line(bx, yB, clamp(bx + L * perp2[0], xL, xR), clamp(yB + L * perp2[1], yB, h - 16), { color: C.ink, width: 1.8 }));
+        if (bx < xL + 2 || bx > xR - 2) continue;
+        e1 = rayExit(bx, yB, perp1[0], perp1[1], xL, xR, 16, yB);
+        svg.appendChild(line(bx, yB, e1[0], e1[1], { color: C.ink, width: 1.8 }));
+        e2 = rayExit(bx, yB, perp2[0], perp2[1], xL, xR, yB, h - 16);
+        svg.appendChild(line(bx, yB, e2[0], e2[1], { color: C.ink, width: 1.8 }));
       }
-      /* the ray (perpendicular to the fronts) refracting at O */
-      if (mk.ray !== false) {
+      /* the ray is OFF by default on a wavefront diagram (mark.ray to add) */
+      if (mk.ray) {
         var dr1 = [Math.sin(t1r), Math.cos(t1r)], dr2 = [Math.sin(t2r), Math.cos(t2r)];
-        svg.appendChild(CORE.forceArrow(ox - 70 * dr1[0], yB - 70 * dr1[1], ox, yB, { color: C.accent, width: 1.8 }));
-        svg.appendChild(CORE.forceArrow(ox, yB, ox + 70 * dr2[0], yB + 70 * dr2[1], { color: C.accent, width: 1.8 }));
+        svg.appendChild(rayLine(ox - 70 * dr1[0], yB - 70 * dr1[1], ox, yB, { color: C.accent, width: 1.8 }));
+        svg.appendChild(rayLine(ox, yB, ox + 70 * dr2[0], yB + 70 * dr2[1], { color: C.accent, width: 1.8 }));
       }
     }
     /* normal + angle marks */
@@ -1203,8 +1274,8 @@
       angleArc(svg, ox, yB, Math.PI / 2, Math.PI / 2 + t2d * D2R, 30, "r", C.ink2);
     }
     if (mk.spacing) {
-      svg.appendChild(txt(xL + 6, yB - 8, "lambda1", { "font-size": 10, fill: C.ink2 }));
-      svg.appendChild(txt(xL + 6, yB + 16, "lambda2 (" + (n2 > n1 ? "closer" : "wider") + ")", { "font-size": 10, fill: C.ink2 }));
+      svg.appendChild(txt(xL + 6, yB - 8, "λ1", { "font-size": 10, fill: C.ink2 }));
+      svg.appendChild(txt(xL + 6, yB + 16, "λ2 (" + (n2 > n1 ? "closer" : "wider") + ")", { "font-size": 10, fill: C.ink2 }));
     }
     return svg;
   }
@@ -1238,13 +1309,13 @@
       svg.appendChild(el("rect", { x: bx0, y: by0, width: bx1 - bx0, height: by1 - by0, fill: glassFill, stroke: glassStroke, "stroke-width": 1.4 }));
       /* entry on the top face at point E; normal is vertical there */
       var E = [w * 0.42, by0], t1r = t1 * D2R, t2 = WavesModels.refractAngle(t1, 1, n), t2r = t2 * D2R;
-      svg.appendChild(CORE.forceArrow(E[0] - 70 * Math.sin(t1r), E[1] - 70 * Math.cos(t1r), E[0], E[1], { color: C.accent, width: 1.8 }));
+      svg.appendChild(rayLine(E[0] - 70 * Math.sin(t1r), E[1] - 70 * Math.cos(t1r), E[0], E[1], { color: C.accent, width: 1.8 }));
       /* internal ray to the bottom face */
       var run = (by1 - by0) * Math.tan(t2r);
       var X = [E[0] + run, by1];
       svg.appendChild(line(E[0], E[1], X[0], X[1], { color: C.accent, width: 1.8 }));
       /* emergent ray: parallel to incident (exit angle = t1) */
-      svg.appendChild(CORE.forceArrow(X[0], X[1], X[0] + 70 * Math.sin(t1r), X[1] + 70 * Math.cos(t1r), { color: C.accent, width: 1.8 }));
+      svg.appendChild(rayLine(X[0], X[1], X[0] + 70 * Math.sin(t1r), X[1] + 70 * Math.cos(t1r), { color: C.accent, width: 1.8 }));
       if (mk.normal !== false) { svg.appendChild(line(E[0], by0 - 30, E[0], by0 + 40, { color: C.muted, width: 1, dash: "5 4" }));
         svg.appendChild(line(X[0], by1 - 40, X[0], by1 + 30, { color: C.muted, width: 1, dash: "5 4" })); }
       if (mk.angles) { angleArc(svg, E[0], E[1], -Math.PI / 2, -Math.PI / 2 + t1r, 26, "i", C.ink2);
@@ -1270,9 +1341,17 @@
       var sS = (bx * (-rightEdge[1]) - (-rightEdge[0]) * by) / det;
       var E2 = [E1[0] + sS * dIn[0], E1[1] + sS * dIn[1]];
       var dOut = WavesModels.refractDir(dIn, [-nRightOut[0], -nRightOut[1]], n) || dIn;
-      svg.appendChild(CORE.forceArrow(E1[0] - 72 * dInc[0], E1[1] - 72 * dInc[1], E1[0], E1[1], { color: C.accent, width: 1.8 }));
+      svg.appendChild(rayLine(E1[0] - 72 * dInc[0], E1[1] - 72 * dInc[1], E1[0], E1[1], { color: C.accent, width: 1.8 }));
       svg.appendChild(line(E1[0], E1[1], E2[0], E2[1], { color: C.accent, width: 1.8 }));
-      svg.appendChild(CORE.forceArrow(E2[0], E2[1], E2[0] + 72 * dOut[0], E2[1] + 72 * dOut[1], { color: C.accent, width: 1.8 }));
+      svg.appendChild(rayLine(E2[0], E2[1], E2[0] + 72 * dOut[0], E2[1] + 72 * dOut[1], { color: C.accent, width: 1.8 }));
+      if (mk.normal !== false) {
+        svg.appendChild(line(E1[0] - 24 * nLeftOut[0], E1[1] - 24 * nLeftOut[1], E1[0] + 24 * nLeftOut[0], E1[1] + 24 * nLeftOut[1], { color: C.muted, width: 1, dash: "5 4" }));
+        svg.appendChild(line(E2[0] - 24 * nRightOut[0], E2[1] - 24 * nRightOut[1], E2[0] + 24 * nRightOut[0], E2[1] + 24 * nRightOut[1], { color: C.muted, width: 1, dash: "5 4" }));
+      }
+      if (mk.angles) {
+        angleArc(svg, E1[0], E1[1], Math.atan2(nLeftOut[1], nLeftOut[0]), Math.atan2(-dInc[1], -dInc[0]), 18, "i", C.ink2);
+        angleArc(svg, E1[0], E1[1], Math.atan2(-nLeftOut[1], -nLeftOut[0]), Math.atan2(dIn[1], dIn[0]), 18, "r", C.ink2);
+      }
       svg.appendChild(txt(cx, baseY - 8, "bends toward the base", { "text-anchor": "middle", "font-size": 10, fill: C.ink2 }));
       if (mk.labels !== false) svg.appendChild(txt(cx, Ttop[1] - 8, (params.material || "glass prism"), { "text-anchor": "middle", "font-size": 10, fill: C.ink2 }));
     } else { /* semicircle */
@@ -1286,11 +1365,11 @@
          exits undeviated (curved face normal = radius). */
       var t1s = t1 * D2R, t2s = WavesModels.refractAngle(t1, 1, n) * D2R;
       var dIn0 = [Math.cos(t1s), Math.sin(t1s)];
-      svg.appendChild(CORE.forceArrow(sc[0] - 82 * dIn0[0], sc[1] - 82 * dIn0[1], sc[0], sc[1], { color: C.accent, width: 1.8 }));
+      svg.appendChild(rayLine(sc[0] - 82 * dIn0[0], sc[1] - 82 * dIn0[1], sc[0], sc[1], { color: C.accent, width: 1.8 }));
       var dR = [Math.cos(t2s), Math.sin(t2s)];
       var P = [sc[0] + rad * dR[0], sc[1] + rad * dR[1]];
       svg.appendChild(line(sc[0], sc[1], P[0], P[1], { color: C.accent, width: 1.8 }));
-      svg.appendChild(CORE.forceArrow(P[0], P[1], P[0] + 70 * dR[0], P[1] + 70 * dR[1], { color: C.accent, width: 1.8 }));
+      svg.appendChild(rayLine(P[0], P[1], P[0] + 70 * dR[0], P[1] + 70 * dR[1], { color: C.accent, width: 1.8 }));
       if (mk.normal !== false) svg.appendChild(line(sc[0] - 40, sc[1], sc[0] + 40, sc[1], { color: C.muted, width: 1, dash: "5 4" }));
       if (mk.angles) { angleArc(svg, sc[0], sc[1], Math.PI, Math.PI - t1s, 26, "i", C.ink2);
         angleArc(svg, sc[0], sc[1], 0, t2s, 26, "r", C.ink2); }
@@ -1382,7 +1461,7 @@
     svg.appendChild(txt(xR, h - 22, (config.medium2 || "medium 2") + (showB ? (slowerB ? " (slower)" : " (faster)") : ""), { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
     /* fixed incident ray */
     var t1r = t1 * D2R;
-    svg.appendChild(CORE.forceArrow(ox - 80 * Math.sin(t1r), yB - 80 * Math.cos(t1r), ox, yB, { color: C.muted, width: 1.8 }));
+    svg.appendChild(rayLine(ox - 80 * Math.sin(t1r), yB - 80 * Math.cos(t1r), ox, yB, { color: C.muted, width: 1.8 }));
     svg.appendChild(txt(ox - 80 * Math.sin(t1r) - 6, yB - 80 * Math.cos(t1r), "incident, i = " + fmt(t1) + " deg", { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
     /* draggable refracted-ray handle in medium 2 */
     var refLen = 90, t2start = 25 * D2R;
@@ -1442,21 +1521,24 @@
     svg.appendChild(txt(xR, h - 20, (config.medium2 || "medium 2") + (showW ? (slowerW ? " (slower)" : " (faster)") : ""), { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
     var t1r = t1 * D2R, lam1 = 24, dAlong = lam1 / Math.sin(t1r);
     var perp1 = [Math.cos(t1r), -Math.sin(t1r)], jj, bx;
-    for (jj = -5; jj <= 5; jj++) { bx = ox + jj * dAlong; if (bx < xL + 3 || bx > xR - 3) continue;
-      svg.appendChild(line(bx, yB, clamp(bx + 70 * perp1[0], xL, xR), clamp(yB + 70 * perp1[1], 14, yB), { color: C.muted, width: 1.5 })); }
-    svg.appendChild(CORE.forceArrow(ox - 64 * Math.sin(t1r), yB - 64 * Math.cos(t1r), ox, yB, { color: C.muted, width: 1.4 }));
+    for (jj = -8; jj <= 8; jj++) { bx = ox + jj * dAlong; if (bx < xL + 2 || bx > xR - 2) continue;
+      var ei = rayExit(bx, yB, perp1[0], perp1[1], xL, xR, 14, yB);
+      svg.appendChild(line(bx, yB, ei[0], ei[1], { color: C.muted, width: 1.5 })); }
+    svg.appendChild(rayLine(ox - 64 * Math.sin(t1r), yB - 64 * Math.cos(t1r), ox, yB, { color: C.muted, width: 1.4 }));
     var gFront = el("g"); svg.appendChild(gFront);
     var handle = el("circle", { r: 9, fill: C.accent, "fill-opacity": 0.5, stroke: C.accent, "stroke-width": 1.5 });
     svg.appendChild(handle);
     var t2 = 25, ratio = 1.0, spacingChange = "same", readout = null;
     function redraw() {
       while (gFront.firstChild) gFront.removeChild(gFront.firstChild);
-      var t2r = Math.max(0.02, t2 * D2R), lam2 = lam1 * ratio;
-      var dA2 = lam2 / Math.sin(t2r), perp2 = [-Math.cos(t2r), Math.sin(t2r)], k, b2;
-      for (k = -6; k <= 6; k++) { b2 = ox + k * dA2; if (b2 < xL + 3 || b2 > xR - 3) continue;
-        gFront.appendChild(line(b2, yB, clamp(b2 + 70 * perp2[0], xL, xR), clamp(yB + 70 * perp2[1], yB, h - 14), { color: C.accent, width: 1.8 })); }
+      var t2r = Math.max(0.02, t2 * D2R), perp2 = [-Math.cos(t2r), Math.sin(t2r)], k, b2;
+      /* refracted fronts start from the SAME boundary trace points as the
+         incident fronts (ox + k*dAlong) so they stay CONTIGUOUS at the boundary */
+      for (k = -8; k <= 8; k++) { b2 = ox + k * dAlong; if (b2 < xL + 2 || b2 > xR - 2) continue;
+        var er = rayExit(b2, yB, perp2[0], perp2[1], xL, xR, yB, h - 14);
+        gFront.appendChild(line(b2, yB, er[0], er[1], { color: C.accent, width: 1.8 })); }
       handle.setAttribute("cx", ox + 84 * Math.sin(t2r)); handle.setAttribute("cy", yB + 84 * Math.cos(t2r));
-      if (readout) readout.textContent = "refracted angle r = " + t2.toFixed(0) + " deg,  spacing lambda2/lambda1 = " + ratio.toFixed(2);
+      if (readout) readout.textContent = "refracted angle r = " + t2.toFixed(0) + "°,  wavefronts: " + spacingChange;
     }
     CORE.makeDraggable(svg, handle, function (pt) { var dx = pt.x - ox, dy = Math.max(6, pt.y - yB); t2 = Math.atan2(dx, dy) * R2D; redraw(); });
     host.appendChild(svg);
@@ -1493,29 +1575,35 @@
       { label: "ultraviolet", behaviour: "absorb" },
       { label: "infrared", behaviour: "reflect" }
     ];
-    var w = params.w || 460, h = params.h || 60 + rays.length * 52;
+    var w = params.w || 480, h = params.h || 72 + rays.length * 62;
     var svg = makeSVG(w, h, params.label || "wavelength-dependent behaviour");
-    var mx0 = w * 0.46, mx1 = w * 0.6;
-    svg.appendChild(el("rect", { x: mx0, y: 30, width: mx1 - mx0, height: h - 56, fill: "rgba(120,150,170,.30)", stroke: C.ink2, "stroke-width": 1.4 }));
-    svg.appendChild(txt((mx0 + mx1) / 2, 22, params.material || "material", { "text-anchor": "middle", "font-size": 10.5, fill: C.ink2 }));
+    var mx0 = w * 0.44, mx1 = w * 0.57;
+    svg.appendChild(el("rect", { x: mx0, y: 26, width: mx1 - mx0, height: h - 52, fill: "rgba(120,150,170,.30)", stroke: C.ink2, "stroke-width": 1.4 }));
+    svg.appendChild(txt((mx0 + mx1) / 2, 18, params.material || "material", { "text-anchor": "middle", "font-size": 10.5, fill: C.ink2 }));
+    var th = 20 * D2R, dc = Math.cos(th), ds = Math.sin(th), Lin = 62, Lout = 66;
     var i, r, y, col;
     for (i = 0; i < rays.length; i++) {
-      r = rays[i]; y = 56 + i * 52; col = r.tint || C.accent;
-      svg.appendChild(CORE.forceArrow(24, y, mx0, y, { color: col, width: 2 }));
-      svg.appendChild(txt(24, y - 8, r.label, { "font-size": 10.5, fill: C.ink2 }));
+      r = rays[i]; y = 62 + i * 62; col = r.tint || C.accent;
+      svg.appendChild(rayLine(mx0 - Lin * dc, y - Lin * ds, mx0, y, { color: col, width: 2 }));
+      svg.appendChild(txt(mx0 - Lin * dc, y - Lin * ds - 6, r.label, { "font-size": 10.5, fill: C.ink2 }));
       if (r.behaviour === "transmit") {
-        svg.appendChild(CORE.forceArrow(mx1, y, w - 24, y, { color: col, width: 2 }));
-        svg.appendChild(txt(w - 24, y - 8, "transmitted", { "font-size": 10, fill: C.muted, "text-anchor": "end" }));
+        var by = y + (mx1 - mx0) * Math.tan(th);
+        svg.appendChild(line(mx0, y, mx1, by, { color: col, width: 2 }));
+        svg.appendChild(rayLine(mx1, by, mx1 + Lout * dc, by + Lout * ds, { color: col, width: 2 }));
+        svg.appendChild(txt(w - 14, by + Lout * ds, "transmitted", { "font-size": 10, fill: C.muted, "text-anchor": "end" }));
       } else if (r.behaviour === "refract") {
-        svg.appendChild(line(mx0, y, mx1, y + 10, { color: col, width: 2 }));
-        svg.appendChild(CORE.forceArrow(mx1, y + 10, w - 24, y + 22, { color: col, width: 2 }));
-        svg.appendChild(txt(w - 24, y + 14, "refracted", { "font-size": 10, fill: C.muted, "text-anchor": "end" }));
+        var t2 = 11 * D2R, by2 = y + (mx1 - mx0) * Math.tan(t2);
+        svg.appendChild(line(mx0, y, mx1, by2, { color: col, width: 2 }));
+        svg.appendChild(rayLine(mx1, by2, mx1 + Lout * dc, by2 + Lout * ds, { color: col, width: 2 }));
+        svg.appendChild(txt(w - 14, by2 + Lout * ds, "refracted", { "font-size": 10, fill: C.muted, "text-anchor": "end" }));
       } else if (r.behaviour === "reflect") {
-        svg.appendChild(CORE.forceArrow(mx0, y, 24, y - 26, { color: col, width: 2 }));
-        svg.appendChild(txt(60, y - 30, "reflected", { "font-size": 10, fill: C.muted }));
+        var rd = reflectDir(dc, ds, 1, 0);   /* horizontal normal: angle of reflection = angle of incidence */
+        svg.appendChild(line(mx0 - 40, y, mx0 + 8, y, { color: C.muted, width: 1, dash: "5 4" }));
+        svg.appendChild(rayLine(mx0, y, mx0 + Lout * rd[0], y + Lout * rd[1], { color: col, width: 2 }));
+        svg.appendChild(txt(mx0 - Lout * dc - 4, y + Lout * ds + 4, "reflected", { "font-size": 10, fill: C.muted, "text-anchor": "end" }));
       } else { /* absorb */
-        svg.appendChild(circle((mx0 + mx1) / 2, y, 4, { fill: col, stroke: col }));
-        svg.appendChild(txt((mx0 + mx1) / 2 + 8, y - 8, "absorbed", { "font-size": 10, fill: C.muted }));
+        svg.appendChild(circle((mx0 + mx1) / 2, y + (mx1 - mx0) * 0.5 * Math.tan(th), 4, { fill: col, stroke: col }));
+        svg.appendChild(txt(mx1 + 8, y + 4, "absorbed", { "font-size": 10, fill: C.muted }));
       }
     }
     return svg;
@@ -1548,46 +1636,53 @@
     var svg = makeSVG(w, h, params.label || ("infrared demo: " + v));
 
     if (v === "leslie_cube") {
-      var cx = w * 0.4, cy = h / 2, s = 90;
-      svg.appendChild(el("rect", { x: cx - s / 2, y: cy - s / 2, width: s, height: s, fill: "rgba(80,80,80,.35)", stroke: C.ink2, "stroke-width": 1.6 }));
-      svg.appendChild(el("rect", { x: cx - s / 2, y: cy - s / 2, width: s / 2, height: s, fill: "rgba(30,30,28,.65)" }));
-      svg.appendChild(txt(cx - s / 4, cy, "matt", { "text-anchor": "middle", "font-size": 9, fill: C.paper }));
-      svg.appendChild(txt(cx - s / 4, cy + 11, "black", { "text-anchor": "middle", "font-size": 9, fill: C.paper }));
-      svg.appendChild(txt(cx + s / 4, cy + 5, "shiny", { "text-anchor": "middle", "font-size": 9, fill: C.ink2 }));
-      svg.appendChild(txt(cx, cy - s / 2 - 6, "hot water inside (Leslie cube)", { "text-anchor": "middle", "font-size": 10, fill: C.ink2 }));
-      /* IR detector facing the matt black face + meter */
-      var dx = cx - s / 2 - 60;
-      svg.appendChild(el("rect", { x: dx, y: cy - 12, width: 26, height: 24, rx: 3, fill: "rgba(150,150,150,.5)", stroke: C.ink2, "stroke-width": 1.2 }));
-      svg.appendChild(CORE.forceArrow(cx - s / 2 - 4, cy, dx + 26 + 2, cy, { color: C.accent, width: 1.6 }));
-      svg.appendChild(txt(dx + 13, cy + 36, "IR", { "text-anchor": "middle", "font-size": 9.5, fill: C.ink2 }));
-      svg.appendChild(txt(dx + 13, cy + 47, "detector", { "text-anchor": "middle", "font-size": 9.5, fill: C.ink2 }));
-      svg.appendChild(circle(dx - 28, cy, 16, { stroke: C.ink2, width: 1.4 }));
-      svg.appendChild(txt(dx - 28, cy + 4, "mV", { "text-anchor": "middle", "font-size": 9, fill: C.ink2 }));
-      svg.appendChild(txt(w - 20, h - 16, "matt black emits the most IR", { "text-anchor": "end", "font-size": 10, fill: C.muted }));
+      var cx = w * 0.44, cy = h / 2 + 6, s = 84, ox = 26, oy = 20;
+      var x0 = cx - s / 2, y0 = cy - s / 2;
+      svg.appendChild(el("path", { d: "M" + x0 + "," + y0 + " L" + (x0 + ox) + "," + (y0 - oy) + " L" + (x0 + s + ox) + "," + (y0 - oy) + " L" + (x0 + s) + "," + y0 + " Z",
+        fill: "rgba(150,150,150,.55)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(el("path", { d: "M" + (x0 + s) + "," + y0 + " L" + (x0 + s + ox) + "," + (y0 - oy) + " L" + (x0 + s + ox) + "," + (y0 + s - oy) + " L" + (x0 + s) + "," + (y0 + s) + " Z",
+        fill: "rgba(205,205,210,.65)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(el("rect", { x: x0, y: y0, width: s, height: s, fill: "rgba(28,28,26,.82)", stroke: C.ink2, "stroke-width": 1.4 }));
+      svg.appendChild(txt(x0 + s / 2, y0 + s / 2 + 3, "matt black", { "text-anchor": "middle", "font-size": 9.5, fill: C.paper }));
+      svg.appendChild(txt(x0 + s + ox + 6, cy, "shiny side", { "text-anchor": "start", "font-size": 9, fill: C.ink2 }));
+      svg.appendChild(txt(cx, y0 - oy - 8, "Leslie cube (hot water inside)", { "text-anchor": "middle", "font-size": 10.5, fill: C.ink2 }));
+      var dxp = x0 - 66;
+      svg.appendChild(el("rect", { x: dxp, y: cy - 13, width: 28, height: 26, rx: 3, fill: "rgba(150,150,150,.5)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(rayLine(x0 - 4, cy, dxp + 30, cy, { color: C.accent, width: 1.8 }));
+      svg.appendChild(txt(dxp + 14, cy + 40, "IR detector", { "text-anchor": "middle", "font-size": 9.5, fill: C.ink2 }));
+      svg.appendChild(circle(dxp - 24, cy, 15, { stroke: C.ink2, width: 1.4 }));
+      svg.appendChild(txt(dxp - 24, cy + 4, "mV", { "text-anchor": "middle", "font-size": 9, fill: C.ink2 }));
+      svg.appendChild(txt(w - 16, h - 14, "the matt black face emits the most infrared", { "text-anchor": "end", "font-size": 10, fill: C.muted }));
     } else if (v === "wax_rod") {
       var hx = w / 2;
       svg.appendChild(el("rect", { x: hx - 10, y: 40, width: 20, height: h - 90, fill: "rgba(200,90,40,.5)", stroke: C.ink2, "stroke-width": 1.2 }));
       svg.appendChild(txt(hx, 32, "heat source", { "text-anchor": "middle", "font-size": 10, fill: C.ink2 }));
-      [["matt black", hx - 110, "rgba(30,30,28,.8)", true], ["shiny", hx + 90, "rgba(180,180,185,.8)", false]].forEach(function (a) {
-        var px = a[1];
+      [["matt black", hx - 116, "rgba(30,30,28,.8)", true], ["shiny", hx + 100, "rgba(180,180,185,.8)", false]].forEach(function (a) {
+        var px = a[1], dir = (px < hx) ? -1 : 1, outer = (px < hx) ? px : px + 16;
         svg.appendChild(el("rect", { x: px, y: 60, width: 16, height: h - 130, fill: a[2], stroke: C.ink2, "stroke-width": 1.2 }));
-        /* wax blob + ball on the source-facing side */
-        var bx = (a[1] < hx) ? px + 16 : px;
-        svg.appendChild(circle(bx, h - 80, 5, { fill: "rgba(220,200,120,.9)", stroke: C.ink2, width: 1 }));
         svg.appendChild(txt(px + 8, 54, a[0], { "text-anchor": "middle", "font-size": 9.5, fill: C.ink2 }));
-        if (a[3]) svg.appendChild(txt(px + 8, h - 50, "ball falls first", { "text-anchor": "middle", "font-size": 9, fill: C.accent }));
+        /* wax (yellow) holds a ball on the OUTER face, away from the heat source */
+        svg.appendChild(circle(outer + dir * 4, h - 86, 3.5, { fill: "rgba(220,200,120,.95)", stroke: "none" }));
+        if (a[3]) {
+          svg.appendChild(CORE.forceArrow(outer + dir * 9, h - 84, outer + dir * 9, h - 56, { color: C.accent, width: 1.3 }));
+          svg.appendChild(circle(outer + dir * 9, h - 48, 5, { fill: "rgba(120,120,125,.9)", stroke: C.ink2, width: 1 }));
+          svg.appendChild(txt(px + 8, h - 32, "wax melts, ball falls first", { "text-anchor": "middle", "font-size": 9, fill: C.accent }));
+        } else {
+          svg.appendChild(circle(outer + dir * 9, h - 86, 5, { fill: "rgba(120,120,125,.9)", stroke: C.ink2, width: 1 }));
+          svg.appendChild(txt(px + 8, h - 40, "ball stays", { "text-anchor": "middle", "font-size": 9, fill: C.muted }));
+        }
       });
       svg.appendChild(txt(w / 2, h - 14, "matt black absorbs more IR: its wax melts first", { "text-anchor": "middle", "font-size": 10, fill: C.muted }));
     } else if (v === "two_bottles") {
       /* cooling curve: black bottle cools faster (steeper) */
-      var g = CORE.grid({ w: w, h: h, xmax: 20, xstep: 5, ymax: 80, ystep: 20, minorDiv: 5,
+      var g = CORE.grid({ w: w, h: h, xmax: 10, xstep: 2, ymax: 80, ystep: 20, minorDiv: 4,
         xlabel: "time / min", ylabel: "temperature / C", label: "cooling curves" });
       var T0 = 80, Tamb = 20;
       function cool(kr) { return function (t) { return Tamb + (T0 - Tamb) * Math.exp(-kr * t); }; }
-      g.addFn(cool(0.16), 0, 20, { color: C.ink, width: 2.4 });           /* matt black: faster */
-      g.addFn(cool(0.075), 0, 20, { color: C.accent, width: 2.4, dash: "6 4" }); /* shiny: slower */
-      g.note(g.px(13), g.py(cool(0.16)(13)) - 6, "matt black (cools faster)", { "font-size": 10, fill: C.ink });
-      g.note(g.px(12), g.py(cool(0.075)(12)) + 14, "shiny (cools slower)", { "font-size": 10, fill: C.accent });
+      g.addFn(cool(0.30), 0, 10, { color: C.ink, width: 2.4 });            /* matt black: cools faster */
+      g.addFn(cool(0.10), 0, 10, { color: C.accent, width: 2.4, dash: "6 4" }); /* shiny: cools slower */
+      g.note(g.px(5.2), g.py(cool(0.30)(5.2)) - 9, "matt black", { "font-size": 10.5, fill: C.ink });
+      g.note(g.px(6.4), g.py(cool(0.10)(6.4)) + 14, "shiny", { "font-size": 10.5, fill: C.accent });
       return g.svg;
     } else { /* ir_detection */
       var oy = h / 2, obx = 60;

@@ -74,8 +74,24 @@ if (opt) {
     w.document.dispatchEvent(ev);
   }
   answered = true;
+} else if (host.querySelector(".tp-selfmark") || Array.prototype.some.call(host.querySelectorAll("button"), b => /reveal model/i.test(b.textContent))) {
+  // fallback self-check item
+  const rb = Array.prototype.find.call(host.querySelectorAll("button"), b => /reveal model/i.test(b.textContent));
+  if (rb) rb.click();
+  const sm = host.querySelector(".tp-selfmark button");
+  if (sm) sm.click();
+  answered = true;
 } else if (host.querySelector("#tp-short-input")) {
   host.querySelector("#tp-short-input").value = "use a high voltage so the current is lower and the heating loss falls";
+  host.querySelector(".tp-calc-go").click();
+  answered = true;
+} else if (host.querySelector("#tp-cc-0-l1")) {
+  // chained multi-stage calc: fill every stage then mark
+  let si = 0;
+  while (host.querySelector("#tp-cc-" + si + "-l1")) {
+    host.querySelector("#tp-cc-" + si + "-l1").value = "x=y";
+    si++;
+  }
   host.querySelector(".tp-calc-go").click();
   answered = true;
 } else if (host.querySelector("#tp-cw-l1")) {
@@ -112,7 +128,7 @@ ok("iv_characteristic returns an SVG (or null) cleanly", ivNode === null || Stri
 console.log("\nFour-line calc_workings renders + marks (verbatim grader)");
 w.TrilogyEngine.unmount();
 // mount again and force the calc item by filtering the pool to it
-const calcCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.qtype === "calc_workings") });
+const calcCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.id === "_demo_vir_calc") });
 w.TrilogyEngine.mount({ container: w.document.getElementById("host"),
   topic: { id: "6.2", slug: "electricity", name: "Electricity" }, config: calcCfg,
   identity: { anonymous_id: "t", display_name: "T", cohort: "C" }, report: () => {} });
@@ -239,6 +255,70 @@ const correctBtn = hg.querySelector('.tp-option[data-idx="0"]');
 ok("correct option present by index", !!correctBtn);
 correctBtn.click();
 ok("graph-select graded correct", !!hg.querySelector(".tp-feedback-correct"));
+
+console.log("\nlevel_of_response_6 renders + marks through the DOM");
+w.TrilogyEngine.unmount();
+const lorCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.qtype === "level_of_response_6") });
+w.TrilogyEngine.mount({ container: w.document.getElementById("host"),
+  topic: { id: "6.2", slug: "electricity", name: "Electricity" }, config: lorCfg,
+  identity: { anonymous_id: "t", display_name: "T", cohort: "C" }, report: () => {} });
+let hl = w.document.getElementById("host");
+ok("LOR options rendered (8 points)", hl.querySelectorAll(".tp-option").length === 8);
+// tick the five creditworthy points (authored indices 0..4) then Submit
+["0","1","2","3","4"].forEach(function (ix) { const b = hl.querySelector('.tp-option[data-idx="' + ix + '"]'); if (b) b.click(); });
+hl.querySelector(".tp-calc-go").click();
+const lrev = hl.querySelector(".tp-calc-reveal-h");
+ok("LOR marked + banded", !!lrev && lrev.textContent.indexOf("6/6") !== -1 && lrev.textContent.indexOf("Level 3") !== -1);
+ok("LOR graded correct", !!hl.querySelector(".tp-feedback-correct"));
+ok("creditworthy points shown correct", hl.querySelectorAll(".tp-option.is-correct").length === 5);
+
+console.log("\nGeneric fallback self-check renders + logs ungraded (d047)");
+w.TrilogyEngine.unmount();
+w.TOPIC_DIAGRAMS = w.TOPIC_DIAGRAMS || {};
+w.TOPIC_DIAGRAMS.iv_characteristic = w.TOPIC_DIAGRAMS.iv_characteristic || function () {
+  return w.document.createElementNS("http://www.w3.org/2000/svg", "svg");
+};
+const fbCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.qtype === "graph_sketch") });
+w.localStorage.removeItem("trilogy_physics_log_v1");
+w.TrilogyEngine.mount({ container: w.document.getElementById("host"),
+  topic: { id: "6.2", slug: "electricity", name: "Electricity" }, config: fbCfg,
+  identity: { anonymous_id: "t", display_name: "T", cohort: "C" }, report: () => {} });
+let hf = w.document.getElementById("host");
+ok("graph_sketch item served via fallback", !!hf.querySelector("#tp-qcard .tp-prompt"));
+const revealBtn = Array.prototype.find.call(hf.querySelectorAll("button"), b => /reveal model/i.test(b.textContent));
+ok("reveal-model control rendered", !!revealBtn);
+revealBtn.click();
+ok("model answer SVG revealed", !!hf.querySelector(".tp-calc-reveal .stimulus svg"));
+const selfBtns = hf.querySelectorAll(".tp-selfmark button");
+ok("three self-mark buttons", selfBtns.length === 3);
+selfBtns[0].click();   // "I got it right"
+const fbLog = JSON.parse(w.localStorage.getItem("trilogy_physics_log_v1") || "[]");
+ok("fallback attempt logged as ungraded_self_assessed",
+   fbLog.length >= 1 && fbLog[fbLog.length-1].grading === "ungraded_self_assessed" && fbLog[fbLog.length-1].status === "correct");
+
+console.log("\nChained calc renders all stages + marks (d047)");
+w.TrilogyEngine.unmount();
+const chCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.id === "_demo_energy_chain") });
+w.TrilogyEngine.mount({ container: w.document.getElementById("host"),
+  topic: { id: "6.2", slug: "electricity", name: "Electricity" }, config: chCfg,
+  identity: { anonymous_id: "t", display_name: "T", cohort: "C" }, report: () => {} });
+let hc = w.document.getElementById("host");
+ok("two stage blocks rendered", hc.querySelectorAll(".tp-cc-stage").length === 2);
+ok("stage inputs present", !!hc.querySelector("#tp-cc-0-l1") && !!hc.querySelector("#tp-cc-1-v"));
+const fillStage = (i, l1, l2, l3, v, u) => {
+  hc.querySelector("#tp-cc-" + i + "-l1").value = l1;
+  hc.querySelector("#tp-cc-" + i + "-l2").value = l2;
+  hc.querySelector("#tp-cc-" + i + "-l3").value = l3;
+  hc.querySelector("#tp-cc-" + i + "-v").value = v;
+  hc.querySelector("#tp-cc-" + i + "-u").value = u;
+};
+fillStage(0, "P=V*I", "P=12*0.5", "P=6", "6", "W");
+fillStage(1, "E=P*t", "E=6*120", "E=720", "720", "J");
+hc.querySelector(".tp-calc-go").click();
+const crev = hc.querySelector(".tp-calc-reveal-h");
+ok("chain marked 4/4", !!crev && crev.textContent.indexOf("4/4") !== -1);
+ok("chain graded correct", !!hc.querySelector(".tp-feedback-correct"));
+ok("per-stage breakdown shown", hc.querySelectorAll(".tp-cc-stage-h").length >= 2);
 
 console.log("\nUnmount clears the panel");
 w.TrilogyEngine.unmount();

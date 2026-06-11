@@ -62,3 +62,39 @@ Your Magnetism 6.7 interactive contract is implemented engine-side, exactly as p
 2. **errorCodes onto the attempt event = the d004 route:** yes. Widget `errorCodes` are written to the event and counted as fires in the same fire-vs-avoid table as MCQ `misconception_id` and calc_workings `error_types`. One taxonomy, not three, per Architecture's ruling. Labels resolve from the canonical misconception registry once your proposed slugs (flhr_direction, mark_poles error codes) are registered there by Architecture; until then the dashboard shows the raw slug, so nothing breaks.
 
 Wired into `app/index.html`: `widgets_core.js` loads before the topic widget files (your stated load order). Your pure `*_MODELS` scorers mean the engine can also re-score stored attempts headless; I have not built a re-grade pass yet but the path is open. The held-back/​v1.1 items you flagged (drag forms, tip-to-tail, drag-the-wavefronts spacing) need nothing from me since the factory/getAnswer/score/destroy contract is unchanged. Status -> done from the Housing side.
+
+---
+
+## 2026-06-11, from Widgets 6.7: interactive layer DELIVERED; slug table for Architecture
+
+Housing's d042 wiring and Architecture's d035 ratification both absorbed; thank you both. The two kinds are now mounted and registered, so the 6.7 author's d044 OQ-2 upgrade path (FLHR diagram-MCQs -> interactive widget) is open from today.
+
+### Delivered (app/widgets/magnetism-diagrams.js)
+- `window.TOPIC_WIDGETS.flhr_direction(host, config)`: mounts any static kind as the stimulus (default flemings_lhr with the thumb blanked), renders the six canonical direction buttons (or the two circulation senses with `circulation:true` over wire_field). getAnswer `{direction}`. Scoring goes through the pure `MagnetismModels.scoreFlhrDirection`: EXPECTED IS DERIVED from the item's `current` + `field` via the cross product (grip rule for circulation), so an item cannot contradict the rule; `expected` overrides for special cases (e.g. force-on-magnet N3 items).
+- `window.TOPIC_WIDGETS.mark_poles(host, config)`: stimulus default markable solenoid; N/S toggle per slot. getAnswer `{poles:{left,right}}` (nail: `{near,far}`). Pure `MagnetismModels.scoreMarkPoles`; expected derived from the stimulus params (`solenoidNEnd`, `inducedPole`).
+- NEW in both score paths: `config.errorCodeMap` re-homes a generic widget code onto a registered subject slug PER ITEM, e.g. an induced-nail item sets `{poles_reversed: "induced_magnet_expected_to_repel"}` and the d044-registered slug fires on the dashboard. This is how we keep ONE taxonomy without forking scorers per mount. Housing: no engine change needed, the mapping happens inside score().
+- Verification: 84 headless model assertions + 13 jsdom mount assertions (verify_magnetism_widgets.js: mount -> click -> getAnswer -> score for both kinds, correct/reversed/partial paths, and an engine-shaped `qtype:"widget"` item flow incl. the errorCodeMap). Harness index_6_7.html gains four live interactive sections with Mark buttons printing the exact payloads.
+
+### Slug registration table (Architecture's ask: slug / topic / label / description)
+
+Generic codes the scorers emit (stable API, as promised; register these):
+
+| slug | topic (subtag home) | label | description |
+|---|---|---|---|
+| `direction_reversed` | motor_effect | force direction exactly reversed | picks the exact opposite of the FLHR force (right hand used, or two fingers swapped); also fires as reversed circulation sense on wire-field items (cross-fires on electromagnetism) |
+| `gave_field_direction` | motor_effect | answered with the field direction | parrots the given B direction as the force: FLHR not applied at all |
+| `gave_current_direction` | motor_effect | answered with the current direction | parrots the given I direction as the force |
+| `direction_wrong_axis` | motor_effect | force on the wrong axis | a direction neither correct, reversed, nor a parroted given; typically fingers misassigned. Kin of the registered `flhr_finger_assignment_confused` (that slug = cannot NAME the fingers; this = misapplies them); keep both, they are separately-tracked skills per the proposal's flhr_labels / flhr_apply atom split |
+| `poles_reversed` | electromagnetism | both poles marked swapped | one coherent reversal: grip rule backwards on a solenoid, or same-pole-near on an induced object (on induced items authors should errorCodeMap this onto `induced_magnet_expected_to_repel`, see below) |
+| `pole_wrong` | electromagnetism | a pole marked wrong (not a clean reversal) | inconsistent pole marking, no single coherent error |
+
+Mapping ruling requested: with `errorCodeMap` in place, `poles_reversed` on INDUCED items re-homes onto the already-registered `induced_magnet_expected_to_repel` at the item level, so the registry needs no duplicate. If Architecture prefers the mapping to be the DEFAULT for induced stimuli rather than per-item authoring discipline, say so and I will bake it into `scoreMarkPoles` (one line).
+
+### Compass-arrow placement (the third interactive the 6.7 author's proposal names)
+
+Position unchanged from my opening note, now with a concrete shape on offer: a needle-rotation drag (compass at an author-chosen point, pupil rotates the needle, scored against `dipoleFieldAt` within an angular tolerance) is buildable on `makeDraggable` with a `{angle}` answer shape and `needle_reversed` / `angle_off` codes. It is NOT in this delivery because the 2022/2024/2025 plotting-compass staples are 8-directional at most and the d036 diagram-option MCQ over the `compass`/`field_mapping` variants covers them today. If the 6.7 author wants the drag form for the gap-pass items, reply here and it lands as v1.1 under the same contract (no engine change, Housing).
+
+Status from the Widgets side: contract closed, both kinds live. Thread stays OPEN only for the slug registrations and the two flagged calls (default induced mapping; compass drag commissioning).
+
+## 2026-06-11, from Architecture: slugs registered; two rulings (d048)
+Your six generic errorCodes are registered as misconception slugs (direction_reversed, gave_field_direction, gave_current_direction, direction_wrong_axis, poles_reversed, pole_wrong) with your topic/label/description; the dashboard resolves them. Kept direction_wrong_axis distinct from flhr_finger_assignment_confused per your argument (apply-vs-name split). Rulings: (1) make errorCodeMap default-for-induced - bake poles_reversed -> induced_magnet_expected_to_repel into scoreMarkPoles for induced stimuli (it is physically determined; authors override only for exceptions), one line as you offered; (2) defer the compass-needle drag - the d036 diagram-option MCQ over compass/field_mapping covers the 8-direction plotting staples; build the drag as v1.1 only if the 6.7 author asks for it on gap-pass items. Thread can close on the slug front; great work on the interactive layer.

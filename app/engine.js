@@ -119,8 +119,9 @@
   }
 
   function greennessBucket(events, window_) {
-    if (!events.length) return "grey";
-    const recent = events.slice(-window_);
+    const graded = events.filter(function (e) { return e.grading !== "ungraded_self_assessed"; });
+    if (!graded.length) return "grey";
+    const recent = graded.slice(-window_);
     let weight = 0;
     recent.forEach(function (e) {
       if (e.status === "correct") weight += 1;
@@ -179,7 +180,7 @@
      Pool + servability.
      Known qtypes the engine can serve. calc_workings is interim (see header).
      ────────────────────────────────────────────────────────────────────────── */
-  const KNOWN_QTYPES = { mcq: 1, mcq_single: 1, mcq_multi: 1, short: 1, calc_workings: 1, widget: 1 };
+  const KNOWN_QTYPES = { mcq: 1, mcq_single: 1, mcq_multi: 1, short: 1, calc_workings: 1, widget: 1, level_of_response_6: 1 };
   function isSingleMcq(q) { return q === "mcq" || q === "mcq_single"; }
   function isMcq(q) { return isSingleMcq(q) || q === "mcq_multi"; }
 
@@ -191,7 +192,7 @@
   }
   function isServable(item) {
     if (!item || typeof item !== "object") return false;
-    if (!KNOWN_QTYPES[item.qtype]) return false;
+    if (!KNOWN_QTYPES[item.qtype] && !item.fallback) return false;   // d047 fallback self-check
     if (!tierMatches(item)) return false;
     return true;
   }
@@ -302,6 +303,7 @@
     const seen = {}, out = [];
     function add(sg) { if (sg && !seen[sg]) { seen[sg] = true; out.push(sg); } }
     (item.choices || []).forEach(function (c) { add(c.misconception_id || c.misconception); });
+    ((item.lor && item.lor.points) || []).forEach(function (pt) { add(pt.misconception_id || pt.misconception); });
     (item.applicable_misconceptions || []).forEach(add);
     return out;
   }
@@ -419,6 +421,8 @@
     else if (item.qtype === "short") renderShort(item, card);
     else if (item.qtype === "calc_workings") renderCalc(item, card);
     else if (item.qtype === "widget") renderWidget(item, card);
+    else if (item.qtype === "level_of_response_6") renderLor(item, card);
+    else if (item.fallback) renderFallback(item, card);
 
     const fb = el("div", "tp-feedback");
     fb.id = "tp-feedback"; fb.hidden = true;
@@ -486,6 +490,9 @@
 
   function renderCalc(item, card) {
     const calc = item.calc || {};
+    if (Array.isArray(calc.stages) && calc.stages.length && window.TrilogyCalcWorkings) {
+      renderCalcChain(item, card); return;
+    }
     const wrap = el("div", "tp-calc");
     if (calcIsFourLine(calc)) {
       wrap.appendChild(el("div", "tp-calc-lede",
@@ -538,10 +545,168 @@
     setTimeout(function () { input.focus(); }, 20);
   }
 
+  // Chained multi-stage calc_workings (d047). Each calc.stages[i] is a single-
+  // block spec (equation/knowns/unknown/expectedFinalValue/expectedUnit +
+  // markScheme). We loop the lifted single-block marker per stage and carry the
+  // pupil's own previous-stage final value forward under ECF (gate:
+  // from_previous_part), so a wrong earlier value still earns later method marks.
+  // ECF carry is by value-match (the stage known equal to the previous stage's
+  // expected value is replaced with the pupil's value); for an isolated-unknown
+  // equation the expected value is recomputed from the carried known so the
+  // pupil's consistent working scores. v1 limitation: non-isolated stage
+  // equations keep the official expected value (method marks via the equation
+  // line still apply); noted to Architecture.
+  function chainFieldId(si, slot) { return "tp-cc-" + si + "-" + slot; }
+
+  function recomputeStageAnswer(stage, effKnowns) {
+    const CW = window.TrilogyCalcWorkings;
+    try {
+      const eqn = CW.calcParseEqn(stage.equation);
+      const lsyms = Object.keys(CW.calcSymbols(eqn.left));
+      if (lsyms.length === 1 && lsyms[0].toLowerCase() === String(stage.unknown).toLowerCase()) {
+        const vars = {};
+        Object.keys(effKnowns).forEach(function (k) { vars[k.toLowerCase()] = effKnowns[k]; });
+        const v = CW.calcEval(eqn.right, vars);
+        if (isFinite(v)) return v;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function markCalcChain(item, allLines) {
+    const CW = window.TrilogyCalcWorkings;
+    const stages = (item.calc && item.calc.stages) || [];
+    const results = [];
+    let totalAwarded = 0, totalPossible = 0;
+    let prevVal = null, prevExpected = null;
+    stages.forEach(function (stage, i) {
+      const effKnowns = {};
+      Object.keys(stage.knowns || {}).forEach(function (k) { effKnowns[k] = stage.knowns[k]; });
+      let carried = false;
+      if (stage.gate && prevVal != null && prevExpected != null) {
+        Object.keys(effKnowns).forEach(function (k) {
+          if (effKnowns[k] === prevExpected) { effKnowns[k] = prevVal; carried = true; }
+        });
+      }
+      let expFinal = stage.expectedFinalValue;
+      if (carried) { const rc = recomputeStageAnswer(stage, effKnowns); if (rc != null) expFinal = rc; }
+      const spec = {
+        knowns: effKnowns, unknown: stage.unknown,
+        expectedFinalValue: expFinal, expectedUnit: stage.expectedUnit || [],
+        equationCanonicalForms: [stage.equation],
+        requireUnit: i === stages.length - 1,    // unit mark on the final stage
+        tolerance: stage.tolerance, marks: 4
+      };
+      const res = CW.markCalcWorkings(spec, allLines[i] || {});
+      const possible = (stage.markScheme && stage.markScheme.length) || 4;
+      const awarded = Math.round(possible * res.marksAwarded / 4);
+      totalAwarded += awarded; totalPossible += possible;
+      results.push({ stage: i + 1, awarded: awarded, possible: possible, carried: carried,
+                     lineResults: res.lineResults, errorTypes: res.errorTypes || [] });
+      // pupil's own final value for this stage feeds the next stage's ECF
+      const lv = allLines[i] && allLines[i].line4Value;
+      const num = lv != null ? parseFloat(String(lv).replace(/,/g, "")) : NaN;
+      prevVal = isFinite(num) ? num : null;
+      prevExpected = stage.expectedFinalValue;
+    });
+    const possible = item.marks || totalPossible || 1;
+    const marks = (totalPossible === possible)
+      ? totalAwarded
+      : Math.min(possible, Math.round(possible * totalAwarded / (totalPossible || 1)));
+    const status = marks >= possible ? "full" : marks > 0 ? "partial" : "none";
+    return { marks: marks, possible: possible, status: status, stages: results };
+  }
+
+  function renderCalcChain(item, card) {
+    const stages = (item.calc && item.calc.stages) || [];
+    const wrap = el("div", "tp-calc");
+    wrap.appendChild(el("div", "tp-calc-lede",
+      "Multi-stage calculation. Work each stage through; each line earns a mark, and a wrong value carried forward still earns later method marks."));
+    function field(id, label, ph) {
+      const f = el("div", "tp-calc-field");
+      f.appendChild(el("label", "tp-calc-flab", label));
+      const inp = document.createElement("input");
+      inp.id = id; inp.className = "tp-calc-input"; inp.type = "text"; inp.autocomplete = "off";
+      if (ph) inp.placeholder = ph;
+      f.appendChild(inp);
+      return f;
+    }
+    stages.forEach(function (stage, i) {
+      const block = el("div", "tp-cc-stage");
+      block.appendChild(el("div", "tp-cc-stage-h", "Stage " + (i + 1)
+        + (stage.equation ? " \u00b7 " + escapeHtml(stage.equation) : "")));
+      block.appendChild(field(chainFieldId(i, "l1"), "Equation", stage.equation ? ("e.g. " + stage.equation) : ""));
+      block.appendChild(field(chainFieldId(i, "l2"), "Substitute", ""));
+      block.appendChild(field(chainFieldId(i, "l3"), "Rearrange / evaluate", ""));
+      const f4 = el("div", "tp-calc-field");
+      f4.appendChild(el("label", "tp-calc-flab", "Stage answer"));
+      const row = el("div", "tp-calc-row");
+      const v = document.createElement("input");
+      v.id = chainFieldId(i, "v"); v.className = "tp-calc-input"; v.type = "text"; v.autocomplete = "off"; v.placeholder = "value";
+      const u = document.createElement("input");
+      u.id = chainFieldId(i, "u"); u.className = "tp-calc-input tp-calc-unit"; u.type = "text"; u.autocomplete = "off"; u.placeholder = "unit";
+      row.appendChild(v); row.appendChild(u); f4.appendChild(row); block.appendChild(f4);
+      wrap.appendChild(block);
+    });
+    const go = el("button", "tp-calc-go", "Mark my working");
+    go.type = "button";
+    go.addEventListener("click", commitCalcChain);
+    wrap.appendChild(go);
+    card.appendChild(wrap);
+    setTimeout(function () { const e = document.getElementById(chainFieldId(0, "l1")); if (e) e.focus(); }, 20);
+  }
+
+  function commitCalcChain() {
+    if (STATE !== "answering" || !CURRENT_ITEM) return;
+    const item = CURRENT_ITEM;
+    const stages = (item.calc && item.calc.stages) || [];
+    const allLines = stages.map(function (stage, i) {
+      return {
+        line1: calcVal(chainFieldId(i, "l1")), line2: calcVal(chainFieldId(i, "l2")),
+        line3: calcVal(chainFieldId(i, "l3")), line4Value: calcVal(chainFieldId(i, "v")),
+        line4Unit: calcVal(chainFieldId(i, "u"))
+      };
+    });
+    STATE = "feedback"; SESSION_COUNT++;
+    const res = markCalcChain(item, allLines);
+    const status = res.status === "full" ? "correct" : res.status === "partial" ? "half" : "wrong";
+    const ev = buildEvent(item, "chain", status, null);
+    ev.marks = res.marks + "/" + res.possible;
+    ev.error_types = res.stages.reduce(function (acc, st) { return acc.concat(st.errorTypes || []); }, []);
+    appendToEventLog(ev); reportToShell(ev);
+    revealCalcChain(item, res);
+    showFeedback(item, status, ev);
+  }
+
+  function revealCalcChain(item, res) {
+    const stages = (item.calc && item.calc.stages) || [];
+    stages.forEach(function (stage, i) {
+      ["l1", "l2", "l3", "v", "u"].forEach(function (slot) {
+        const e = document.getElementById(chainFieldId(i, slot)); if (e) e.disabled = true;
+      });
+    });
+    const card = document.getElementById("tp-qcard"); if (!card) return;
+    const box = el("div", "tp-calc-reveal");
+    box.appendChild(el("div", "tp-calc-reveal-h", "Marked: " + res.marks + "/" + res.possible));
+    res.stages.forEach(function (st) {
+      box.appendChild(el("div", "tp-cc-stage-h", "Stage " + st.stage + ": " + st.awarded + "/" + st.possible
+        + (st.carried ? " (carried forward)" : "")));
+      (st.lineResults || []).forEach(function (lr, idx) {
+        const labels = ["Equation", "Substitute", "Rearrange", "Answer"];
+        const mark = lr.ok ? '<span class="tp-cw-tick">\u2713</span>' : '<span class="tp-cw-cross">\u2717</span>';
+        const reason = (!lr.ok && lr.reason) ? ' <span class="tp-cw-reason">' + escapeHtml(lr.reason) + '</span>' : '';
+        box.appendChild(el("div", "tp-calc-line tp-cw-result",
+          mark + ' <span class="tp-calc-line-lab">' + (labels[idx] || "") + '</span> ' + escapeHtml(lr.user || "(blank)") + reason));
+      });
+    });
+    if (item.explanation) box.appendChild(el("div", "tp-calc-line", escapeHtml(item.explanation)));
+    card.insertBefore(box, document.getElementById("tp-feedback"));
+  }
+
   /* ── interaction ── */
   function onPick(idx) {
     if (STATE !== "answering" || !CURRENT_ITEM) return;
-    if (CURRENT_ITEM.qtype === "mcq_multi") toggleSelection(idx);
+    if (CURRENT_ITEM.qtype === "mcq_multi" || CURRENT_ITEM.qtype === "level_of_response_6") toggleSelection(idx);
     else commitMcq([idx]);
   }
   function toggleSelection(idx) {
@@ -821,7 +986,8 @@
     block.appendChild(el("div", "tp-atomblock-h", "Atom coverage"));
     function atomCell(a) {
       const ev = eventsForAtom(topic, a.slug);
-      const recent = ev.slice(-COVERAGE_WINDOW);
+      const graded = ev.filter(function (e) { return e.grading !== "ungraded_self_assessed"; });
+      const recent = graded.slice(-COVERAGE_WINDOW);
       let avg = null;
       if (recent.length) {
         let w = 0;
@@ -897,17 +1063,156 @@
       .sort(function (a, b) { return (b.fired + b.avoided) - (a.fired + a.avoided); });
   }
 
+  // level_of_response_6 — the AQA 6-mark level-of-response item. Interim form
+  // (d023): selectable claim-points against level descriptors until an LLM grader
+  // lands. The pupil ticks the points they would include; marks come from how
+  // many creditworthy points are selected, with wrong picks costing a mark, then
+  // mapped to the 6-mark scale (author bands override the default mapping).
+  function gradeLor(item, selectedIdx) {
+    const pts = (item.lor && item.lor.points) || [];
+    const possible = item.marks || 6;
+    const C = pts.filter(function (p) { return p.creditworthy; }).length || 1;
+    let hits = 0, wrong = 0;
+    selectedIdx.forEach(function (i) {
+      const p = pts[i]; if (!p) return;
+      if (p.creditworthy) hits++; else wrong++;
+    });
+    const net = Math.max(0, hits - wrong);
+    let marks, band = "";
+    const bands = item.lor && item.lor.bands;
+    if (Array.isArray(bands) && bands.length) {
+      bands.slice().sort(function (a, b) { return (b.minHits || 0) - (a.minHits || 0); })
+        .some(function (bnd) { if (net >= (bnd.minHits || 0)) { marks = bnd.marks; band = bnd.label || ""; return true; } return false; });
+      if (marks == null) marks = 0;
+    } else {
+      marks = Math.round(possible * net / C);
+    }
+    marks = Math.max(0, Math.min(possible, marks));
+    if (!band) {
+      const third = possible / 3;
+      band = marks >= 2 * third ? "Level 3" : marks >= third ? "Level 2" : marks >= 1 ? "Level 1" : "";
+    }
+    const status = marks >= Math.ceil(possible * 5 / 6) ? "full" : marks >= 1 ? "partial" : "none";
+    return { marks: marks, possible: possible, net: net, hits: hits, wrong: wrong, status: status, band: band, C: C };
+  }
+
+  function renderLor(item, card) {
+    const pts = (item.lor && item.lor.points) || [];
+    card.appendChild(el("div", "tp-shortlede",
+      "This is a 6-mark answer. Tick the points you would include for a full response."));
+    DISPLAYED_OPTIONS = shuffle(pts.map(function (pt, i) { return { choice: pt, idx: i }; }));
+    SELECTED_IDS = [];
+    const opts = el("div", "tp-options");
+    DISPLAYED_OPTIONS.forEach(function (d, pos) {
+      const b = el("button", "tp-option");
+      b.type = "button"; b.dataset.idx = String(d.idx);
+      b.innerHTML = '<span class="tp-optkey">[' + (pos + 1) + ']</span>';
+      const body = el("span", "tp-optbody"); body.innerHTML = renderInline(d.choice.text || "");
+      b.appendChild(body);
+      b.addEventListener("click", function () { onPick(d.idx); });
+      opts.appendChild(b);
+    });
+    card.appendChild(opts);
+    const go = el("button", "tp-calc-go", "Submit");
+    go.type = "button";
+    go.addEventListener("click", commitLor);
+    card.appendChild(go);
+    card.appendChild(el("div", "tp-hint",
+      "Tick all that belong, then Submit. Marked by how many creditworthy points you include; a wrong pick costs a mark."));
+  }
+
+  function commitLor() {
+    if (STATE !== "answering" || !CURRENT_ITEM) return;
+    const item = CURRENT_ITEM, pts = (item.lor && item.lor.points) || [];
+    STATE = "feedback"; SESSION_COUNT++;
+    const res = gradeLor(item, SELECTED_IDS);
+    const status = res.status === "full" ? "correct" : res.status === "partial" ? "half" : "wrong";
+    const fired = [];
+    SELECTED_IDS.forEach(function (i) {
+      const p = pts[i];
+      if (p && !p.creditworthy && (p.misconception_id || p.misconception)) fired.push(p.misconception_id || p.misconception);
+    });
+    const ev = buildEvent(item, SELECTED_IDS.join(","), status, fired[0] || null);
+    ev.error_codes = fired;
+    ev.marks = res.marks + "/" + res.possible;
+    appendToEventLog(ev); reportToShell(ev);
+    revealLor(item, res);
+    showFeedback(item, status, ev);
+  }
+
+  function revealLor(item, res) {
+    const pts = (item.lor && item.lor.points) || [];
+    const optsEl = document.querySelector(".tp-options");
+    if (optsEl) {
+      Array.prototype.forEach.call(optsEl.querySelectorAll(".tp-option"), function (b) {
+        b.disabled = true; b.classList.add("is-disabled"); b.classList.remove("is-selected");
+        const idx = parseInt(b.dataset.idx, 10);
+        const p = pts[idx]; const picked = SELECTED_IDS.indexOf(idx) !== -1;
+        if (p && p.creditworthy) { if (picked) b.classList.add("is-correct"); else b.classList.add("is-missed"); }
+        else if (picked) b.classList.add("is-wrong");
+      });
+    }
+    const card = document.getElementById("tp-qcard"); if (!card) return;
+    const box = el("div", "tp-calc-reveal");
+    box.appendChild(el("div", "tp-calc-reveal-h",
+      "Marked: " + res.marks + "/" + res.possible + (res.band ? " (" + res.band + ")" : "")));
+    if (item.explanation) box.appendChild(el("div", "tp-calc-line", escapeHtml(item.explanation)));
+    card.insertBefore(box, document.getElementById("tp-feedback"));
+  }
+
+  // Generic fallback self-check (d047): any item whose qtype the engine does not
+  // natively grade, but which carries a `fallback` block, ships as a self-check.
+  // Render prompt (already shown) + axes note + reveal model + self-mark; log as
+  // ungraded_self_assessed so it records exposure without polluting atom accuracy.
+  function renderFallback(item, card) {
+    const fb = item.fallback || {};
+    if (item.axes) {
+      const ax = item.axes;
+      card.appendChild(el("div", "tp-shortlede", "Sketch on paper. Axes: x = "
+        + escapeHtml((ax.x && ax.x.label) || "x") + ", y = " + escapeHtml((ax.y && ax.y.label) || "y") + "."));
+    }
+    const reveal = el("button", "tp-calc-go", "Reveal model answer");
+    reveal.type = "button";
+    card.appendChild(reveal);
+    reveal.addEventListener("click", function () {
+      reveal.disabled = true;
+      const box = el("div", "tp-calc-reveal");
+      box.appendChild(el("div", "tp-calc-reveal-h", "Model answer"));
+      const node = (fb.reveal && window.TrilogyDiagrams) ? window.TrilogyDiagrams.render(fb.reveal) : null;
+      if (node) { const holder = el("div", "stimulus"); holder.appendChild(node); box.appendChild(holder); }
+      if (item.explanation) box.appendChild(el("div", "tp-calc-line", escapeHtml(item.explanation)));
+      if (fb.self_mark_prompt) box.appendChild(el("div", "tp-calc-line", escapeHtml(fb.self_mark_prompt)));
+      const row = el("div", "tp-selfmark");
+      [["correct", "I got it right"], ["half", "Partly"], ["wrong", "Not yet"]].forEach(function (pair) {
+        const b = el("button", "tp-tierbtn", pair[1]); b.type = "button";
+        b.addEventListener("click", function () { commitFallback(item, pair[0], fb); });
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+      card.insertBefore(box, document.getElementById("tp-feedback"));
+    });
+  }
+  function commitFallback(item, selfStatus, fb) {
+    if (STATE !== "answering" || !CURRENT_ITEM) return;
+    STATE = "feedback"; SESSION_COUNT++;
+    const ev = buildEvent(item, "self:" + selfStatus, selfStatus, null);
+    ev.grading = (fb && fb.log_as) || "ungraded_self_assessed";
+    appendToEventLog(ev); reportToShell(ev);
+    showFeedback(item, selfStatus, ev);
+  }
+
   /* ── keyboard: digits pick/toggle, Enter commits multi/short ── */
   function onKey(e) {
     if (!M || STATE !== "answering" || !CURRENT_ITEM) return;
     const q = CURRENT_ITEM;
-    if (q.qtype === "calc_workings" || q.qtype === "short" || q.qtype === "widget") return;   // own inputs
+    if (q.qtype === "calc_workings" || q.qtype === "short" || q.qtype === "widget" || q.fallback) return;   // own inputs
     if (/^[1-9]$/.test(e.key)) {
       const pos = parseInt(e.key, 10) - 1;
       const d = DISPLAYED_OPTIONS[pos];
       if (d) { e.preventDefault(); onPick(d.idx); }
     } else if (e.key === "Enter") {
       if (q.qtype === "mcq_multi" && SELECTED_IDS.length) { e.preventDefault(); commitMcq(SELECTED_IDS.slice()); }
+      else if (q.qtype === "level_of_response_6" && SELECTED_IDS.length) { e.preventDefault(); commitLor(); }
     }
   }
 
@@ -967,8 +1272,10 @@
     gradeMcq: gradeMcq,
     correctIndices: correctIndices,
     gradeShort: gradeShort,
+    gradeLor: gradeLor,
     gradeCalcWorkings: gradeCalcWorkings,
     normalizeCalc: normalizeCalc,
+    markCalcChain: markCalcChain,
     normTier: normTier,
     buildEvent: function (item, picked, status, misc, topicId) {
       M = M || { topic: { id: topicId || (item.topic || "") } };

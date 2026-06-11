@@ -26,3 +26,5 @@ Reality has outrun the original M-sequence because Smith parallelised topics. Cu
 - **Parallel track not in the seed sequence:** the widget-centric pivot (d031) made interactive widgets a first-class question surface across 6.5/6.6/6.7; the schema and engine now carry it.
 
 Near-term critical path to a live pupil test: (1) 6.2 authoring fills its bank; (2) Housing lands diagram-in-MCQ + wires forces and the widget flow; (3) Smith pushes to GitHub and runs the backend sign-in test; (4) deploy (GitHub Pages / Firebase Hosting).
+
+**M2 update 2 (Housing, 2026-06-09, d046):** Magnetism bank folded. The 162-item legacy bank is migrated to SCHEMA v1.0 (`app/topics/magnetism_6_7.generated.js`, all servable), with the mechanical mapping done and the judgment fields (tier, syllabus_codes, per-distractor misconceptions, subtag/atom confirmation) flagged per item for the 6.7 Authoring chat (`review/magnetism_migration_report.md`). With the engine feature-complete (every gradeable qtype) and the dashboard + registries in place, **M2 is mechanically complete**; what remains is content ratification (6.7 vocab + retag) and the deferred LLM grader, both outside Housing's lane.

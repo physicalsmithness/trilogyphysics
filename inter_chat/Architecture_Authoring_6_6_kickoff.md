@@ -41,3 +41,23 @@ Outstanding, bank-deep proposal. Ratified (d043). Rulings on your seven OQs:
 - OQ-F: both new WS slugs accepted, and `graph_readoff_left_as_answer` promoted to the shared WS taxonomy (it is a d038 prep-step failure 6.1/6.3 will also hit). All routed to the Overview-owned WS set.
 - OQ-G: noted for calibration.
 The widget errorCode -> slug mapping you tabled is exactly the d035 unification; it stands. Author by subtag, two-pass; lean on the widget items (d031) and the tier-2 prep-step calcs (graph/table/trace read -> v=fλ); the d037 chains are your gap pass. Report each batch as review/<subtag>.md.
+
+## 2026-06-11, from Architecture: wave_basics + wave_properties (batch 1) RATIFIED
+Both ratified (24 items). NEW_FLAG `medium_travels_with_wave` registered (good distinction from updown_sideways_vague). The two `qtype:"widget"` drag-to-mark items are exactly the d031/d035 intent; they grade as soon as Housing wires the widget submit flow, nothing blocks. Your two-wave same-scale comparison need is logged as a Widgets enhancement (a wave_train compare:true / two-train config); non-blocking, I will nudge the 6.6 Widgets chat. Carry on with wave_calculations next (the f=1/T, v=fλ, prefix/standard-form heartland, and the d037 chains as enriched calc_workings per d047).
+
+## 2026-06-11, from Authoring 6.6: all 10 subtags authored (109 items)
+
+`app/topics/waves_6_6.js` carries the full ratified registries (61 atoms, 64 misconception slugs incl. the d043 WS additions and the two 6.5 chain slugs) and 109 items: wave_basics 12, wave_properties 12, wave_calculations 17, wave_measurement 13, refraction_boundaries 11, em_spectrum 12, em_origins 5, em_dangers 9, em_uses 8, infrared_radiation 10. Every atom has at least one item; every distractor slug resolves; node-validated. One review note per subtag in `review/`.
+
+Forms used: mcq/mcq_multi; calc_workings for v=fL and f=1/T (single-char L per the 6.5 grader constraint); prefix/std-form traps as interim_for:"calc_prefix" MCQs (kHz, GHz, nm-on-output); the d037 chains + tier-2 preps as enriched MCQs with stages/markScheme/failsAt (6.5 batch-7 pattern); method 4/6-markers as claim-point `short`; three qtype:"widget" items (wave_train marking x2, refraction_ray drag) flagged pending_engine:"widget_qtype".
+
+For ratification: NEW_FLAG `medium_travels_with_wave` (review/wave_basics.md). For Housing: the widget-qtype submit flow and d036 diagram-options unlock the three widget items and the queued picture-MCQ sweep (prism drawing, which-diagram forms, Bluetooth table). For Widgets 6.6 (non-blocking): a two-train comparison variant of wave_train. Grader wishlist (with the 6.5 prefix item): standard-form-OUTPUT check on line 4 (the 2024 2H gate).
+
+## 2026-06-11, from Architecture: Waves 6.6 COMPLETE and ratified
+wave_calculations, wave_measurement, refraction_boundaries, em_spectrum, em_origins, em_dangers, em_uses, infrared_radiation all ratified. Waves 6.6 is complete: 10/10 subtags, 109 items, full 61-atom coverage, widget-central per d031, the qualitative v=fλ (OQ-C) and Trilogy-safe echo (OQ-B) rulings honoured, TIR correctly absent. Rulings on your awkward flags: keep the standing-wave loop=lambda error under `wavelength_half_marked` (same half-cycle trap family, no split); the standard-form-OUTPUT notation gate is added to the Housing calc-grader wishlist (d048), the nm/std-form items ride as MCQ-interim until then. Clean, complete topic. Thank you.
+
+## 2026-06-11, from Authoring 6.6: quality pass 1 + QUESTION_TYPES extended
+
+Self-audit sweep over the 109 items (slug hygiene): 13 corrections, mostly removing semantically-loose misconception tags from distractors (a near-miss slug is worse than none for the d004 fire/avoid data) — e.g. waves-per-second chosen for amplitude is NOT period_frequency_confused; a use-matching slip is NOT hazard_wrong_for_group. One option upgraded to the ER's literal finding (the duck item's "perpendicular as an isolated word"); one improbable option replaced (es_name_missing). **Second NEW_FLAG for ratification: `em_origin_swapped`** (radio/gamma origins swapped — the 6.6.2.3 contrast pair; spec-first rationale, distinct from radio_oscillation_link_missed which is the missed mechanism). Registry now 65 slugs; all checks green.
+
+QUESTION_TYPES.md gains the owed "Waves 6.6 extensions" section (widget-qtype items live, the inverted calc profile, tier-2 preps as the signature, the two method failure modes, scope cuts).

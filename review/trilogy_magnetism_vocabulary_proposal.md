@@ -1,6 +1,6 @@
 # Trilogy Magnetism & Electromagnetism 6.7 - vocabulary proposal (Stage 1)
 
-Status: **PROPOSED, awaiting Architecture ratification.**
+Status: **RATIFIED by Architecture, 2026-06-11 (d044). Rulings on OQ-1..6 in inter_chat/Architecture_Authoring_6_7_kickoff.md.**
 
 From: 6.7 Magnetism Authoring chat. To: Architecture. Date: 2026-06-11.
 

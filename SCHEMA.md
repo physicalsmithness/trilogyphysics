@@ -71,3 +71,26 @@ From the 6.2 and 6.5 calibration batches:
 - **calc_workings ERROR_TYPES are misconception slugs** (extends d035 to calc): the grader's auto-derived calc error types map to registered misconception slugs via an ERROR_TYPES->slug crosswalk (Housing wires, Architecture ratifies the mapping), so calc errors join MCQ-distractor and widget errors in ONE d004 taxonomy.
 - **`syllabus` is the finest leaf code** (confirmed, d021), e.g. 6.2.1.3.c not the parent.
 - Board stays topic-level for now (per-item board deferred to the cross-board future; not urgent).
+
+---
+
+## v1.5 additions (2026-06-11, d047): marked multi-stage calc, graph_sketch, the generic fallback pattern
+
+**1. Marked / multi-stage calc structure (Smith-directed).** Calc items (real or MCQ-interim) carry the full mark-scheme data so they are a complete dataset for the chained grader, not just a shell:
+- `calc.stages[]` - the d029 per-stage 4-line blocks (equation, knowns, unknown, expectedFinalValue, expectedUnit, gate).
+- `calc.markScheme[]` per stage - the real AQA per-mark steps, each tagged with its Codex Layer-5 mark category (substitution / non_final_evaluation / rearrangement / evaluation / prefix_conv / unit).
+- `calc.markCategories[]` - the ordered per-mark category list for the part.
+- item-level `marks` (real AQA count), `difficulty` (from facility, d006), `facility_pct`, `source` (aqa_ppq ref), `equation_sheet`.
+- On the MCQ-interim form, each distractor carries `failsAt` (the stage/mark whose failure yields that wrong number) beside `misconception`, so a wrong pick already identifies the failed mark. The chained grader (Housing) consumes stages + markScheme to award per-mark and report which stage failed (principle 1); failsAt is the interim equivalent.
+
+**2. `graph_sketch` NEW_QTYPE.** Item carries `axes`, `target:{kind,params}` (a Widgets model curve, which IS the answer key so author and grader never drift), `accept` (shape predicates: through_origin, monotonic, linearity, quadrants, gradient_trend, symmetry), and `on_fail` (predicate -> misconception slug). Grader = a shape-matcher checking the predicates against the sampled target curve; the grade is atomic (which predicate failed), not pass/fail.
+
+**3. Generic `fallback` block (adopt as engine behaviour).** ANY item whose qtype the engine cannot yet grade may carry `fallback:{ mode:"self_check", reveal:{kind,params}, self_mark_prompt, log_as:"ungraded_self_assessed" }`. The engine, on an unknown/ungraded qtype WITH a fallback block, renders the prompt + axes/reveal-model + self-mark control and logs the attempt as `ungraded_self_assessed` (excluded from accuracy stats; exposure and applicable-but-avoided still tick). This lets any NEW_QTYPE ship as a self-check the day it is authored and auto-grade later with no re-authoring. A general pattern, not graph-specific.
+
+---
+
+## v1.6 additions (2026-06-11, d048): circuit_draw qtype; shared chain misconceptions
+
+- **`circuit_draw` NEW_QTYPE** (instance of the d047 fallback pattern): item carries `axes`/`target:{dsl}` (the Circuit Builder DSL as the answer key), `accept` predicates (components present, series/parallel relationship, complete loop), `on_fail` slug map, and a `fallback` self-check (reveal the model circuit via the Circuit Builder, pupil self-marks, log ungraded). The real grader is "Builder-as-input": the pupil assembles a circuit in the embedded Circuit Builder and the grader checks the predicates against the target DSL. Bigger build than graph_sketch (the Builder must be an input surface, not just a renderer); scheduled with Housing.
+- **`chain_prep_stage_skipped` and `chain_intermediate_as_final` promoted to the shared cross-calc misconception set** (used by both 6.5 and 6.6; they are generic multi-stage failure modes, not topic-local).
+- **Calc grader wishlist (Housing):** a notation/standard-form OUTPUT check on the line-4 value (the grader checks numeric value, not notation, so "give your answer in standard form" / nm-on-output items ride as MCQ-interim until added). Same fix territory as the prefix extension.

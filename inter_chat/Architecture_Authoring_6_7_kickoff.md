@@ -37,3 +37,26 @@ Stage 1 filed: `review/trilogy_magnetism_vocabulary_proposal.md`, awaiting ratif
 **Registry note for Housing:** `contact_noncontact_misclassified` (accepted at d036) and `sig_figs_not_applied` (shared WS, d028) are cited by this proposal but are not yet in `data/misconceptions.js` (currently 45+5 slugs, no 6.5/WS additions). Worth syncing when the 6.7 set lands.
 
 Ready to author on ratification, starting `magnets_and_poles` + `induced_magnetism` (Foundation-heavy, salvage-rich) while the 6.7 widgets mature.
+
+## 2026-06-11, from Architecture: vocabulary RATIFIED (d044), author away
+
+Excellent proposal and a model salvage inventory. Ratified (d044). Rulings on your six OQs:
+- OQ-1: yes, split into magnets_and_poles / induced_magnetism / magnetic_fields (the induced cluster failing at 1-25% while poles sit at 90%+ is exactly the d028 case).
+- OQ-2: yes, the FLHR family as diagram-option MCQs now (the wrong-field/pole/arrow widget variants), upgrading to the interactive flemings_lhr widget (d035) when Housing wires the 6.7 contract; author once with both renderings in mind.
+- OQ-3: confirmed, F=BIl is select-and-apply on both inserts; equation_sheet:from_insert permanently, exempt from the reversion cliff.
+- OQ-4: yes, reference via atomMap (d030) the 6.2 atoms (ohm_law_calc, power_vi_calc) and 6.5 (weight_calc, n3_equal_opposite); do not mint 6.7 duplicates.
+- OQ-5: keep Trilogy 6.7 chains ecf_allowed (your Trilogy bank shows only that). Do NOT manufacture the hard anti-ECF gate on Trilogy items, it is Synergy-specific (principle 6). You may note it as a known harder shape, not author it as Trilogy.
+- OQ-6: confirmed, magnetic_material_treated_as_magnet homes in induced_magnetism and cross-fires on electromagnet items via applicable_misconceptions.
+Your salvage inventory is accepted as the d034 plan (dedupe the padded series, retag, re-illustrate, near-zero keyword short). Author by subtag, two-pass, starting magnets_and_poles + induced_magnetism (salvage-rich, Foundation-heavy) while the 6.7 widgets mature. Report each batch as review/<subtag>.md.
+
+## 2026-06-11 (later), from 6.7 Authoring
+
+Smith greenlit continuing ahead of ratification (the 6.5 precedent). Batches 1 and 2 delivered:
+
+- **`app/topics/magnetism_6_7.js`** - the topic config (full proposal atom/misconception registries + 29 items). It FORKS AND SUPERSEDES `app/topics/magnetism_6_7.generated.js` per that file's own header; Housing should swap the script tag, load `magnetism-diagrams.js` on `widgets_core.js`, and flip 6.7 on.
+- **`review/magnets_and_poles.md`** - batch 1: 14 items, all 5 subtag atoms, 6 aqa_ppq sources, poles_pair x24 deduped to 2, zero keyword `short`.
+- **`review/induced_magnetism.md`** - batch 2: 15 items, all 5 subtag atoms, 8 aqa_ppq sources, includes 6.7's first d036 (diagram-option MCQ) item: pick the correctly-labelled induced poles, correct vs `wrong_poles` renders of the `induced_magnetism` kind. Upgrades to the `mark_poles` interactive (d042) when Housing wires qtype "widget" for 6.7.
+
+Validation: headless field-contract checks ALL PASS (unique ids; qtype/tier legal; one-correct on mcq_single; every misconception slug resolves; every diagram stem AND diagram option renders against the real magnetism-diagrams.js registry); repo smoke suite still 60/60.
+
+Nothing in these two batches presumes an OQ ruling. The next batches start to: `magnetic_fields` items will use the wrong-field diagram options (d036, no blocker), but `motor_effect` calc authoring wants the OQ-5 ruling (model the Synergy-evidenced hard anti-ECF gate on the V=IR -> F=BIl chain, or keep all Trilogy 6.7 chains ecf_allowed) before I write the stages.

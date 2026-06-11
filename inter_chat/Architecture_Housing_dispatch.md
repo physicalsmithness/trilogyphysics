@@ -103,3 +103,71 @@ Plus the remaining d029 piece: the cross-stage **ECF carry loop** (per-stage gra
 ## 2026-06-11, from Architecture: engine item-loader additions (SCHEMA v1.4)
 
 From the ratified calibration batches (d040), the engine item loader needs: (1) pass `calc.codex` through to the attempt event; (2) read an item-level `subtag` field (dashboard grouping); (3) the calc_workings ERROR_TYPES -> misconception-slug crosswalk so calc errors join the one d004 taxonomy (you wire it, I ratify the mapping); (4) when 6.2 wires its calibration items, the provisional atom registry in electricity_6_2.js is replaced by the ratified slugs (config+items together, the author is doing this). Also fold "accept a prefixed-equivalent final answer (3 mA for 0.003 A)" into the prefix-grader fix already on your list.
+
+### Update 2026-06-09: level_of_response_6 interim built (d045); full qtype set now gradeable
+The last staged qtype is in. `level_of_response_6` uses the d023 claim-point interim: `lor:{points:[{text,creditworthy,misconception_id?}], bands?}`, marks by net creditworthy points mapped to /6 with a Level band, wrong points logged as error_codes into the unified fire/avoid table. The engine now grades every gradeable type in SCHEMA v1.0/1.2/1.3: mcq, mcq_multi (text or per-option diagram/widget), short (markPoints), calc_workings (verbatim), widget, level_of_response_6. circuit_draw/graph_sketch interims work through the per-option diagram/widget path. 97 assertions green. Open question for you whenever you want it: the real LLM-graded level_of_response_6 (and free-text short) is the one piece still on an interim; flag if/when that grader becomes a priority.
+
+## 2026-06-11, from Architecture: state check - wiring + the calc fixes
+
+Good progress: tests 49 green, the `widget` qtype + TOPIC_WIDGETS mount, level_of_response_6, and diagram-option MCQ (d036) are all built and exercised in the demo fixtures. Two outstanding:
+1. **forces_6_5.js is richly authored (428 id-lines) but not wired** into app/index.html (no script tag, 6.5 still enabled:false). Add `<script src="topics/forces_6_5.js">` and flip 6.5 enabled:true once the author confirms the batch set is stable, and do the same for waves/magnetism as their configs populate.
+2. **The three calc_workings grader fixes are still outstanding** (no prefix-conversion grading, `^` power operator, or multi-letter symbol handling in app/calc_workings.js yet). They are the priority engine work: until they land, the prefix and squared-term calcs stay as interim MCQs (correctly tagged interim_for) rather than real calc_workings. Plus the cross-stage ECF carry loop for d029.
+Confirm status of both in this thread when you pick them up.
+
+### Update 2026-06-09: Magnetism bank folded (d046) — M2 mechanically complete
+The 162-item legacy Magnetism bank is migrated to SCHEMA v1.0 by `tools/migrate_magnetism.js` -> `app/topics/magnetism_6_7.generated.js` (120 mcq, 21 short, 21 numeric->calc_workings value-only). All items are servable by the engine now. I did NOT make content judgments: every item flags `_authoring.needs` (tier defaulted FH, empty syllabus_codes, no per-distractor misconception_id, provisional subtag/atoms from legacy tags). The 6.7 Authoring chat should retag from `review/magnetism_migration_report.md` (which also lists 12 near-duplicate groups to cull and the provisional tag->subtag map). Two asks for you: (1) when a 6.7 vocabulary proposal is ratified, I will re-point the subtags/atoms or Authoring forks the generated file into a hand-owned one; (2) flipping `6.7 enabled:true` in the shell picker is your readiness call once the vocab and tiers are set — the config already loads, so it is a one-line change. With this, every M2 deliverable in my dispatch is done bar content ratification and the deferred LLM grader.
+
+## 2026-06-11, from Architecture: three grader builds from the new batches (SCHEMA v1.5)
+The authors have embedded full marking data ahead of you (d047):
+1. **Chained calc_workings grader.** Forces multistage_calc_chains items carry calc.stages + per-stage markScheme (Codex Layer-5 categories) + markCategories + failsAt distractors. Build the grader to loop the single-block marker across stages with ECF carry, award per-mark against markScheme, and report which stage/mark failed (principle 1). The embedded data IS the contract.
+2. **graph_sketch shape grader.** Items carry axes/target/accept (shape predicates)/on_fail. Grade by sampling the target curve from TOPIC_DIAGRAMS and checking each predicate; map failed predicates to the on_fail slugs.
+3. **Generic fallback behaviour.** For any item whose qtype you do not yet grade, if it has a `fallback` block render the self-check (prompt + reveal model + self-mark) and log `ungraded_self_assessed`. One small generic behaviour unblocks every staged qtype as a self-check immediately.
+Also: confirm whether the calc grader parses a two-term sum R=R1+R2 (if yes, series_resistance_sum upgrades from MCQ to calc_workings). And the three calc fixes + ECF loop remain the priority that turns the interim MCQs into real graded chains.
+
+### Update 2026-06-09: d047 response — fallback BUILT; two-term sum confirmed; chained-calc + graph_sketch scoped
+Absorbed the d047 three-grader dispatch and the embedded contracts (forces_6_5 calc.stages/markScheme/failsAt; graph_sketch_sample §B/§C).
+
+1. **Generic fallback self-check: DONE (d049).** Unknown qtype + `fallback` block now serves as a self-check (reveal model via TOPIC_DIAGRAMS + self-mark, logged `ungraded_self_assessed`, excluded from accuracy). graph_sketch and any future staged qtype ship immediately. The `_demo_iv_sketch` item exercises it; tests cover the flow.
+2. **Two-term sum question: confirmed with a caveat.** The lifted parser grades `R = a + b` (single-letter operands) at 4/4. But subscripted names like `R1`/`R2` tokenise as `R*1`/`R*2` (the tokenizer is single-letter by design). So series_resistance_sum CAN upgrade to calc_workings IF the knowns use single-letter symbols (e.g. `a`,`b`, or `x`,`y`); it will NOT parse two-character subscripted operands. Your call whether to author with single-letter operands or have me extend the tokenizer to multi-char subscripts (a small, contained change to calcTokenize/calcLowerVars if you want true `R1`/`R2`).
+3. **Chained calc_workings grader: this is the next buildable Housing piece.** The contract is clear (calc.stages each a single-block spec + per-stage markScheme + ECF `gate:{from_previous_part}` + failsAt distractors). Plan: loop the lifted single-block marker per stage, carry the pupil's own stage output as the next stage's `knowns` under ECF (so a wrong stage-1 value still earns stage-2 method marks), award per-mark against markScheme categories, and report the failed stage/mark. The items are servable as MCQ today, so this is an upgrade not a blocker; I will take it as a focused build.
+4. **graph_sketch SHAPE grader: gated on a sketch INPUT surface.** §C grades a pupil's drawn curve against sampled-target predicates, but there is no drawing-input widget yet (the items currently have no `widget`, only `fallback`). The shape-matcher is buildable once Widgets ships a sketch-input widget that returns the pupil's curve points; until then the fallback self-check (now live) is the right state. Flagging that dependency so it is not assumed to be pure-Housing.
+
+Widgets 6.7 interactive layer (flhr_direction/mark_poles) needs nothing further from me: their `errorCodeMap` re-homing happens inside `score()`, so the engine just logs whatever errorCodes come back. Confirmed in that thread earlier; their slug table is for your registration.
+
+## 2026-06-11, from Architecture: INTEGRATION STATE AUDIT - the project is now integration-bound
+
+I audited the actual deployable. The content is essentially done but almost none of it is reachable in the shell. This is now the entire critical path and it is yours. Definitive punch-list, roughly in leverage order:
+
+**A. Wiring (cheap, huge payoff - do first).** Three fully-authored, ratified topic banks are not wired into app/index.html:
+- forces_6_5.js: 126 items (Forces 6.5 COMPLETE, d048) - add `<script src="topics/forces_6_5.js">`, flip 6.5 enabled:true.
+- waves_6_6.js: 109 items (Waves 6.6 COMPLETE, d048) - add the script, flip 6.6 enabled:true.
+- magnetism_6_7.generated.js: 162 migrated items (provisional, the 6.7 author will fork/curate) - wire when the author signals.
+Each is a two-line change that turns a finished topic from invisible to drillable.
+
+**B. Calc-grader fixes (the three from d040, still not landed in calc_workings.js).** prefix-conversion grading (read asGiven value+unit, award a prefix_conv mark), `^` power operator in the evaluator, multi-letter/case-distinct symbols (Ee, E vs e). Until these land, the prefix and squared-term calcs across 6.2/6.5/6.6 stay as interim MCQs. Plus the cross-stage ECF carry loop for d029.
+
+**C. The new graders (d047/d048), each consuming data the authors already embedded.** chained calc_workings (loop the marker over calc.stages + markScheme, per-mark); graph_sketch shape-matcher (accept predicates vs the target widget curve); the generic fallback->self_check behaviour (unblocks graph_sketch/circuit_draw/level_of_response as self-checks immediately); circuit_draw Builder-as-input (the bigger build). Also the notation/standard-form output check (d048 wishlist) and a two-term-sum parse so series_resistance_sum upgrades.
+
+If this backlog is more than one chat can carry alongside ongoing engine work, say so and I will raise splitting a dedicated integration/grader chat with Smith (the d002/d018 trigger).
+
+---
+
+## 2026-06-11, from Authoring (6.5) - Forces batch set is STABLE/COMPLETE: clear to wire
+
+Forces 6.5 is complete (12/12 subtags, 126 items) and fully ratified (d048). The batch set is stable - **clear to wire**: add `<script src="topics/forces_6_5.js">` to app/index.html (beside electricity), load the Forces Widgets script (forces-diagrams.js, for free_body_diagram / motion_graph / area_under_vt / vector_addition / spring_extension renders), and flip 6.5 `enabled:false -> true`.
+
+Done from the authoring side per your d040 loader asks: every item now carries the item-level `subtag` field (dashboard grouping). Still owed by authoring (low priority, non-blocking): the `calc.codex` six-layer block on calc items - I'll add it when convenient; it does not block wiring or grading.
+
+Reminder of what converts the 9 interim items to real calc_workings once your engine fixes land: the three evaluator fixes (prefix conversion, `^` power, multi-letter symbols) + the d029 cross-stage ECF loop + the chained markScheme grader. Until then they grade correctly as MCQs (tagged interim_for). No rush from my side - the topic is fully usable as-is.
+
+## 2026-06-11, from Architecture: do the wiring FIRST (the fastest path to live is not 6.2)
+
+Priority steer, confirmed with Smith. The quickest pupil-testable slice is no longer Electricity (6.2 still awaits the author pasting items into items:[]). It is **Forces and Waves, which are fully authored and ratified and one two-line change each from live**. So before the grader fixes or any new grader:
+
+1. Add `<script src="topics/forces_6_5.js">` and `<script src="topics/waves_6_6.js">` to app/index.html (after electricity_6_2.js), and flip 6.5 and 6.6 `enabled:true`.
+2. Smoke-check that each topic loads and a few items render and grade through the existing engine (mcq / calc_workings / widget / level_of_response all already pass tests).
+
+That alone gives two complete, drillable topics today. THEN proceed to punch-list B (the three calc-grader fixes) and C (the new graders). If carrying the wiring plus the grader work alongside ongoing engine work is too much for one chat, say so here and I will raise a dedicated integration/grader chat with Smith (d002/d018 trigger).
+
+### Update 2026-06-09: chained calc_workings grader BUILT (d050) — 2 of 3 d047 asks done
+The chained grader is in. Items with `calc.stages` render a stage-by-stage four-line UI and grade per stage via the lifted single-block marker, with ECF value-carry (the pupil's own previous-stage value replaces the matching stage known; isolated-unknown stages recompute the expected value from it). Per-stage marks scale to each stage's markScheme; total to item.marks; the reveal shows per-stage line ticks + carry-forward flags. Tested: full chain 4/4, stage-2-blank 2/4, and an ECF case where a consistent stage-2 method on a carried wrong value still earns stage-2 marks. To activate on the Forces multistage items, flip their `qtype` from `mcq_single` to `calc_workings` (they keep their distractors as the MCQ fallback if you prefer to stage the switch). One v1 limitation: a non-isolated stage equation (v^2-u^2=2as) keeps its official expected value, so under ECF its substitution/eval lines only score when the carried value matches official; the equation line still scores. If you want true symbolic ECF there, I would need to add a tiny equation-solver for the common SUVAT forms; say the word. Status: d047 asks 1 (fallback, d049) and 3-here (chained calc) done; ask 2 (graph_sketch shape grader) stays gated on a Widgets sketch-input surface, covered by the fallback now.

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waves 6.6 widget playground</title>
+<style>
+  :root{--ink:#1a1a17;--ink-2:#4d4943;--muted:#8c8579;--paper:#fffdf6;--bg:#faf6ed;
+        --accent:#b03030;--ok:#2d6a3f;--line-2:rgba(26,26,23,.22);
+        --sans:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--serif:Georgia,serif}
+  body{margin:0;padding:18px 22px;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+  h1{font-size:19px;margin:0 0 4px} p.sub{color:var(--ink-2);margin:0 0 14px;font-size:13px;max-width:880px}
+  .bar{display:flex;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .bar select{font:14px var(--sans);padding:5px 8px;border:1px solid var(--ink-2);border-radius:6px}
+  .bar label{font-size:13px;color:var(--ink-2)}
+  .wrap{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+  .panel{background:var(--paper);border:1px solid #ddd6c6;border-radius:10px;padding:12px 14px}
+  .panel h2{font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .ctrl{margin-bottom:9px} .ctrl label{display:block;font:12.5px var(--sans);color:var(--ink);margin-bottom:2px;font-weight:600}
+  .ctrl input[type=number],.ctrl input[type=text],.ctrl select{width:100%;box-sizing:border-box;font:13px var(--sans);padding:4px 6px;border:1px solid var(--line-2);border-radius:5px}
+  .ctrl input[type=checkbox]{transform:scale(1.15);margin-left:2px}
+  .ctrl .hint{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.3}
+  #host{min-height:60px;background:var(--paper);border:1px solid #ddd6c6;border-radius:10px;padding:14px}
+  button#mark{margin-top:10px;font:13px var(--sans);padding:6px 16px;border:1px solid var(--ink-2);background:var(--paper);border-radius:6px;cursor:pointer}
+  button#mark:hover{background:#f1ead8}
+  pre{background:#f6f1e4;border:1px solid #e4ddcb;border-radius:8px;padding:10px;font-size:11.5px;white-space:pre-wrap;overflow:auto;margin:10px 0 0}
+  #cfg{color:#3a3630} .err{color:var(--accent);font-size:13px}
+  .st-full{color:var(--ok);font-weight:bold}.st-partial{color:#b07d20;font-weight:bold}.st-none{color:var(--accent);font-weight:bold}
+  .note{font-size:11.5px;color:var(--muted);margin-top:6px}
+</style></head>
+<body>
+<h1>Waves 6.6 - widget playground</h1>
+<p class="sub">Pick a widget on the left. Every control here is an <b>author parameter</b> - change it and the widget updates live.
+The grey box at the bottom shows the exact object an author writes on a question item. Tick <b>Interactive</b> to mount the
+markable version (drag the green handles / pick an answer, then press <b>Mark</b> to see how it is graded). Params marked <b>*</b> only apply in interactive mode.</p>
+<div class="bar">
+  <span><b>Widget:</b></span> <select id="kind"></select>
+  <label><input type="checkbox" id="inter" checked> Interactive (where available)</label>
+</div>
+<div class="wrap">
+  <div class="panel"><h2>Customisable parameters</h2><div id="controls"></div>
+    <div class="note">Anything not listed uses a sensible default. Booleans default off unless shown ticked - so a clean, unmarked diagram is the default.</div></div>
+  <div>
+    <div id="host"></div>
+    <button id="mark">Mark</button>
+    <pre id="score"></pre>
+    <pre id="cfg"></pre>
+  </div>
+</div>

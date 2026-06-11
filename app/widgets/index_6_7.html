@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Magnetism 6.7 widget harness - Trilogy Physics</title>
 <style>
+  .iwrap { background: var(--paper); border: 1px solid var(--line-2); border-radius: 8px;
+           padding: 14px; margin-bottom: 20px; max-width: 560px; }
+  button.mark { font: 13px var(--sans); margin-top: 8px; padding: 6px 14px; cursor: pointer; }
+  pre.result { font-size: 11.5px; background: #f3eee2; padding: 8px; border-radius: 6px;
+               white-space: pre-wrap; }
   :root { --ink:#1a1a17; --ink-2:#4d4943; --muted:#8c8579; --paper:#fffdf6;
           --bg:#faf6ed; --accent:#b03030; --ok:#2d6a3f; --line-2:rgba(26,26,23,.22);
           --sans: system-ui, sans-serif; --serif: Georgia, serif; }
@@ -29,7 +34,10 @@ Every <code>kind</code> and named variant rendered with sample params through
 <code>diagram = { kind, params }</code>, engine passes the inner
 <code>params</code>). 3D into/out-of-page uses the dot/cross convention
 throughout. Distractor renders are flagged. Interactive kinds follow the
-Housing contract exchange (inter_chat/Widgets_Housing_interactive_67.md).</p>
+Housing contract (CONFIRMED, d042/d035): the two interactive kinds below
+mount from <code>window.TOPIC_WIDGETS</code>; the Mark button calls
+<code>getAnswer()</code> then <code>score()</code> and prints the exact
+payload the engine receives.</p>
 
 <h2>Magnets and fields</h2>
 <div class="grid" id="g1"></div>
@@ -39,6 +47,22 @@ Housing contract exchange (inter_chat/Widgets_Housing_interactive_67.md).</p>
 <div class="grid" id="g3"></div>
 <h2>Wire field (end-on), Fleming's LHR, motor effect, d.c. motor (HT)</h2>
 <div class="grid" id="g4"></div>
+
+<h2>Interactive: pick the force direction (flhr_direction)</h2>
+<div class="iwrap"><div id="i-flhr"></div>
+  <button class="mark" data-w="flhr">Mark it</button><pre class="result" id="r-flhr"></pre></div>
+
+<h2>Interactive: circulation sense over wire_field (flhr_direction, circulation config)</h2>
+<div class="iwrap"><div id="i-circ"></div>
+  <button class="mark" data-w="circ">Mark it</button><pre class="result" id="r-circ"></pre></div>
+
+<h2>Interactive: mark the solenoid poles (mark_poles)</h2>
+<div class="iwrap"><div id="i-sole"></div>
+  <button class="mark" data-w="sole">Mark it</button><pre class="result" id="r-sole"></pre></div>
+
+<h2>Interactive: mark the induced poles on the nail (mark_poles + errorCodeMap)</h2>
+<div class="iwrap"><div id="i-nail"></div>
+  <button class="mark" data-w="nail">Mark it</button><pre class="result" id="r-nail"></pre></div>
 
 <script src="widgets_core.js"></script>
 <script src="magnetism-diagrams.js"></script>
@@ -123,6 +147,36 @@ Housing contract exchange (inter_chat/Widgets_Housing_interactive_67.md).</p>
       cap.textContent = j[2] + "   " + JSON.stringify({ kind: j[0], params: j[1] });
       card.appendChild(cap);
       host.appendChild(card);
+    });
+  });
+
+  /* interactive widgets through the d042 engine flow */
+  var W = {};
+  var CFG = {
+    flhr: { kind: "flhr_direction", config: {
+      stimulus: { kind: "motor_effect_setup", params: { force: "none" } },
+      prompt: "Current out of the page, field N to S. Which way is the force on the wire?",
+      current: "out", field: "right" } },
+    circ: { kind: "flhr_direction", config: {
+      stimulus: { kind: "wire_field", params: {} },
+      prompt: "Which way do the field lines circulate?",
+      circulation: true, current: "out" } },
+    sole: { kind: "mark_poles", config: {
+      stimulus: { kind: "solenoid_field", params: { show_poles: "markable" } } } },
+    nail: { kind: "mark_poles", config: {
+      stimulus: { kind: "induced_magnetism", params: { pole: "N", markable: true } },
+      errorCodeMap: { poles_reversed: "induced_magnet_expected_to_repel" } } }
+  };
+  Object.keys(CFG).forEach(function (id) {
+    W[id] = window.TOPIC_WIDGETS[CFG[id].kind](document.getElementById("i-" + id), CFG[id].config);
+  });
+  document.querySelectorAll("button.mark").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var id = b.getAttribute("data-w");
+      var ans = W[id].getAnswer();
+      var res = W[id].score(ans, CFG[id].config);
+      document.getElementById("r-" + id).textContent =
+        "getAnswer(): " + JSON.stringify(ans) + "\nscore():     " + JSON.stringify(res, null, 1);
     });
   });
 })();

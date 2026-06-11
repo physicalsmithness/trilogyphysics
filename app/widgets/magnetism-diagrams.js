@@ -10,8 +10,10 @@
      STATIC      window.TOPIC_DIAGRAMS[kind](params) -> SVGElement
      INTERACTIVE window.TOPIC_WIDGETS[kind](host, config) -> instance
                  { getAnswer(), score(answer, config), destroy() }
-                 (Fields-driller pattern; 6.7 grading contract proposed
-                 to Housing in inter_chat/Widgets_Housing_interactive_67.md)
+                 (Fields-driller pattern; 6.7 grading contract CONFIRMED
+                 by Housing (d042) and ratified as SCHEMA v1.2 qtype
+                 "widget" (d035); thread:
+                 inter_chat/Widgets_Housing_interactive_67.md)
 
    d031 build order: STATIC RENDER FIRST. This file ships the full static
    catalogue plus pure scorers in MagnetismModels so Housing can see the
@@ -194,7 +196,10 @@
     DIRS: DIRS,
     cross: vcross,
     opposite: function (name) {
+      if (name === "clockwise") return "anticlockwise";
+      if (name === "anticlockwise") return "clockwise";
       var v = DIRS[name];
+      if (!v) return null;
       return dirName([-v[0], -v[1], -v[2]]);
     },
 
@@ -260,6 +265,114 @@
       silver: false, plastic: false, wood: false, glass: false, rubber: false
     },
     isMagnetic: function (m) { return MagnetismModels.MATERIALS[m] === true; },
+
+    /* Two-pole ("Gilbert") model of a bar magnet: a + source at the N
+       pole and an equal - sink at the S pole, both just inside the ends.
+       Outside the magnet this reproduces the real external field of a
+       uniformly magnetised bar well, and its field lines are EXACTLY the
+       textbook pattern: every line leaves the N pole face, fans out,
+       arcs round, and converges into the S pole face; lines never cross
+       and bunch at the poles. Screen coords (y down).                   */
+    twoPoleFieldAt: function (px, py, nx, ny, sx2, sy2) {
+      var ax = px - nx, ay = py - ny;
+      var bx2 = px - sx2, by2 = py - sy2;
+      var r1 = Math.sqrt(ax * ax + ay * ay), r2 = Math.sqrt(bx2 * bx2 + by2 * by2);
+      if (r1 < 1e-9 || r2 < 1e-9) return { bx: 0, by: 0, mag: 0 };
+      var c1 = 1 / (r1 * r1 * r1), c2 = 1 / (r2 * r2 * r2);
+      var bx = ax * c1 - bx2 * c2, by = ay * c1 - by2 * c2;
+      var m = Math.sqrt(bx * bx + by * by);
+      return { bx: bx / (m || 1), by: by / (m || 1), mag: m };
+    },
+
+    /* Field of any set of point poles [[x, y, strength], ...]
+       (strength +1 = N/source, -1 = S/sink). Two magnets = four poles.   */
+    multiPoleFieldAt: function (px, py, poles) {
+      var bx = 0, by = 0, i, dx, dy, r, c;
+      for (i = 0; i < poles.length; i++) {
+        dx = px - poles[i][0]; dy = py - poles[i][1];
+        r = Math.sqrt(dx * dx + dy * dy);
+        if (r < 1e-9) return { bx: 0, by: 0, mag: 0 };
+        c = poles[i][2] / (r * r * r);
+        bx += dx * c; by += dy * c;
+      }
+      var m = Math.sqrt(bx * bx + by * by);
+      return { bx: bx / (m || 1), by: by / (m || 1), mag: m };
+    },
+
+    /* Trace one field line from a seed point.
+       opts: { field: (x,y)->{bx,by,mag}  custom field, OR nPole/sPole
+                     for the canonical two-pole bar magnet;
+               h: step px (2.5), maxSteps, dir: +1 with the field / -1,
+               bounds:[x0,y0,x1,y1],
+               stopRects: [[x0,y0,x1,y1],...]  SOLID BODIES: the trace
+                     stops when it enters one and the final point is
+                     SNAPPED EXACTLY ONTO the boundary crossing (Smith,
+                     2026-06-11: field lines must touch the magnet, not
+                     stop short of it or dive inside it);
+               capture: legacy stop radius around sPole/nPole,
+               minField: stop when |B| falls below this (a neutral
+                     point: the repel-geometry stagnation) }
+       Returns { pts, closed: reached a body/capture (not the frame) }.  */
+    traceFieldLine: function (x0, y0, opts) {
+      var nP = opts.nPole, sP = opts.sPole;
+      var F = opts.field || function (x, y) {
+        return MagnetismModels.twoPoleFieldAt(x, y, nP[0], nP[1], sP[0], sP[1]);
+      };
+      var h = (opts.h || 2.5) * (opts.dir || 1);
+      var cap = opts.capture || 0;
+      var bb = opts.bounds || [-1e9, -1e9, 1e9, 1e9];
+      var rects = opts.stopRects || [];
+      var minField = opts.minField || 0;
+      var maxSteps = opts.maxSteps || 1600;
+      var pts = [[x0, y0]], x = x0, y = y0, px, py, i, j, b, mx2, my2, b2, r, t, tt;
+      var closed = false;
+      function inRect(qx, qy, rc) {
+        return qx > rc[0] && qx < rc[2] && qy > rc[1] && qy < rc[3];
+      }
+      for (i = 0; i < maxSteps; i++) {
+        b = F(x, y);
+        if (minField && b.mag < minField) break;
+        mx2 = x + b.bx * h / 2; my2 = y + b.by * h / 2;
+        b2 = F(mx2, my2);
+        px = x; py = y;
+        x += b2.bx * h; y += b2.by * h;
+        /* body entry: snap the endpoint onto the boundary crossing      */
+        for (j = 0; j < rects.length; j++) {
+          r = rects[j];
+          if (!inRect(x, y, r) || inRect(px, py, r)) continue;
+          t = 0;
+          if (px <= r[0]) { tt = (r[0] - px) / (x - px); if (tt > t) t = tt; }
+          else if (px >= r[2]) { tt = (r[2] - px) / (x - px); if (tt > t) t = tt; }
+          if (py <= r[1]) { tt = (r[1] - py) / (y - py); if (tt > t) t = tt; }
+          else if (py >= r[3]) { tt = (r[3] - py) / (y - py); if (tt > t) t = tt; }
+          x = px + (x - px) * t; y = py + (y - py) * t;
+          closed = true;
+          break;
+        }
+        pts.push([x, y]);
+        if (closed) break;
+        if (cap && sP &&
+            Math.sqrt((x - sP[0]) * (x - sP[0]) + (y - sP[1]) * (y - sP[1])) <= cap) { closed = true; break; }
+        if (cap && nP && (opts.dir || 1) < 0 &&
+            Math.sqrt((x - nP[0]) * (x - nP[0]) + (y - nP[1]) * (y - nP[1])) <= cap) { closed = true; break; }
+        if (x < bb[0] || y < bb[1] || x > bb[2] || y > bb[3]) break;
+      }
+      return { pts: pts, closed: closed };
+    },
+
+    /* Where a ray from `pole` (inside a body rect) at `ang` (radians,
+       screen coords) exits the rect: the seed point for a field line
+       that must START exactly on the body surface. Returns the boundary
+       point. */
+    rayRectExit: function (pole, ang, rect) {
+      var dx = Math.cos(ang), dy = Math.sin(ang);
+      var t = 1e9, tt;
+      if (dx > 1e-12) { tt = (rect[2] - pole[0]) / dx; if (tt < t) t = tt; }
+      if (dx < -1e-12) { tt = (rect[0] - pole[0]) / dx; if (tt < t) t = tt; }
+      if (dy > 1e-12) { tt = (rect[3] - pole[1]) / dy; if (tt < t) t = tt; }
+      if (dy < -1e-12) { tt = (rect[1] - pole[1]) / dy; if (tt < t) t = tt; }
+      return [pole[0] + dx * t, pole[1] + dy * t];
+    },
 
     /* 2D dipole field direction at point (px,py) for a bar magnet whose
        moment points along unit (mx,my) from centre (cx,cy):
@@ -353,73 +466,137 @@
   function fp(p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }
 
   /* 1. bar_magnet_field
-     params { poles:"NS"|"SN", show_field:true, variant:
-              "correct" | "reversed_arrows" | "crossing" | "through_magnet"
-              | "lopsided" | "not_reaching" }
-     Physics: closed loops N->S OUTSIDE the magnet, never crossing, never
-     stopping short, denser near the poles (the nested loops). The
-     distractor variants break exactly one rule each, for the MCQ "which
-     drawing is correct?" items the dispatch names.                        */
+     params { poles:"NS"|"SN", show_field:true, markable,
+              closed_angles:[64,76,88], open_angles:[45], inset:15,
+              variant: "correct" | "reversed_arrows" | "crossing"
+                       | "through_magnet" | "lopsided" | "not_reaching" }
+     CORRECTNESS BY CONSTRUCTION (Smith, 2026-06-11: the hand-drawn loops
+     were wrong, they joined top face to top face). Every line here is a
+     TRACED STREAMLINE of the two-pole model
+     (MagnetismModels.twoPoleFieldAt / traceFieldLine): lines leave the
+     N pole FACE, fan out, arc round, and converge into the S pole FACE;
+     they cannot cross, they bunch at the poles, and the wide fanning
+     lines are clipped by the frame exactly as in the textbook figure.
+     closed_angles = launch angles (degrees from the outward axis) of the
+     loops that close inside the frame; open_angles = shallower launches
+     drawn as frame-clipped fan lines (each gets its matching re-entry
+     piece at the S pole); plus the two axial separatrix stubs.
+     Distractor variants deform these computed polylines, so each breaks
+     exactly ONE rule against an otherwise correct field.                 */
   function bar_magnet_field(p) {
     p = p || {};
-    var W = 360, H = 250;
+    var W = 420, H = 340;
     var svg = makeSVG(W, H, "Bar magnet and its magnetic field");
     var poles = p.poles === "SN" ? "SN" : "NS";
     var variant = p.variant || "correct";
-    var nLeft = poles === "NS";
-    svg.appendChild(magnet(125, 103, 110, 44, poles, { markable: p.markable }));
+    var MX = 155, MY = 148, MW = 110, MH = 44;          /* magnet box      */
+    var AX = MY + MH / 2;                                /* axis y          */
+    svg.appendChild(magnet(MX, MY, MW, MH, poles, { markable: p.markable }));
     if (p.show_field === false) return svg;
 
-    var TOPS = [
-      { s: [122, 101], c1: [88, 88], c2: [88, 52], a: [180, 46] },
-      { s: [120, 99],  c1: [60, 82], c2: [60, 26], a: [180, 24] },
-      { s: [118, 97],  c1: [30, 74], c2: [30, 12], a: [180, 10] }
-    ];
-    if (variant === "crossing") {      /* inner and middle loops swap reach */
-      var t = TOPS[0].a[1]; TOPS[0].a[1] = TOPS[1].a[1]; TOPS[1].a[1] = t;
-      t = TOPS[0].c2[1]; TOPS[0].c2[1] = TOPS[1].c2[1]; TOPS[1].c2[1] = t;
-    }
-    var gapOff = variant === "not_reaching" ? 13 : 0;
-    function lx(x) { return variant === "lopsided" ? 180 + (x - 180) * 0.82 - 34 : x; }
+    var inset = p.inset == null ? 15 : p.inset;
+    var nP = [MX + inset, AX], sP = [MX + MW - inset, AX];
+    var midX = (nP[0] + sP[0]) / 2;
+    var bounds = [12, 10, W - 12, H - 10];
+    var R = [MX, MY, MX + MW, MY + MH];                  /* the solid body */
+    var closedPhis = p.closed_angles || [64, 76, 88];
+    var openPhis = p.open_angles || [45];
+    var T = MagnetismModels.traceFieldLine;
+    var topts = { nPole: nP, sPole: sP, bounds: bounds, stopRects: [R] };
 
-    function loopD(L, bottom) {
-      function pt(q, mir, anchor) {
-        var x = mir ? W - q[0] : q[0], y = bottom ? H - q[1] : q[1];
-        return [anchor ? x : lx(x), y];
-      }
-      var s = pt(L.s, 0, 1), c1 = pt(L.c1), c2 = pt(L.c2), a = pt(L.a);
-      var c2m = pt(L.c2, 1), c1m = pt(L.c1, 1), sm = pt(L.s, 1, 1);
-      if (gapOff) {
-        s[0] -= gapOff; sm[0] += gapOff;
-        s[1] += bottom ? 7 : -7; sm[1] += bottom ? 7 : -7;
-      }
-      return "M" + fp(s) + " C" + fp(c1) + " " + fp(c2) + " " + fp(a) +
-             " C" + fp(c2m) + " " + fp(c1m) + " " + fp(sm);
+    /* gather pieces: { pts, atStart, atEnd } (true = that end is ON the
+       magnet surface). Seeds sit exactly on the boundary (rayRectExit),
+       so lines START on the magnet; stopRects snaps the far end ONTO the
+       boundary, so lines END on the magnet: no gaps, no dives inside.   */
+    var pieces = [];
+    function tracedFrom(pole, phi, sgn, dir) {
+      var a = (180 - phi) * Math.PI / 180;
+      var ang = Math.atan2(-sgn * Math.sin(a), Math.cos(a));
+      if (dir === -1) ang = Math.atan2(-sgn * Math.sin(a), -Math.cos(a));
+      var sd = MagnetismModels.rayRectExit(pole, ang, R);
+      var sd2 = [sd[0] + Math.cos(ang) * 0.6, sd[1] + Math.sin(ang) * 0.6];
+      var t = T(sd2[0], sd2[1], { nPole: nP, sPole: sP, bounds: bounds,
+                                  stopRects: [R], dir: dir || 1 });
+      t.pts.unshift(sd);                       /* exact boundary point    */
+      if (dir === -1) t.pts.reverse();         /* pts follow the field    */
+      return t;
+    }
+    [1, -1].forEach(function (sgn) {
+      closedPhis.forEach(function (phi) {
+        pieces.push({ pts: tracedFrom(nP, phi, sgn, 1).pts, atStart: true, atEnd: true });
+      });
+      openPhis.forEach(function (phi) {
+        pieces.push({ pts: tracedFrom(nP, phi, sgn, 1).pts, atStart: true, atEnd: false });
+        pieces.push({ pts: tracedFrom(sP, phi, sgn, -1).pts, atStart: false, atEnd: true });
+      });
+    });
+    pieces.push({ pts: tracedFrom(nP, 0, 1, 1).pts, atStart: true, atEnd: false });
+    pieces.push({ pts: tracedFrom(sP, 0, 1, -1).pts, atStart: false, atEnd: true });
+
+    /* ---- variant deformations of the computed polylines ----
+       Deformations are ARC-WEIGHTED (zero at any end that sits on the
+       magnet) so the corrected touch-the-magnet endpoints survive every
+       distractor except not_reaching, whose whole point is the gap.     */
+    function warp(pc, fn) {
+      var n = pc.pts.length;
+      pc.pts = pc.pts.map(function (q, i) {
+        var u = n > 1 ? i / (n - 1) : 0;
+        var w = (pc.atStart && pc.atEnd) ? Math.sin(Math.PI * u)
+              : pc.atStart ? u : pc.atEnd ? 1 - u : 1;
+        return fn(q, w);
+      });
+    }
+    if (variant === "crossing" && closedPhis.length > 1) {
+      /* middle loop inflated so it crosses its outer neighbour: breaks
+         ONLY the never-cross rule */
+      [1, 1 + closedPhis.length + 2 * openPhis.length].forEach(function (idx) {
+        warp(pieces[idx], function (q, w) {
+          return [q[0], AX + (q[1] - AX) * (1 + 0.62 * w)];
+        });
+      });
+    }
+    if (variant === "lopsided") {
+      pieces.forEach(function (pc) {
+        pc.pts = pc.pts.map(function (q) {
+          var gx = 0.55 - 1.0 * clamp((q[0] - 40) / (W - 80), 0, 1);
+          var ddx = Math.max(R[0] - q[0], 0, q[0] - R[2]);
+          var ddy = Math.max(R[1] - q[1], 0, q[1] - R[3]);
+          var wd = clamp(Math.sqrt(ddx * ddx + ddy * ddy) / 90, 0, 1);
+          return [q[0], AX + (q[1] - AX) * (1 + gx * wd)];
+        });
+      });
+    }
+    if (variant === "not_reaching") {
+      pieces.forEach(function (pc) {
+        var n = pc.pts.length, k = Math.max(5, Math.round(n * 0.13));
+        pc.pts = pc.pts.slice(pc.atStart ? k : 0, pc.atEnd ? n - k : n);
+      });
+    }
+    if (poles === "SN") {
+      pieces.forEach(function (pc) {
+        pc.pts = pc.pts.map(function (q) { return [W - q[0], q[1]]; });
+      });
     }
 
-    var fwd = nLeft ? 0 : Math.PI;                  /* apex arrows point N -> S */
-    if (variant === "reversed_arrows") fwd = fwd === 0 ? Math.PI : 0;
-    var i, L;
-    for (i = 0; i < TOPS.length; i++) {
-      L = TOPS[i];
-      svg.appendChild(path(loopD(L, false), { width: i === 0 ? 1.9 : 1.6 }));
-      svg.appendChild(path(loopD(L, true),  { width: i === 0 ? 1.9 : 1.6 }));
-      svg.appendChild(arrowHead(lx(L.a[0]), L.a[1], fwd, 7.5, C.ink));
-      svg.appendChild(arrowHead(lx(L.a[0]), H - L.a[1], fwd, 7.5, C.ink));
-    }
-    /* axial lines: out of N along the axis, into S along the axis */
-    var axDir = nLeft ? Math.PI : 0;                /* both point away from N side */
-    if (variant === "reversed_arrows") axDir = axDir === 0 ? Math.PI : 0;
-    svg.appendChild(line(44, 125, 118 - gapOff, 125, { width: 1.6 }));
-    svg.appendChild(line(242 + gapOff, 125, 316, 125, { width: 1.6 }));
-    svg.appendChild(arrowHead(78, 125, axDir, 7.5, C.ink));
-    svg.appendChild(arrowHead(282, 125, axDir, 7.5, C.ink));
+    /* ---- draw ---- */
+    pieces.forEach(function (pc) {
+      var pts = pc.pts;
+      if (pts.length < 4) return;
+      var d = "", i;
+      for (i = 0; i < pts.length; i += 2)
+        d += (i ? "L" : "M") + pts[i][0].toFixed(1) + "," + pts[i][1].toFixed(1);
+      svg.appendChild(path(d, { width: 1.7 }));
+      var m = Math.floor(pts.length / 2);
+      var ang = Math.atan2(pts[m + 1][1] - pts[m - 1][1], pts[m + 1][0] - pts[m - 1][0]);
+      if (variant === "reversed_arrows") ang += Math.PI;
+      svg.appendChild(arrowHead(pts[m][0], pts[m][1], ang, 7.5, C.ink));
+    });
 
     if (variant === "through_magnet") {
-      var thrDir = nLeft ? 0 : Math.PI;
-      [112, 125, 138].forEach(function (y) {
-        svg.appendChild(line(128, y, 232, y, { width: 1.6 }));
-        svg.appendChild(arrowHead(184, y, thrDir, 7, C.ink));
+      var thrDir = poles === "NS" ? 0 : Math.PI;
+      [MY + 9, AX, MY + MH - 9].forEach(function (y) {
+        svg.appendChild(line(MX + 3, y, MX + MW - 3, y, { width: 1.6 }));
+        svg.appendChild(arrowHead(MX + MW / 2 + 4, y, thrDir, 7, C.ink));
       });
     }
     return svg;
@@ -447,14 +624,14 @@
       var y = ys[i];
       if (variant === "curved") {
         var bow = (i === 0) ? -26 : (i === 2 ? 26 : 0);
-        svg.appendChild(path("M84," + y + " C160," + (y + bow) + " 200," + (y + bow) + " 276," + y, { width: 1.8 }));
+        svg.appendChild(path("M80," + y + " C160," + (y + bow) + " 200," + (y + bow) + " 280," + y, { width: 1.8 }));
         svg.appendChild(arrowHead(180, y + bow * 0.74, dir, 7.5, C.ink));
       } else if (variant === "not_parallel") {
         var y2 = (i === 0) ? y - 16 : (i === 2 ? y + 16 : y);
-        svg.appendChild(line(84, y, 276, y2, { width: 1.8 }));
+        svg.appendChild(line(80, y, 280, y2, { width: 1.8 }));
         svg.appendChild(arrowHead(184, (y + y2) / 2 + 1, dir + (nLeft ? Math.atan2(y2 - y, 192) : -Math.atan2(y2 - y, 192)), 7.5, C.ink));
       } else {
-        svg.appendChild(line(84, y, 276, y, { width: 1.8 }));
+        svg.appendChild(line(80, y, 280, y, { width: 1.8 }));
         svg.appendChild(arrowHead(184, y, dir, 7.5, C.ink));
       }
     }
@@ -465,70 +642,113 @@
      params { orientation:"attract"|"repel",
               facing: attract "NS"(default)|"SN"; repel "NN"(default)|"SS",
               variant: "correct" | "reversed_arrows" | "wrong_poles" }
-     Physics: unlike poles facing -> lines LINK across the gap (tension
-     along lines pulls the magnets together); like poles facing -> lines
-     bow AWAY and a neutral point of zero field sits midway between them.
-     wrong_poles keeps the line geometry but swaps the right magnet's
-     labels: the field drawn cannot belong to those poles.                */
+     TRACED, like bar_magnet_field (Smith's stop-at-the-magnet rule):
+     the two magnets are FOUR point poles (multiPoleFieldAt); every line
+     is a traced streamline seeded exactly ON one magnet's surface and
+     stopped exactly ON whichever body it meets (stopRects). Attract:
+     gap lines run face to face, return loops arc over both magnets into
+     the far ends. Repel: lines bow away from the midline and loop back
+     into the SAME magnet's far pole; the two axial gap stubs DIE AT THE
+     NEUTRAL POINT, found by the tracer as the field-zero (minField),
+     not drawn by hand. wrong_poles swaps only the right magnet's
+     labels: the drawn field cannot belong to those poles.               */
   function two_magnets_field(p) {
     p = p || {};
-    var W = 380, H = 240;
+    var W = 440, H = 300;
     var svg = makeSVG(W, H, "Field between two bar magnets");
     var orient = p.orientation === "repel" ? "repel" : "attract";
     var facing = p.facing || (orient === "attract" ? "NS" : "NN");
     var variant = p.variant || "correct";
+    var AX = 150, inset = 12;
+    var RL = [40, 128, 140, 172], RR = [300, 128, 400, 172];
 
     /* pole strings so the FACING ends carry `facing` */
     var leftPoles = (facing.charAt(0) === "N") ? "SN" : "NS";
     var rightPoles = (facing.charAt(1) === "N") ? "NS" : "SN";
-    if (variant === "wrong_poles")
-      rightPoles = rightPoles === "NS" ? "SN" : "NS";
-    svg.appendChild(magnet(20, 98, 110, 44, leftPoles));
-    svg.appendChild(magnet(250, 98, 110, 44, rightPoles));
+    var rightLabel = (variant === "wrong_poles")
+      ? (rightPoles === "NS" ? "SN" : "NS") : rightPoles;
+    svg.appendChild(magnet(RL[0], RL[1], 100, 44, leftPoles));
+    svg.appendChild(magnet(RR[0], RR[1], 100, 44, rightLabel));
 
-    var rev = variant === "reversed_arrows";
+    /* the four point poles [x, y, q] */
+    var sgn = function (c) { return c === "N" ? 1 : -1; };
+    var POLES = [
+      [RL[0] + inset, AX, sgn(leftPoles.charAt(0))],
+      [RL[2] - inset, AX, sgn(leftPoles.charAt(1))],
+      [RR[0] + inset, AX, sgn(rightPoles.charAt(0))],
+      [RR[2] - inset, AX, sgn(rightPoles.charAt(1))]
+    ];
+    var F4 = function (x, y) { return MagnetismModels.multiPoleFieldAt(x, y, POLES); };
+    var bounds = [10, 8, W - 10, H - 8];
+    var T = MagnetismModels.traceFieldLine;
+
+    var pieces = [];
+    /* fan of traced lines from one pole's body surface.
+       outDeg: the pole's outward axis direction (0 = +x, 180 = -x);
+       dir +1 from a N pole (with the field), -1 into a S pole.          */
+    function fan(poleIdx, outDeg, list, dir, useMinField) {
+      var pole = POLES[poleIdx];
+      var rect = poleIdx < 2 ? RL : RR;
+      list.forEach(function (phi) {
+        var ang = (outDeg + phi) * Math.PI / 180;
+        var sd = MagnetismModels.rayRectExit([pole[0], pole[1]], ang, rect);
+        var t = T(sd[0] + Math.cos(ang) * 0.6, sd[1] + Math.sin(ang) * 0.6,
+          { field: F4, stopRects: [RL, RR], bounds: bounds, dir: dir,
+            minField: useMinField ? 9e-6 : 0 });
+        t.pts.unshift(sd);
+        if (dir === -1) t.pts.reverse();
+        pieces.push({ pts: t.pts });
+      });
+    }
+    var GAP_FAN = [0, 33, -33, 52, -52];   /* land face-to-face (<57deg) */
+    var OWN = [76, -76];                    /* each magnet's return loops */
     if (orient === "attract") {
-      /* gap lines left->right when left face is N */
-      var dir = (facing.charAt(0) === "N") ? 0 : Math.PI;
-      if (rev) dir = dir === 0 ? Math.PI : 0;
-      svg.appendChild(path("M132,108 C170,99 210,99 248,108", { width: 1.8 }));
-      svg.appendChild(line(132, 120, 248, 120, { width: 1.8 }));
-      svg.appendChild(path("M132,132 C170,141 210,141 248,132", { width: 1.8 }));
-      svg.appendChild(arrowHead(192, 102.2, dir, 7.5, C.ink));
-      svg.appendChild(arrowHead(192, 120, dir, 7.5, C.ink));
-      svg.appendChild(arrowHead(192, 137.8, dir, 7.5, C.ink));
-      /* long return loops over the top and bottom (outer N end to outer S end) */
-      var outDir = (facing.charAt(0) === "N") ? Math.PI : 0;   /* apex arrow */
-      if (rev) outDir = outDir === 0 ? Math.PI : 0;
-      svg.appendChild(path("M354,94 C312,18 68,18 26,94", { width: 1.6 }));
-      svg.appendChild(path("M354,146 C312,222 68,222 26,146", { width: 1.6 }));
-      svg.appendChild(arrowHead(190, 37, outDir, 7.5, C.ink));
-      svg.appendChild(arrowHead(190, 203, outDir, 7.5, C.ink));
-    } else {
-      /* repel: lines leave each facing pole and bow away; neutral point  */
-      var away = facing === "NN";                  /* arrows away from N */
-      var aOut = rev ? !away : away;
-      function bentPair(x0, sgn) {
-        /* sgn +1 = right magnet (curves toward the right side outward)   */
-        var d1 = "M" + (x0) + ",106 C" + (x0 - sgn * 26) + ",96 " + (x0 - sgn * 40) + ",78 " + (x0 - sgn * 44) + ",50";
-        var d2 = "M" + (x0) + ",134 C" + (x0 - sgn * 26) + ",144 " + (x0 - sgn * 40) + ",162 " + (x0 - sgn * 44) + ",190";
-        svg.appendChild(path(d1, { width: 1.8 }));
-        svg.appendChild(path(d2, { width: 1.8 }));
-        var angUp = aOut ? Math.atan2(-28, -sgn * 4) : Math.atan2(28, sgn * 4);
-        var angDn = aOut ? Math.atan2(28, -sgn * 4) : Math.atan2(-28, sgn * 4);
-        svg.appendChild(arrowHead(x0 - sgn * 44, 50, angUp, 7.5, C.ink));
-        svg.appendChild(arrowHead(x0 - sgn * 44, 190, angDn, 7.5, C.ink));
-        /* short axial stub dying out toward the neutral point            */
-        svg.appendChild(line(x0, 120, x0 - sgn * 36, 120, { width: 1.8 }));
-        svg.appendChild(arrowHead(aOut ? x0 - sgn * 30 : x0 - sgn * 8, 120, aOut ? (sgn > 0 ? Math.PI : 0) : (sgn > 0 ? 0 : Math.PI), 7.5, C.ink));
+      if (facing.charAt(0) === "N") {
+        fan(1, 0, GAP_FAN, 1, false);      /* L facing N: 5 linking lines */
+        fan(1, 0, OWN, 1, false);          /* left magnet's own loops     */
+        fan(3, 0, [0].concat(OWN), 1, false); /* right own loops + axial  */
+        fan(0, 180, [0], -1, false);       /* into L far S: axial stub    */
+      } else {                              /* facing "SN": mirror image  */
+        fan(2, 180, GAP_FAN, 1, false);    /* R facing N: 5 linking lines */
+        fan(2, 180, OWN, 1, false);        /* right magnet's own loops    */
+        fan(0, 180, [0].concat(OWN), 1, false); /* left own loops + axial */
+        fan(3, 0, [0], -1, false);         /* into R far S: axial stub    */
       }
-      bentPair(132, -1);
-      bentPair(248, 1);
-      if (variant !== "wrong_poles") {
-        svg.appendChild(line(184, 114, 196, 126, { color: C.accent, width: 2 }));
-        svg.appendChild(line(196, 114, 184, 126, { color: C.accent, width: 2 }));
-        svg.appendChild(txt(190, 146, "neutral point", { "text-anchor": "middle", "font-size": 10.5, fill: C.accent }));
-      }
+    } else if (facing === "NN") {
+      var GAP_FAN_R = [0, 35, -35, 65, -65];
+      fan(1, 0, GAP_FAN_R, 1, true);       /* both facing N fans bow away */
+      fan(2, 180, GAP_FAN_R, 1, true);
+      fan(0, 180, [0], -1, false);         /* incoming axials at far S's  */
+      fan(3, 0, [0], -1, false);
+    } else {                                /* repel SS                   */
+      var FAR_FAN_R = [0, 32, -32, 60, -60];
+      fan(0, 180, FAR_FAN_R, 1, false);    /* far N fans loop round       */
+      fan(3, 0, FAR_FAN_R, 1, false);
+      fan(1, 0, [0], -1, true);            /* gap axials INTO facing S's, */
+      fan(2, 180, [0], -1, true);          /* dying at the neutral point  */
+    }
+
+    /* ---- draw ---- */
+    pieces.forEach(function (pc) {
+      var pts = pc.pts;
+      if (pts.length < 4) return;
+      var d = "", i;
+      for (i = 0; i < pts.length; i += 2)
+        d += (i ? "L" : "M") + pts[i][0].toFixed(1) + "," + pts[i][1].toFixed(1);
+      if ((pts.length - 1) % 2 !== 0)
+        d += "L" + pts[pts.length - 1][0].toFixed(1) + "," + pts[pts.length - 1][1].toFixed(1);
+      svg.appendChild(path(d, { width: 1.7 }));
+      var m = Math.floor(pts.length / 2);
+      var ang = Math.atan2(pts[m + 1][1] - pts[m - 1][1], pts[m + 1][0] - pts[m - 1][0]);
+      if (variant === "reversed_arrows") ang += Math.PI;
+      svg.appendChild(arrowHead(pts[m][0], pts[m][1], ang, 7.5, C.ink));
+    });
+
+    if (orient === "repel" && variant !== "wrong_poles") {
+      var nx = (RL[2] + RR[0]) / 2;
+      svg.appendChild(line(nx - 6, AX - 6, nx + 6, AX + 6, { color: C.accent, width: 2 }));
+      svg.appendChild(line(nx + 6, AX - 6, nx - 6, AX + 6, { color: C.accent, width: 2 }));
+      svg.appendChild(txt(nx, AX + 26, "neutral point", { "text-anchor": "middle", "font-size": 10.5, fill: C.accent }));
     }
     return svg;
   }
@@ -1014,7 +1234,7 @@
       svg.appendChild(txt(x2 + wdt / 2, y + h / 2 + 6, nLeft ? "S" : "N", { "font-size": 17, "font-weight": 700, fill: C.ink, "text-anchor": "middle" }));
       [0.25, 0.55, 0.85].forEach(function (f) {
         var yy = y + h * f;
-        svg.appendChild(line(x1 + wdt + 6, yy, x2 - 6, yy, { color: C.muted, width: 1.2 }));
+        svg.appendChild(line(x1 + wdt, yy, x2, yy, { color: C.muted, width: 1.2 }));
         svg.appendChild(arrowHead(nLeft ? x2 - 24 : x1 + wdt + 24, yy, nLeft ? 0 : Math.PI, 6.5, C.muted));
       });
     }
@@ -1114,7 +1334,7 @@
     svg.appendChild(txt(46, 156, nLeft ? "N" : "S", { "font-size": 17, "font-weight": 700, fill: C.ink, "text-anchor": "middle" }));
     svg.appendChild(txt(374, 156, nLeft ? "S" : "N", { "font-size": 17, "font-weight": 700, fill: C.ink, "text-anchor": "middle" }));
     [104, 150, 196].forEach(function (y) {
-      svg.appendChild(line(80, y, 340, y, { color: C.muted, width: 1.1 }));
+      svg.appendChild(line(72, y, 348, y, { color: C.muted, width: 1.1 }));
       svg.appendChild(arrowHead(nLeft ? 322 : 98, y, nLeft ? 0 : Math.PI, 6.5, C.muted));
     });
 
@@ -1195,20 +1415,182 @@
     dc_motor: dc_motor
   };
 
-  /* Interactive kinds land after the Housing contract exchange
-     (inter_chat/Widgets_Housing_interactive_67.md): direction-pick over
-     flemings_lhr / motor_effect_setup / dc_motor scoring through
-     MagnetismModels.scoreDirection, and pole-marking over
-     solenoid_field / induced_magnetism / bar_magnet_field scoring
-     through MagnetismModels.scorePoles. The scorers are pure and already
-     exported, so Housing can re-score stored attempts headless.          */
+  /* ================= INTERACTIVE (d042 contract, d035 qtype) ============= */
+  /* Pure score wrappers first: the engine can re-score stored attempts
+     headless through these, exactly like ForcesModels.scoreResolve.
+     d035 ruling: errorCodes ARE misconception slugs. cfg.errorCodeMap
+     lets an ITEM re-home a generic widget code onto a registered subject
+     slug (e.g. poles_reversed -> induced_magnet_expected_to_repel on an
+     induced-nail item) without forking the scorer.                       */
+  function applyCodeMap(res, map) {
+    if (map) res.errorCodes = res.errorCodes.map(function (c) { return map[c] || c; });
+    return res;
+  }
+  /* flhr_direction: expected is DERIVED from the given current+field via
+     the FLHR cross product (or grip rule when circulation:true), so an
+     item cannot contradict the rule; cfg.expected overrides if an author
+     really wants to (e.g. a force-on-magnet N3 item).                    */
+  MagnetismModels.scoreFlhrDirection = function (answer, cfg) {
+    cfg = cfg || {};
+    var expected = cfg.expected ||
+      (cfg.circulation ? MagnetismModels.wireCirculation(cfg.current || "out")
+                       : MagnetismModels.flhr(cfg.current, cfg.field));
+    var res = MagnetismModels.scoreDirection(answer, {
+      expected: expected, current: cfg.current, field: cfg.field, marks: cfg.marks });
+    return applyCodeMap(res, cfg.errorCodeMap);
+  };
+  /* mark_poles: expected derived from the stimulus params
+     (solenoid/electromagnet: grip rule on top_current; induced nail:
+     opposite-near). cfg.expected overrides.                              */
+  MagnetismModels.expectedPoles = function (cfg) {
+    cfg = cfg || {};
+    if (cfg.expected) return cfg.expected;
+    var stim = cfg.stimulus || {};
+    var prm = stim.params || {};
+    if (stim.kind === "induced_magnetism") {
+      var pole = prm.pole === "S" ? "S" : "N";
+      return { near: MagnetismModels.inducedPole(pole), far: pole };
+    }
+    var nEnd = MagnetismModels.solenoidNEnd(prm.top_current === "in" ? "in" : "out");
+    return nEnd === "right" ? { left: "S", right: "N" } : { left: "N", right: "S" };
+  };
+  MagnetismModels.scoreMarkPoles = function (answer, cfg) {
+    cfg = cfg || {};
+    var res = MagnetismModels.scorePoles(answer, {
+      expected: MagnetismModels.expectedPoles(cfg), marks: cfg.marks });
+    return applyCodeMap(res, cfg.errorCodeMap);
+  };
+
+  /* ----------------------- widget factories (DOM) ----------------------- */
+  function mountStimulus(host, stim, fallback) {
+    var s = stim || fallback;
+    var r = registry[s.kind] ||
+            (typeof window !== "undefined" && window.TOPIC_DIAGRAMS && window.TOPIC_DIAGRAMS[s.kind]);
+    if (r) host.appendChild(r(s.params || {}));
+  }
+  var DIR_OPTIONS = [
+    ["up", "\u2191 up"], ["down", "\u2193 down"], ["left", "\u2190 left"],
+    ["right", "\u2192 right"], ["out", "\u2299 out of page"], ["in", "\u2297 into page"]
+  ];
+  var SENSE_OPTIONS = [["anticlockwise", "\u21BA anticlockwise"], ["clockwise", "\u21BB clockwise"]];
+
+  /* config { stimulus:{kind,params}, prompt, current, field,
+              circulation:false, options:[subset], expected?, marks,
+              errorCodeMap }                                              */
+  function widget_flhr_direction(host, config) {
+    config = config || {};
+    host.innerHTML = "";
+    var wrap = document.createElement("div");
+    host.appendChild(wrap);
+    mountStimulus(wrap, config.stimulus, { kind: "flemings_lhr", params: { blanks: ["thumb"] } });
+    var q = document.createElement("div");
+    q.style.cssText = "font:13px var(--sans, system-ui);margin:8px 0 4px";
+    q.textContent = config.prompt || "Which direction is the force?";
+    wrap.appendChild(q);
+    var chosen = null, btns = [];
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;flex-wrap:wrap;gap:6px";
+    wrap.appendChild(row);
+    var opts = config.circulation ? SENSE_OPTIONS : DIR_OPTIONS;
+    if (config.options) opts = opts.filter(function (o) { return config.options.indexOf(o[0]) >= 0; });
+    opts.forEach(function (o) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("data-dir", o[0]);
+      b.textContent = o[1];
+      b.style.cssText = "font:13px var(--sans, system-ui);padding:6px 10px;cursor:pointer;" +
+        "border:1.5px solid #8c8579;border-radius:6px;background:#fffdf6";
+      b.addEventListener("click", function () {
+        chosen = o[0];
+        for (var i = 0; i < btns.length; i++) {
+          btns[i].style.outline = "none"; btns[i].style.background = "#fffdf6";
+        }
+        b.style.outline = "2px solid #b03030";
+        b.style.background = "rgba(176,48,48,.08)";
+      });
+      btns.push(b);
+      row.appendChild(b);
+    });
+    return {
+      getAnswer: function () { return { direction: chosen }; },
+      score: function (answer, cfg) { return MagnetismModels.scoreFlhrDirection(answer, cfg || config); },
+      destroy: function () { host.innerHTML = ""; }
+    };
+  }
+
+  /* config { stimulus:{kind,params} (default markable solenoid),
+              slots:["left","right"] (default from expected), labels?,
+              expected?, marks, errorCodeMap }                            */
+  function widget_mark_poles(host, config) {
+    config = config || {};
+    host.innerHTML = "";
+    var stimDefault = { kind: "solenoid_field", params: { show_poles: "markable" } };
+    var stim = config.stimulus || stimDefault;
+    var wrap = document.createElement("div");
+    host.appendChild(wrap);
+    mountStimulus(wrap, stim);
+    var expected = MagnetismModels.expectedPoles({ stimulus: stim, expected: config.expected });
+    var slots = config.slots || (function (o) {
+      var ks = [], k; for (k in o) if (o.hasOwnProperty(k)) ks.push(k); return ks;
+    })(expected);
+    var state = {};
+    slots.forEach(function (slot) {
+      var rowEl = document.createElement("div");
+      rowEl.style.cssText = "display:flex;align-items:center;gap:8px;margin:6px 0;font:13px var(--sans, system-ui)";
+      var lab = document.createElement("span");
+      lab.textContent = (config.labels && config.labels[slot]) || (slot.replace(/_/g, " ") + " end:");
+      rowEl.appendChild(lab);
+      var pair = [];
+      ["N", "S"].forEach(function (p) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("data-slot", slot);
+        b.setAttribute("data-pole", p);
+        b.textContent = p;
+        b.style.cssText = "font:700 13px var(--sans, system-ui);padding:5px 12px;cursor:pointer;" +
+          "border:1.5px solid #8c8579;border-radius:6px;background:#fffdf6";
+        b.addEventListener("click", function () {
+          state[slot] = p;
+          for (var i = 0; i < pair.length; i++) {
+            pair[i].style.outline = "none"; pair[i].style.background = "#fffdf6";
+          }
+          b.style.outline = "2px solid #b03030";
+          b.style.background = "rgba(176,48,48,.08)";
+        });
+        pair.push(b);
+        rowEl.appendChild(b);
+      });
+      wrap.appendChild(rowEl);
+    });
+    return {
+      getAnswer: function () {
+        var out = {}, i;
+        for (i = 0; i < slots.length; i++) out[slots[i]] = state[slots[i]] || null;
+        return { poles: out };
+      },
+      score: function (answer, cfg) {
+        cfg = cfg || config;
+        return MagnetismModels.scoreMarkPoles(answer, {
+          expected: cfg.expected, stimulus: cfg.stimulus || stimDefault,
+          marks: cfg.marks, errorCodeMap: cfg.errorCodeMap });
+      },
+      destroy: function () { host.innerHTML = ""; }
+    };
+  }
+
+  var interactive = {
+    flhr_direction: widget_flhr_direction,
+    mark_poles: widget_mark_poles
+  };
 
   if (typeof window !== "undefined") {
     window.TOPIC_DIAGRAMS = window.TOPIC_DIAGRAMS || {};
     for (var k in registry) if (registry.hasOwnProperty(k)) window.TOPIC_DIAGRAMS[k] = registry[k];
+    window.TOPIC_WIDGETS = window.TOPIC_WIDGETS || {};
+    for (var k2 in interactive) if (interactive.hasOwnProperty(k2)) window.TOPIC_WIDGETS[k2] = interactive[k2];
     window.MAGNETISM_MODELS = MagnetismModels;
   }
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { registry: registry, Models: MagnetismModels };
+    module.exports = { registry: registry, Models: MagnetismModels, interactive: interactive };
   }
 })(typeof globalThis !== "undefined" ? globalThis : this);

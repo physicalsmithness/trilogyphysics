@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bar_magnet_field lab - Trilogy Physics 6.7</title>
+<style>
+  :root { --ink:#1a1a17; --ink-2:#4d4943; --muted:#8c8579; --paper:#fffdf6;
+          --bg:#faf6ed; --accent:#b03030; --ok:#2d6a3f; --line-2:rgba(26,26,23,.22);
+          --sans: system-ui, sans-serif; --serif: Georgia, serif; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--serif);
+         margin: 0; padding: 24px; display: flex; gap: 28px; flex-wrap: wrap; }
+  #view { background: var(--paper); border: 1px solid var(--line-2); border-radius: 8px;
+          padding: 14px; width: 440px; }
+  #panel { font-family: var(--sans); font-size: 13px; min-width: 300px; max-width: 360px; }
+  #panel h1 { font-size: 1.1rem; font-family: var(--serif); }
+  .row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+  .row label { width: 130px; }
+  .row input[type=range] { flex: 1; }
+  .row output { width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  select { font: 13px var(--sans); padding: 3px; }
+  pre { background: #f3eee2; padding: 10px; border-radius: 6px; font-size: 11.5px;
+        white-space: pre-wrap; }
+  .note { color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="panel">
+  <h1>bar_magnet_field tuning lab</h1>
+  <p class="note">Every line is a traced streamline of the two-pole model
+  (lines leave the N face, enter the S face, cannot cross). Tune the launch
+  angles and pole inset by eye; copy the params block into items or into the
+  renderer defaults.</p>
+  <div class="row"><label>loop angle 1 (outer)</label><input type="range" id="a1" min="56" max="74" value="64"><output id="o1">64</output></div>
+  <div class="row"><label>loop angle 2</label><input type="range" id="a2" min="66" max="86" value="76"><output id="o2">76</output></div>
+  <div class="row"><label>loop angle 3 (inner)</label><input type="range" id="a3" min="78" max="100" value="88"><output id="o3">88</output></div>
+  <div class="row"><label>fan line angle</label><input type="range" id="ao" min="20" max="60" value="45"><output id="oo">45</output></div>
+  <div class="row"><label>pole inset / px</label><input type="range" id="ins" min="4" max="34" value="15"><output id="oi">15</output></div>
+  <div class="row"><label>seed radius / px</label><input type="range" id="sr" min="14" max="36" value="24"><output id="os">24</output></div>
+  <div class="row"><label>poles</label>
+    <select id="pp"><option value="NS">N left, S right</option><option value="SN">S left, N right</option></select>
+    <label style="width:auto"><input type="checkbox" id="fan2"> second fan line (+12&#176;)</label>
+  </div>
+  <div class="row"><label>variant</label>
+    <select id="vv">
+      <option value="correct">correct</option>
+      <option value="reversed_arrows">reversed_arrows</option>
+      <option value="crossing">crossing</option>
+      <option value="through_magnet">through_magnet</option>
+      <option value="lopsided">lopsided</option>
+      <option value="not_reaching">not_reaching</option>
+    </select></div>
+  <pre id="params"></pre>
+</div>
+<script src="widgets_core.js"></script>
+<script src="magnetism-diagrams.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ids = ["a1", "a2", "a3", "ao", "ins", "sr"];
+  var outs = { a1: "o1", a2: "o2", a3: "o3", ao: "oo", ins: "oi", sr: "os" };
+  function val(id) { return parseInt(document.getElementById(id).value, 10); }
+  function render() {
+    ids.forEach(function (id) {
+      document.getElementById(outs[id]).textContent = String(val(id));
+    });
+    var open = [val("ao")];
+    if (document.getElementById("fan2").checked) open.push(val("ao") + 12);
+    var params = {
+      poles: document.getElementById("pp").value,
+      variant: document.getElementById("vv").value,
+      closed_angles: [val("a1"), val("a2"), val("a3")],
+      open_angles: open,
+      inset: val("ins"),
+      seed_radius: val("sr")
+    };
+    var host = document.getElementById("view");
+    host.innerHTML = "";
+    host.appendChild(window.TOPIC_DIAGRAMS.bar_magnet_field(params));
+    document.getElementById("params").textContent =
+      JSON.stringify({ kind: "bar_magnet_field", params: params }, null, 2);
+  }
+  ids.forEach(function (id) { document.getElementById(id).addEventListener("input", render); });
+  ["pp", "vv", "fan2"].forEach(function (id) { document.getElementById(id).addEventListener("change", render); });
+  render();
+})();
+</script>
+</body>
+</html>

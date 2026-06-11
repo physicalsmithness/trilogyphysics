@@ -1,0 +1,2484 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waves 6.6 widget playground</title>
+<style>
+  :root{--ink:#1a1a17;--ink-2:#4d4943;--muted:#8c8579;--paper:#fffdf6;--bg:#faf6ed;
+        --accent:#b03030;--ok:#2d6a3f;--line-2:rgba(26,26,23,.22);
+        --sans:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--serif:Georgia,serif}
+  body{margin:0;padding:18px 22px;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+  h1{font-size:19px;margin:0 0 4px} p.sub{color:var(--ink-2);margin:0 0 14px;font-size:13px;max-width:880px}
+  .bar{display:flex;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .bar select{font:14px var(--sans);padding:5px 8px;border:1px solid var(--ink-2);border-radius:6px}
+  .bar label{font-size:13px;color:var(--ink-2)}
+  .wrap{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+  .panel{background:var(--paper);border:1px solid #ddd6c6;border-radius:10px;padding:12px 14px}
+  .panel h2{font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .ctrl{margin-bottom:9px} .ctrl label{display:block;font:12.5px var(--sans);color:var(--ink);margin-bottom:2px;font-weight:600}
+  .ctrl input[type=number],.ctrl input[type=text],.ctrl select{width:100%;box-sizing:border-box;font:13px var(--sans);padding:4px 6px;border:1px solid var(--line-2);border-radius:5px}
+  .ctrl input[type=checkbox]{transform:scale(1.15);margin-left:2px}
+  .ctrl .hint{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.3}
+  #host{min-height:60px;background:var(--paper);border:1px solid #ddd6c6;border-radius:10px;padding:14px}
+  button#mark{margin-top:10px;font:13px var(--sans);padding:6px 16px;border:1px solid var(--ink-2);background:var(--paper);border-radius:6px;cursor:pointer}
+  button#mark:hover{background:#f1ead8}
+  pre{background:#f6f1e4;border:1px solid #e4ddcb;border-radius:8px;padding:10px;font-size:11.5px;white-space:pre-wrap;overflow:auto;margin:10px 0 0}
+  #cfg{color:#3a3630} .err{color:var(--accent);font-size:13px}
+  .st-full{color:var(--ok);font-weight:bold}.st-partial{color:#b07d20;font-weight:bold}.st-none{color:var(--accent);font-weight:bold}
+  .note{font-size:11.5px;color:var(--muted);margin-top:6px}
+</style></head>
+<body>
+<h1>Waves 6.6 - widget playground</h1>
+<p class="sub">Pick a widget on the left. Every control here is an <b>author parameter</b> - change it and the widget updates live.
+The grey box at the bottom shows the exact object an author writes on a question item. Tick <b>Interactive</b> to mount the
+markable version (drag the green handles / pick an answer, then press <b>Mark</b> to see how it is graded). Params marked <b>*</b> only apply in interactive mode.</p>
+<div class="bar">
+  <span><b>Widget:</b></span> <select id="kind"></select>
+  <label><input type="checkbox" id="inter" checked> Interactive (where available)</label>
+</div>
+<div class="wrap">
+  <div class="panel"><h2>Customisable parameters</h2><div id="controls"></div>
+    <div class="note">Anything not listed uses a sensible default. Booleans default off unless shown ticked - so a clean, unmarked diagram is the default.</div></div>
+  <div>
+    <div id="host"></div>
+    <button id="mark">Mark</button>
+    <pre id="score"></pre>
+    <pre id="cfg"></pre>
+  </div>
+</div>
+<script>
+/* =====================================================================
+   Trilogy Physics - widgets_core: shared widget primitives
+   Factored per d026 (widgets are topic-scoped chats on a shared core):
+   one set of graph/axis/arrow primitives for ALL topic widget files,
+   so topic chats build on this rather than forking each other's code.
+
+   Seeded from the 6.2 widget file's primitives (el/txt/makeSVG/
+   arrowHead/graph, unchanged semantics) and extended for 6.5 with:
+     - grid():        graph frame WITH minor/major gridlines and numbered
+                      ticks (5, sometimes 4, small boxes per big box;
+                      readings land ON gridlines)
+     - forceArrow():  labelled vector arrow, head sized with width
+     - shadeSquaresUnder(): square-count shading under a curve
+                      (full squares strong, part squares light)
+     - protractor():  semicircular protractor with two degree scales
+     - makeDraggable(): pointer-event drag helper (browser only)
+     - Maths:         piecewise segment curves, trapezoid area,
+                      numeric gradient, linspace
+   Vanilla SVG, no libraries, mobile-safe, editorial paper-on-ink
+   tokens with hex fallbacks. Dual export: window.WIDGETS_CORE in a
+   browser, module.exports in Node (for headless physics checks).
+
+   Owner note: owned centrally per d026; topic widget files (6.2, 6.5,
+   ...) consume it. Coordinate changes through inter_chat.
+   ===================================================================== */
+(function (root) {
+  "use strict";
+
+  var NS = "http://www.w3.org/2000/svg";
+  var doc = (typeof document !== "undefined") ? document : (root && root.document);
+
+  /* ---- theme tokens (hex fallbacks match app/index.html) ---- */
+  function tok(name, fallback) { return "var(" + name + ", " + fallback + ")"; }
+  var C = {
+    ink:    tok("--ink",   "#1a1a17"),
+    ink2:   tok("--ink-2", "#4d4943"),
+    muted:  tok("--muted", "#8c8579"),
+    paper:  tok("--paper", "#fffdf6"),
+    bg:     tok("--bg",    "#faf6ed"),
+    accent: tok("--accent","#b03030"),
+    ok:     tok("--ok",    "#2d6a3f"),
+    line:   tok("--line-2","rgba(26,26,23,.22)"),
+    gridMinor: "rgba(26,26,23,.10)",
+    gridMajor: "rgba(26,26,23,.26)",
+    shade:     "rgba(176,48,48,.28)",
+    shadeLight:"rgba(176,48,48,.12)"
+  };
+
+  /* ----------------------------- DOM helpers ----------------------------- */
+  function el(tag, attrs, kids) {
+    var n = doc.createElementNS(NS, tag);
+    if (attrs) for (var k in attrs) if (attrs.hasOwnProperty(k)) {
+      if (k === "text") n.textContent = attrs[k];
+      else n.setAttribute(k, String(attrs[k]));
+    }
+    if (kids) for (var i = 0; i < kids.length; i++) if (kids[i]) n.appendChild(kids[i]);
+    return n;
+  }
+  function txt(x, y, s, attrs) {
+    var a = { x: x, y: y, "font-family": "var(--sans, system-ui, sans-serif)",
+              "font-size": 12, fill: C.ink2 };
+    if (attrs) for (var k in attrs) if (attrs.hasOwnProperty(k)) a[k] = attrs[k];
+    var t = el("text", a); t.textContent = s; return t;
+  }
+  function makeSVG(w, h, label) {
+    var s = el("svg", {
+      xmlns: NS, viewBox: "0 0 " + w + " " + h, width: "100%",
+      preserveAspectRatio: "xMidYMid meet", role: "img",
+      "aria-label": label || "", class: "td-svg"
+    });
+    s.setAttribute("style", "max-width:" + w + "px;height:auto;display:block;font-family:var(--serif, Georgia, serif)");
+    s.appendChild(el("title", { text: label || "" }));
+    return s;
+  }
+  function arrowHead(x, y, ang, size, color) {
+    var a1 = ang + Math.PI * 0.86, a2 = ang - Math.PI * 0.86, f = function (v) { return v.toFixed(1); };
+    return el("path", {
+      d: "M" + f(x) + "," + f(y) +
+         " L" + f(x + size * Math.cos(a1)) + "," + f(y + size * Math.sin(a1)) +
+         " L" + f(x + size * Math.cos(a2)) + "," + f(y + size * Math.sin(a2)) + " Z",
+      fill: color, stroke: "none"
+    });
+  }
+
+  /* number formatting that trims float noise: 0.6000000000000001 -> "0.6" */
+  function fmt(v) {
+    if (!isFinite(v)) return "";
+    var r = Math.round(v * 1e6) / 1e6;
+    return String(r);
+  }
+
+  /* ------------------- plain graph frame (6.2 style, no grid) ------------ */
+  /* cfg: {w,h, xmin,xmax,ymin,ymax, xlabel,ylabel, label} -> api
+     Kept behaviour-compatible with the 6.2 file's graph() so the 6.2 chat
+     can migrate onto the core without re-eyeballing its renders.          */
+  function graph(cfg) {
+    var w = cfg.w || 340, h = cfg.h || 250;
+    var m = { l: 40, r: 20, t: 20, b: 36 };
+    var svg = makeSVG(w, h, cfg.label);
+    var X0 = m.l, X1 = w - m.r, Y0 = h - m.b, Y1 = m.t;
+    var px = function (x) { return X0 + (x - cfg.xmin) / (cfg.xmax - cfg.xmin) * (X1 - X0); };
+    var py = function (y) { return Y0 - (y - cfg.ymin) / (cfg.ymax - cfg.ymin) * (Y0 - Y1); };
+    var ax = px(Math.max(cfg.xmin, Math.min(cfg.xmax, 0)));
+    var ay = py(Math.max(cfg.ymin, Math.min(cfg.ymax, 0)));
+
+    var g = el("g");
+    g.appendChild(el("line", { x1: X0, y1: ay, x2: X1, y2: ay, stroke: C.line, "stroke-width": 1.4 }));
+    g.appendChild(arrowHead(X1, ay, 0, 6, C.line));
+    if (cfg.xmin < 0) g.appendChild(arrowHead(X0, ay, Math.PI, 6, C.line));
+    g.appendChild(el("line", { x1: ax, y1: Y0, x2: ax, y2: Y1, stroke: C.line, "stroke-width": 1.4 }));
+    g.appendChild(arrowHead(ax, Y1, -Math.PI / 2, 6, C.line));
+    if (cfg.ymin < 0) g.appendChild(arrowHead(ax, Y0, Math.PI / 2, 6, C.line));
+    g.appendChild(txt(X1 - 2, ay - 8, cfg.xlabel || "", { "text-anchor": "end", fill: C.ink, "font-style": "italic" }));
+    g.appendChild(txt(ax + 7, Y1 + 11, cfg.ylabel || "", { "text-anchor": "start", fill: C.ink, "font-style": "italic" }));
+    if (cfg.xmin < 0 || cfg.ymin < 0) g.appendChild(txt(ax - 4, ay + 12, "0", { "text-anchor": "end", fill: C.muted, "font-size": 10 }));
+    svg.appendChild(g);
+
+    var api = {
+      svg: svg, px: px, py: py,
+      addFn: function (f, a, b, opts) {
+        opts = opts || {};
+        var N = opts.n || 220, d = "", i, x, y, first = true;
+        for (i = 0; i <= N; i++) {
+          x = a + (b - a) * i / N; y = f(x);
+          if (y == null || !isFinite(y)) { first = true; continue; }
+          d += (first ? "M" : "L") + px(x).toFixed(2) + "," + py(y).toFixed(2) + " ";
+          first = false;
+        }
+        svg.appendChild(el("path", {
+          d: d.trim(), fill: "none", stroke: opts.color || C.accent,
+          "stroke-width": opts.width || 2.6, "stroke-linecap": "round", "stroke-linejoin": "round",
+          "stroke-dasharray": opts.dash || "none"
+        }));
+        return api;
+      },
+      add: function (node) { svg.appendChild(node); return api; },
+      note: function (x, y, s, attrs) { svg.appendChild(txt(x, y, s, attrs)); return api; }
+    };
+    return api;
+  }
+
+  /* --------------- gridded graph frame (exam-paper style) ---------------- */
+  /* cfg: { w, h, xmin=0, xmax, ymin=0, ymax,
+            xstep, ystep            big-box value steps (ticks numbered here)
+            minorDiv = 5 | 4        small boxes per big box (dispatch: 5,
+                                    sometimes 4)
+            xlabel, ylabel          axis quantity labels, e.g. "time / s"
+            label                   aria/title
+            tickEvery = 1           number every nth major tick (declutter) }
+     Readings are designed to land ON gridlines: pick xstep/ystep and data
+     so values sit at small-box intersections.                              */
+  function grid(cfg) {
+    var w = cfg.w || 420, h = cfg.h || 300;
+    var m = { l: 52, r: 18, t: 18, b: 46 };
+    var xmin = cfg.xmin || 0, ymin = cfg.ymin || 0;
+    var xmax = cfg.xmax, ymax = cfg.ymax;
+    var minorDiv = cfg.minorDiv || 5;
+    var xstep = cfg.xstep, ystep = cfg.ystep;
+    var tickEvery = cfg.tickEvery || 1;
+    var svg = makeSVG(w, h, cfg.label);
+    var X0 = m.l, X1 = w - m.r, Y0 = h - m.b, Y1 = m.t;
+    var px = function (x) { return X0 + (x - xmin) / (xmax - xmin) * (X1 - X0); };
+    var py = function (y) { return Y0 - (y - ymin) / (ymax - ymin) * (Y0 - Y1); };
+    var dxMinor = xstep / minorDiv, dyMinor = ystep / minorDiv;
+    var EPS = 1e-9;
+
+    var gGrid = el("g"), gAxes = el("g");
+    var x, y, isMajorX, isMajorY, idx;
+    for (x = xmin, idx = 0; x <= xmax + EPS; x += dxMinor, idx++) {
+      isMajorX = (idx % minorDiv === 0);
+      gGrid.appendChild(el("line", { x1: px(x), y1: Y0, x2: px(x), y2: Y1,
+        stroke: isMajorX ? C.gridMajor : C.gridMinor, "stroke-width": isMajorX ? 1 : 0.6 }));
+    }
+    for (y = ymin, idx = 0; y <= ymax + EPS; y += dyMinor, idx++) {
+      isMajorY = (idx % minorDiv === 0);
+      gGrid.appendChild(el("line", { x1: X0, y1: py(y), x2: X1, y2: py(y),
+        stroke: isMajorY ? C.gridMajor : C.gridMinor, "stroke-width": isMajorY ? 1 : 0.6 }));
+    }
+    svg.appendChild(gGrid);
+
+    gAxes.appendChild(el("line", { x1: X0, y1: Y0, x2: X1, y2: Y0, stroke: C.ink, "stroke-width": 1.6 }));
+    gAxes.appendChild(el("line", { x1: X0, y1: Y0, x2: X0, y2: Y1, stroke: C.ink, "stroke-width": 1.6 }));
+    var tickN;
+    if (cfg.tickLabels !== false) {
+      for (x = xmin, tickN = 0; x <= xmax + EPS; x += xstep, tickN++) {
+        if (tickN % tickEvery === 0)
+          gAxes.appendChild(txt(px(x), Y0 + 16, fmt(x), { "text-anchor": "middle", "font-size": 10.5, fill: C.ink2 }));
+      }
+      for (y = ymin, tickN = 0; y <= ymax + EPS; y += ystep, tickN++) {
+        if (tickN % tickEvery === 0)
+          gAxes.appendChild(txt(X0 - 6, py(y) + 3.5, fmt(y), { "text-anchor": "end", "font-size": 10.5, fill: C.ink2 }));
+      }
+    }
+    gAxes.appendChild(txt((X0 + X1) / 2, h - 8, cfg.xlabel || "",
+      { "text-anchor": "middle", fill: C.ink, "font-size": 12, "font-style": "italic" }));
+    var ylab = txt(0, 0, cfg.ylabel || "", { "text-anchor": "middle", fill: C.ink, "font-size": 12, "font-style": "italic" });
+    ylab.setAttribute("transform", "translate(13," + ((Y0 + Y1) / 2) + ") rotate(-90)");
+    gAxes.appendChild(ylab);
+    svg.appendChild(gAxes);
+
+    var api = {
+      svg: svg, px: px, py: py,
+      smallBox: { dx: dxMinor, dy: dyMinor },
+      plot: { X0: X0, X1: X1, Y0: Y0, Y1: Y1 },
+      bounds: { xmin: xmin, xmax: xmax, ymin: ymin, ymax: ymax },
+      addFn: function (f, a, b, opts) {
+        opts = opts || {};
+        var N = opts.n || 220, d = "", i, xx, yy, first = true;
+        for (i = 0; i <= N; i++) {
+          xx = a + (b - a) * i / N; yy = f(xx);
+          if (yy == null || !isFinite(yy)) { first = true; continue; }
+          d += (first ? "M" : "L") + px(xx).toFixed(2) + "," + py(yy).toFixed(2) + " ";
+          first = false;
+        }
+        svg.appendChild(el("path", { d: d.trim(), fill: "none", stroke: opts.color || C.accent,
+          "stroke-width": opts.width || 2.6, "stroke-linecap": "round", "stroke-linejoin": "round",
+          "stroke-dasharray": opts.dash || "none" }));
+        return api;
+      },
+      addSegments: function (pts, opts) {
+        opts = opts || {};
+        var d = "", i;
+        for (i = 0; i < pts.length; i++)
+          d += (i ? "L" : "M") + px(pts[i][0]).toFixed(2) + "," + py(pts[i][1]).toFixed(2) + " ";
+        svg.appendChild(el("path", { d: d.trim(), fill: "none", stroke: opts.color || C.accent,
+          "stroke-width": opts.width || 2.6, "stroke-linecap": "round", "stroke-linejoin": "round",
+          "stroke-dasharray": opts.dash || "none" }));
+        return api;
+      },
+      marker: function (xv, yv, opts) {
+        opts = opts || {};
+        svg.appendChild(el("circle", { cx: px(xv), cy: py(yv), r: opts.r || 3.4,
+          fill: opts.fill || C.accent, stroke: C.paper, "stroke-width": 1 }));
+        return api;
+      },
+      dropLines: function (xv, yv, opts) {
+        opts = opts || {};
+        var col = opts.color || C.ink2;
+        svg.appendChild(el("line", { x1: px(xv), y1: py(yv), x2: px(xv), y2: Y0,
+          stroke: col, "stroke-width": 1.1, "stroke-dasharray": "4 3" }));
+        svg.appendChild(el("line", { x1: px(xv), y1: py(yv), x2: X0, y2: py(yv),
+          stroke: col, "stroke-width": 1.1, "stroke-dasharray": "4 3" }));
+        return api;
+      },
+      shadeRegion: function (f, a, b, opts) {
+        opts = opts || {};
+        var N = opts.n || 120, d = "M" + px(a).toFixed(2) + "," + py(0).toFixed(2), i, xx;
+        for (i = 0; i <= N; i++) {
+          xx = a + (b - a) * i / N;
+          d += " L" + px(xx).toFixed(2) + "," + py(f(xx)).toFixed(2);
+        }
+        d += " L" + px(b).toFixed(2) + "," + py(0).toFixed(2) + " Z";
+        svg.appendChild(el("path", { d: d, fill: opts.fill || C.shadeLight, stroke: "none" }));
+        return api;
+      },
+      /* Square-count shading: small boxes wholly under f filled strongly,
+         boxes the curve passes through filled lightly (count as halves).
+         Counts are returned through opts.out = {full, part}.              */
+      shadeSquaresUnder: function (f, a, b, opts) {
+        opts = opts || {};
+        var out = opts.out || {};
+        var full = 0, part = 0;
+        var gx, gy, topY, minF, maxF, s, fv;
+        for (gx = a; gx < b - EPS; gx += dxMinor) {
+          minF = Infinity; maxF = -Infinity;
+          for (s = 0; s <= 4; s++) {
+            fv = f(gx + dxMinor * s / 4);
+            if (fv < minF) minF = fv;
+            if (fv > maxF) maxF = fv;
+          }
+          for (gy = ymin; gy < ymax - EPS; gy += dyMinor) {
+            topY = gy + dyMinor;
+            if (topY <= minF + EPS) {
+              svg.appendChild(el("rect", { x: px(gx) + 0.4, y: py(topY) + 0.4,
+                width: px(gx + dxMinor) - px(gx) - 0.8, height: py(gy) - py(topY) - 0.8,
+                fill: C.shade, stroke: "none" }));
+              full++;
+            } else if (gy < maxF - EPS) {
+              svg.appendChild(el("rect", { x: px(gx) + 0.4, y: py(topY) + 0.4,
+                width: px(gx + dxMinor) - px(gx) - 0.8, height: py(gy) - py(topY) - 0.8,
+                fill: C.shadeLight, stroke: "none" }));
+              part++;
+            }
+          }
+        }
+        out.full = full; out.part = part;
+        return api;
+      },
+      add: function (node) { svg.appendChild(node); return api; },
+      note: function (xpix, ypix, s, attrs) { svg.appendChild(txt(xpix, ypix, s, attrs)); return api; }
+    };
+    return api;
+  }
+
+  /* ------------------------------ arrows --------------------------------- */
+  /* Labelled force/vector arrow from (x1,y1) to (x2,y2) in PIXEL space.
+     opts: {color, width, label, labelDx, labelDy, dash, fontSize, anchor}  */
+  function forceArrow(x1, y1, x2, y2, opts) {
+    opts = opts || {};
+    var g = el("g");
+    var ang = Math.atan2(y2 - y1, x2 - x1);
+    var wdt = opts.width || 2.6;
+    var head = Math.max(7, wdt * 3.2);
+    var sx2 = x2 - head * 0.7 * Math.cos(ang), sy2 = y2 - head * 0.7 * Math.sin(ang);
+    g.appendChild(el("line", { x1: x1, y1: y1, x2: sx2, y2: sy2,
+      stroke: opts.color || C.accent, "stroke-width": wdt, "stroke-linecap": "round",
+      "stroke-dasharray": opts.dash || "none" }));
+    g.appendChild(arrowHead(x2, y2, ang, head, opts.color || C.accent));
+    if (opts.label) {
+      var lx = (typeof opts.labelDx === "number") ? (x1 + x2) / 2 + opts.labelDx : x2 + 10 * Math.cos(ang);
+      var ly = (typeof opts.labelDy === "number") ? (y1 + y2) / 2 + opts.labelDy : y2 + 10 * Math.sin(ang) + 4;
+      g.appendChild(txt(lx, ly, opts.label, { fill: opts.color || C.accent, "font-size": opts.fontSize || 11.5,
+        "text-anchor": opts.anchor || "start" }));
+    }
+    return g;
+  }
+
+  /* ----------------------------- protractor ------------------------------ */
+  /* Semicircular protractor centred (cx, cy), radius r. Baseline runs along
+     direction `rot` degrees (0 = horizontal, anticlockwise positive, SVG
+     y-down handled internally). Two scales like a real protractor: outer
+     0->180 anticlockwise from the right end, inner the reverse.
+     opts: {rot, showInner}                                                 */
+  function protractor(cx, cy, r, opts) {
+    opts = opts || {};
+    var rotDeg = opts.rot || 0;
+    var g = el("g");
+    /* angle helper: deg anticlockwise from the rightward baseline (screen) */
+    function xy(deg, rad) {
+      var a = (rotDeg + deg) * Math.PI / 180;
+      return [cx + rad * Math.cos(a), cy - rad * Math.sin(a)];
+    }
+    var pR = xy(0, r), pL = xy(180, r);
+    g.appendChild(el("path", {
+      d: "M" + pR[0].toFixed(1) + "," + pR[1].toFixed(1) +
+         " A" + r + "," + r + " 0 0 0 " + pL[0].toFixed(1) + "," + pL[1].toFixed(1) + " Z",
+      fill: "rgba(140,133,121,.10)", stroke: C.ink2, "stroke-width": 1.4
+    }));
+    g.appendChild(el("line", { x1: pL[0], y1: pL[1], x2: pR[0], y2: pR[1], stroke: C.ink2, "stroke-width": 1 }));
+    g.appendChild(el("circle", { cx: cx, cy: cy, r: 2, fill: C.ink2 }));
+    var d, p1, p2, lab, isTen;
+    for (d = 0; d <= 180; d += 5) {
+      isTen = (d % 10 === 0);
+      p1 = xy(d, r); p2 = xy(d, r - (isTen ? 9 : 5.5));
+      g.appendChild(el("line", { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1],
+        stroke: C.ink2, "stroke-width": isTen ? 1.1 : 0.7 }));
+      if (d % 30 === 0) {
+        lab = xy(d, r - 18);
+        g.appendChild(txt(lab[0], lab[1] + 3, String(d), { "text-anchor": "middle", "font-size": 8.5, fill: C.ink }));
+        if (opts.showInner !== false) {
+          lab = xy(d, r - 29);
+          g.appendChild(txt(lab[0], lab[1] + 3, String(180 - d), { "text-anchor": "middle", "font-size": 7.5, fill: C.muted }));
+        }
+      }
+    }
+    return g;
+  }
+
+  /* --------------------------- drag (browser) ---------------------------- */
+  /* Make `handle` draggable within `svg` (viewBox coords). onMove receives
+     {x, y} in viewBox units. No-op outside a real browser.                  */
+  function makeDraggable(svg, handle, onMove) {
+    if (typeof window === "undefined" || !svg.getScreenCTM) return;
+    function toLocal(evt) {
+      var ctm = svg.getScreenCTM();
+      if (!ctm) return null;
+      return { x: (evt.clientX - ctm.e) / ctm.a, y: (evt.clientY - ctm.f) / ctm.d };
+    }
+    var active = false;
+    handle.style.cursor = "grab";
+    handle.style.touchAction = "none";
+    handle.addEventListener("pointerdown", function (e) {
+      active = true;
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      e.preventDefault();
+    });
+    handle.addEventListener("pointermove", function (e) {
+      if (!active) return;
+      var p = toLocal(e);
+      if (p) onMove(p);
+    });
+    handle.addEventListener("pointerup", function (e) {
+      active = false;
+      try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+    });
+    handle.addEventListener("pointercancel", function () { active = false; });
+  }
+
+  /* ------------------------------ ruler ----------------------------------- */
+  /* A graduated ruler for scale-drawing questions. Graduated in "cm"
+     where 1 cm = one BIG grid box (boxPx pixels), minor ticks per
+     minorDiv. Origin (local 0,0) is the ZERO MARK on the reading edge;
+     the body extends upward (negative y). Rotate about the origin.
+     opts: { lengthCm = 12, minorDiv = 5, label = "cm" }                  */
+  function ruler(boxPx, opts) {
+    opts = opts || {};
+    var nCm = opts.lengthCm || 12;
+    var minorDiv = opts.minorDiv || 5;
+    var len = nCm * boxPx, depth = 30;
+    var g = el("g", { class: "wc-ruler" });
+    g.appendChild(el("rect", { x: -8, y: -depth, width: len + 16, height: depth, rx: 3,
+      fill: "rgba(244,238,222,.92)", stroke: C.ink2, "stroke-width": 1.4 }));
+    var i, n = nCm * minorDiv, x, isCm;
+    for (i = 0; i <= n; i++) {
+      x = i * boxPx / minorDiv; isCm = (i % minorDiv === 0);
+      g.appendChild(el("line", { x1: x, y1: 0, x2: x, y2: -(isCm ? 11 : 6.5),
+        stroke: C.ink, "stroke-width": isCm ? 1.1 : 0.6 }));
+      if (isCm) g.appendChild(txt(x, -15, String(i / minorDiv),
+        { "text-anchor": "middle", "font-size": 8.5, fill: C.ink }));
+    }
+    g.appendChild(txt(len - 2, -23, opts.label || "cm",
+      { "text-anchor": "end", "font-size": 8, fill: C.muted }));
+    return g;
+  }
+
+  /* Make a group movable and rotatable inside an svg (browser only):
+     a round MOVE handle sits at the group's local origin side and a
+     square ROTATE handle further along; dragging the rotate handle
+     turns the group about its local origin. Angles anticlockwise
+     positive (screen flip handled here). Returns a state object
+     { x, y, deg } kept current.
+     opts: { x, y, deg, rotHandleAt (local x of the rotate handle) }     */
+  function makeManipulable(svg, group, opts) {
+    opts = opts || {};
+    var st = { x: opts.x || 0, y: opts.y || 0, deg: opts.deg || 0 };
+    var rotAt = (typeof opts.rotHandleAt === "number") ? opts.rotHandleAt : 80;
+    var mv = el("circle", { cx: 0, cy: 8, r: 9, fill: C.ok, "fill-opacity": 0.5,
+      stroke: C.ok, "stroke-width": 1.4 });
+    var rot = el("rect", { x: rotAt - 7, y: 1, width: 14, height: 14, rx: 3,
+      fill: C.accent, "fill-opacity": 0.5, stroke: C.accent, "stroke-width": 1.4 });
+    group.appendChild(mv); group.appendChild(rot);
+    function apply() {
+      group.setAttribute("transform",
+        "translate(" + st.x + "," + st.y + ") rotate(" + (-st.deg) + ")");
+    }
+    apply();
+    makeDraggable(svg, mv, function (p) { st.x = p.x; st.y = p.y; apply(); });
+    makeDraggable(svg, rot, function (p) {
+      st.deg = Math.atan2(st.y - p.y, p.x - st.x) * 180 / Math.PI;
+      apply();
+    });
+    return st;
+  }
+
+  /* ------------------------------ maths ---------------------------------- */
+  var MathsCore = {
+    linspace: function (a, b, n) {
+      var out = [], i;
+      for (i = 0; i <= n; i++) out.push(a + (b - a) * i / n);
+      return out;
+    },
+    trapz: function (f, a, b, n) {
+      n = n || 400;
+      var s = 0, prev = f(a), i, x, cur;
+      for (i = 1; i <= n; i++) {
+        x = a + (b - a) * i / n; cur = f(x);
+        s += 0.5 * (prev + cur) * ((b - a) / n);
+        prev = cur;
+      }
+      return s;
+    },
+    gradAt: function (f, x) {
+      var h = Math.max(1e-7, Math.abs(x) * 1e-5);
+      return (f(x + h) - f(x - h)) / (2 * h);
+    },
+    /* Named curve shapes on u in [0,1], mapping 0 -> 0 and 1 -> 1.
+       Author gives start point, end point, and the shape NAME; the exact
+       curve is the widget's liberty under the commissioned rule: the
+       gradient never goes vertical and never goes horizontal mid-curve,
+       EXCEPT for the three shapes whose point is the exception:
+         over_top     overshoots above the end value, then settles back
+                      (one stationary point at the peak, by design)
+         under_bottom dips below the start value, then recovers (one
+                      stationary point in the dip, by design)
+         asymptote    flattens toward the end value but never goes flat
+       The monotone shapes keep the gradient strictly positive:
+         linear       straight join
+         curve_up     concave up, gradient GROWS  (g = 0.15u + 0.85u^2)
+         curve_down   concave down, gradient SHRINKS (mirror of curve_up)
+       Legacy aliases speed_up/slow_down map to curve_up/curve_down.      */
+    SHAPES: {
+      linear:     function (u) { return u; },
+      curve_up:   function (u) { return 0.15 * u + 0.85 * u * u; },
+      curve_down: function (u) { var v = 1 - u; return 1 - (0.15 * v + 0.85 * v * v); },
+      asymptote:  function (u) { return (1 - Math.exp(-4 * u)) / (1 - Math.exp(-4)); },
+      over_top:   function (u) { return u + 0.6 * u * Math.sin(Math.PI * u); },
+      under_bottom: function (u) { return u - 0.5 * (1 - u) * Math.sin(Math.PI * u); }
+    },
+    shapeFn: function (name) {
+      var S = MathsCore.SHAPES;
+      if (name === "speed_up") return S.curve_up;
+      if (name === "slow_down") return S.curve_down;
+      return S[name] || S.linear;
+    },
+    /* Build f(t) from piecewise segments:
+       [{shape, from:[t0,y0], to:[t1,y1]}], shape any SHAPES name (or
+       "hold" for constant at from-y). Returns f defined on the segments'
+       union, null outside.                                               */
+    piecewise: function (segs) {
+      return function (t) {
+        var i, s, t0, t1, y0, y1, u;
+        for (i = 0; i < segs.length; i++) {
+          s = segs[i]; t0 = s.from[0]; t1 = s.to[0]; y0 = s.from[1]; y1 = s.to[1];
+          if (t < t0 - 1e-9 || t > t1 + 1e-9) continue;
+          u = (t1 === t0) ? 0 : (t - t0) / (t1 - t0);
+          if (s.shape === "hold") return y0;
+          return y0 + (y1 - y0) * MathsCore.shapeFn(s.shape)(u);
+        }
+        return null;
+      };
+    },
+    /* does a value land on a (minor) gridline step? */
+    onGrid: function (v, step) {
+      var r = v / step;
+      return Math.abs(r - Math.round(r)) < 1e-6;
+    },
+    /* exact area under piecewise-LINEAR segments (sum of trapezia) */
+    polyArea: function (segs) {
+      var A = 0, i, s;
+      for (i = 0; i < segs.length; i++) {
+        s = segs[i];
+        A += 0.5 * (s.from[1] + s.to[1]) * (s.to[0] - s.from[0]);
+      }
+      return A;
+    },
+    deg2rad: function (d) { return d * Math.PI / 180; },
+    rad2deg: function (r) { return r * 180 / Math.PI; }
+  };
+
+  /* ------------------------------ export --------------------------------- */
+  var CORE = {
+    NS: NS, C: C, tok: tok,
+    el: el, txt: txt, makeSVG: makeSVG, arrowHead: arrowHead, fmt: fmt,
+    graph: graph, grid: grid,
+    forceArrow: forceArrow, protractor: protractor, makeDraggable: makeDraggable,
+    ruler: ruler, makeManipulable: makeManipulable,
+    Maths: MathsCore
+  };
+
+  if (typeof window !== "undefined") window.WIDGETS_CORE = CORE;
+  if (typeof module !== "undefined" && module.exports) module.exports = CORE;
+})(typeof globalThis !== "undefined" ? globalThis : this);
+
+</script>
+<script>
+/* =====================================================================
+   Trilogy Physics - Waves 6.6 widget catalogue
+   Waves 6.6 Widgets chat deliverable (Architecture dispatch d032; brief
+   inter_chat/Architecture_Widgets_6_6_dispatch.md).
+
+   Built ON the shared core (app/widgets/widgets_core.js, d026): no
+   private copies of graph/axis/arrow primitives live here.
+
+   Contract:
+     STATIC      window.TOPIC_DIAGRAMS[kind](params) -> SVGElement
+     INTERACTIVE window.TOPIC_WIDGETS[kind](host, config) -> instance
+                 instance = { getAnswer(), score(answer, config),
+                              destroy() }   (Fields-driller pattern;
+                 grading contract proposed to Housing in
+                 inter_chat/Widgets_Housing_interactive_66.md)
+
+   d031 build order: STATIC RENDER FIRST, interactive/markable layer
+   second. For Waves many items ARE the widget (mark a wavelength, drag
+   wavefronts across a boundary, slide a prism into a beam), so the
+   interactive layer emits the pupil's response (the mark placed, the
+   angle read, the position dragged to) in a defined shape, and Housing's
+   engine grades it. Pure physics lives in WavesModels (no DOM),
+   dual-exported so Node can assert on it headless
+   (verify_waves_models.js).
+
+   Physical-correctness notes are inline at each model function; the
+   hand-back in the dispatch thread cites the assumed behaviour.
+   ===================================================================== */
+(function (root) {
+  "use strict";
+
+  var CORE = (typeof window !== "undefined" && window.WIDGETS_CORE) ||
+             (typeof require !== "undefined" ? require("./widgets_core.js") : null);
+  if (!CORE) throw new Error("widgets_core.js must load before waves-diagrams.js");
+  var el = CORE.el, txt = CORE.txt, C = CORE.C, M = CORE.Maths, fmt = CORE.fmt;
+  var makeSVG = CORE.makeSVG, arrowHead = CORE.arrowHead;
+  var TAU = Math.PI * 2;
+
+  /* small shared DOM helpers (mirrors forces-diagrams.js so the two
+     topic files read the same way; only additive, no core change). */
+  function line(x1, y1, x2, y2, opts) {
+    opts = opts || {};
+    return el("line", { x1: x1, y1: y1, x2: x2, y2: y2,
+      stroke: opts.color || C.ink, "stroke-width": opts.width || 1.4,
+      "stroke-linecap": opts.cap || "butt",
+      "stroke-dasharray": opts.dash || "none" });
+  }
+  function circle(cx, cy, r, opts) {
+    opts = opts || {};
+    return el("circle", { cx: cx, cy: cy, r: r,
+      fill: opts.fill || "none", stroke: opts.stroke || C.ink,
+      "stroke-width": (opts.width == null ? 1.4 : opts.width),
+      "stroke-dasharray": opts.dash || "none" });
+  }
+  function near(a, b, tol) { return Math.abs(a - b) <= tol; }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  /* ============================== MODELS ================================= */
+  /* WavesModels: the single source of physical truth for every Waves
+     widget. No DOM. Every renderer and every interactive scorer reads
+     from here, so the static picture and the graded answer can never
+     disagree by construction (the 6.5 "one journey model" discipline).  */
+  var WavesModels = {};
+
+  /* ---- transverse wave: y(x) = A sin(2 pi x / lambda + phase) ----------
+     Physics: a transverse wave displaces the medium perpendicular to the
+     direction of energy transfer. amplitude A = rest line -> crest (NOT
+     crest -> trough, which is 2A: the canonical distractor). wavelength
+     lambda = crest -> next crest = trough -> next trough = any one full
+     cycle. cycles = how many full wavelengths are drawn.                 */
+  WavesModels.wave = function (p) {
+    p = p || {};
+    var lambda = (p.wavelength != null) ? p.wavelength : 4;   /* arb units */
+    var A = (p.amplitude != null) ? p.amplitude : 1;
+    var cycles = (p.cycles != null) ? p.cycles : 2;
+    var phase = (p.phase != null) ? p.phase : 0;              /* radians   */
+    var xmax = lambda * cycles;
+    function y(x) { return A * Math.sin(TAU * x / lambda + phase); }
+    /* crest x where sin = +1: TAU x/lambda + phase = pi/2 + 2 pi k        */
+    var crests = [], troughs = [], k, xc;
+    for (k = -1; k < cycles + 2; k++) {
+      xc = lambda * (0.25 - phase / TAU + k);
+      if (xc >= -1e-9 && xc <= xmax + 1e-9) crests.push(xc);
+      xc = lambda * (0.75 - phase / TAU + k);
+      if (xc >= -1e-9 && xc <= xmax + 1e-9) troughs.push(xc);
+    }
+    crests.sort(function (a, b) { return a - b; });
+    troughs.sort(function (a, b) { return a - b; });
+    return {
+      y: y, wavelength: lambda, amplitude: A, cycles: cycles,
+      phase: phase, xmax: xmax, crests: crests, troughs: troughs,
+      /* the markable features, each as a {kind, span, orientation}:
+         span is the correct measured length; orientation tells the
+         interactive scorer whether the pupil's two marks should be
+         horizontal (along x) or vertical (along y).                      */
+      features: {
+        wavelength:     { length: lambda,      orientation: "horizontal" },
+        half_wavelength:{ length: lambda / 2,   orientation: "horizontal" },
+        amplitude:      { length: A,            orientation: "vertical"   }
+      }
+    };
+  };
+
+  /* the wave equation, for scenario/markable consistency: v = f lambda    */
+  WavesModels.waveSpeed = function (f, lambda) { return f * lambda; };
+  WavesModels.frequency = function (v, lambda) { return v / lambda; };
+  WavesModels.wavelengthFrom = function (v, f) { return v / f; };
+  /* period T = 1/f; "waves past a point" counting: f = count / time       */
+  WavesModels.frequencyFromCount = function (count, time) { return count / time; };
+
+  /* ---- longitudinal wave: compressions and rarefactions ----------------
+     Physics: particles oscillate ALONG the direction of energy transfer.
+     Local particle displacement s(x) = A sin(kx); particle DENSITY is
+     highest where the gradient of displacement is most negative
+     (particles crowd) -> compressions, lowest at rarefactions. We model
+     density as rho(x) = 1 - cos(2 pi x / lambda + phase) (max where the
+     cosine is -1). wavelength = compression -> next compression
+     (= rarefaction -> next rarefaction); compression -> nearest
+     rarefaction is HALF a wavelength (the C-to-R distractor).            */
+  WavesModels.longitudinal = function (p) {
+    p = p || {};
+    var lambda = (p.wavelength != null) ? p.wavelength : 4;
+    var cycles = (p.cycles != null) ? p.cycles : 3;
+    var phase = (p.phase != null) ? p.phase : 0;
+    var xmax = lambda * cycles;
+    function density(x) { return 1 - Math.cos(TAU * x / lambda + phase); }
+    var comp = [], rar = [], k, xc;
+    for (k = -1; k < cycles + 2; k++) {
+      /* compression where cos = -1: arg = pi + 2 pi k                     */
+      xc = lambda * (0.5 - phase / TAU + k);
+      if (xc >= -1e-9 && xc <= xmax + 1e-9) comp.push(xc);
+      /* rarefaction where cos = +1: arg = 2 pi k                          */
+      xc = lambda * (0 - phase / TAU + k);
+      if (xc >= -1e-9 && xc <= xmax + 1e-9) rar.push(xc);
+    }
+    comp.sort(function (a, b) { return a - b; });
+    rar.sort(function (a, b) { return a - b; });
+    return {
+      density: density, wavelength: lambda, cycles: cycles, xmax: xmax,
+      compressions: comp, rarefactions: rar,
+      features: {
+        wavelength:      { length: lambda,    orientation: "horizontal" },
+        half_wavelength: { length: lambda / 2, orientation: "horizontal" }
+      }
+    };
+  };
+
+  /* ---- wavefronts (plan view) ------------------------------------------
+     Physics: a wavefront joins points of the SAME phase (e.g. all crests);
+     the perpendicular distance between adjacent wavefronts is one
+     wavelength. Plane waves -> parallel straight fronts; a point/curved
+     source -> concentric circular fronts whose radii increase by lambda.  */
+  WavesModels.wavefronts = function (p) {
+    p = p || {};
+    return {
+      wavelength: (p.spacing != null) ? p.spacing : (p.wavelength != null ? p.wavelength : 1),
+      count: (p.count != null) ? p.count : 6,
+      curved: !!p.curved
+    };
+  };
+
+  /* ---- refraction: Snell's law -----------------------------------------
+     n1 sin(theta1) = n2 sin(theta2), angles measured FROM THE NORMAL.
+     Entering a denser/slower medium (n2 > n1) bends the ray TOWARD the
+     normal (theta2 < theta1) and the wavefronts get CLOSER together
+     (lambda2 = lambda1 * v2/v1 = lambda1 * n1/n2, since v = c/n and
+     frequency is unchanged across a boundary). Returns null for total
+     internal reflection (no real refracted angle).                       */
+  WavesModels.refractAngle = function (theta1_deg, n1, n2) {
+    var s2 = (n1 / n2) * Math.sin(theta1_deg * Math.PI / 180);
+    if (s2 > 1 + 1e-12 || s2 < -1 - 1e-12) return null;      /* TIR        */
+    return Math.asin(clamp(s2, -1, 1)) * 180 / Math.PI;
+  };
+  WavesModels.criticalAngle = function (n1, n2) {
+    if (n1 <= n2) return null;                                /* only dense->less dense */
+    return Math.asin(n2 / n1) * 180 / Math.PI;
+  };
+  /* wavefront spacing ratio across a boundary (lambda2 / lambda1)         */
+  WavesModels.wavefrontSpacingRatio = function (n1, n2) { return n1 / n2; };
+  /* bends toward normal?  true when slowing down (n2 > n1)                */
+  WavesModels.bendsTowardNormal = function (n1, n2) { return n2 > n1; };
+  /* 2D vector form of Snell's law for ray tracing through faces. d = unit
+     incident direction; nrm = unit normal on the INCIDENCE side (cosi =
+     -d.nrm > 0); eta = n_incidence / n_transmit. Returns unit refracted
+     direction, or null for total internal reflection. */
+  WavesModels.refractDir = function (d, nrm, eta) {
+    var cosi = -(d[0] * nrm[0] + d[1] * nrm[1]);
+    var k = 1 - eta * eta * (1 - cosi * cosi);
+    if (k < 0) return null;
+    var c2 = Math.sqrt(k);
+    var rx = eta * d[0] + (eta * cosi - c2) * nrm[0];
+    var ry = eta * d[1] + (eta * cosi - c2) * nrm[1];
+    var L = Math.hypot(rx, ry);
+    return [rx / L, ry / L];
+  };
+
+  /* ---- speed of sound / echo methods -----------------------------------
+     Direct timing over a measured distance: v = d / t.
+     Echo (sonar / echolocation / clap-off-a-wall): the pulse travels to
+     the reflector and back, so v = 2 d / t  <=>  d = v t / 2.            */
+  WavesModels.speedDirect = function (d, t) { return d / t; };
+  WavesModels.echoDistance = function (v, t) { return v * t / 2; };
+  WavesModels.echoTime = function (v, d) { return 2 * d / v; };
+  WavesModels.speedFromEcho = function (d, t) { return 2 * d / t; };
+
+  /* ---- electromagnetic spectrum ----------------------------------------
+     Seven regions. Canonical order by INCREASING frequency / DECREASING
+     wavelength (radio has the longest wavelength + lowest frequency;
+     gamma the shortest wavelength + highest frequency). All travel at c
+     in a vacuum. wlText/freqText are order-of-magnitude anchors for
+     labels only (not exam-required values). origin = where the radiation
+     is produced; uses = the spec's example applications.                 */
+  WavesModels.EM = {
+    order: ["radio", "microwave", "infrared", "visible", "ultraviolet", "xray", "gamma"],
+    region: {
+      radio:       { label: "Radio",        wlText: "1 km - 10 cm",  origin: "oscillations of charge in an aerial / electrical circuit",
+                     uses: ["television and radio broadcasting"] },
+      microwave:   { label: "Microwave",    wlText: "10 cm - 1 mm",  origin: "electron oscillations, e.g. in a magnetron",
+                     uses: ["satellite communications", "cooking food"] },
+      infrared:    { label: "Infrared",     wlText: "1 mm - 700 nm", origin: "warm/hot objects (thermal vibration of particles)",
+                     uses: ["electrical heaters", "cooking food", "infrared cameras"] },
+      visible:     { label: "Visible",      wlText: "700 - 400 nm",  origin: "very hot objects and electron energy-level transitions",
+                     uses: ["fibre-optic communications"] },
+      ultraviolet: { label: "Ultraviolet",  wlText: "400 - 10 nm",   origin: "very hot objects and some electron transitions",
+                     uses: ["energy-efficient lamps", "sun tanning"] },
+      xray:        { label: "X-ray",        wlText: "10 nm - 0.01 nm", origin: "fast electrons stopped by a metal target",
+                     uses: ["medical imaging of bones", "security scanners"] },
+      gamma:       { label: "Gamma",        wlText: "< 0.01 nm",     origin: "changes in the nucleus of an atom (radioactive decay)",
+                     uses: ["sterilising food and medical equipment", "killing cancer cells"] }
+    },
+    /* index in the canonical order; lower index = longer wavelength,
+       lower frequency. Used by the marking widget to grade "which end is
+       high frequency".                                                    */
+    indexOf: function (name) { return WavesModels.EM.order.indexOf(name); }
+  };
+  WavesModels.emHigherFrequency = function (a, b) {
+    return WavesModels.EM.indexOf(a) > WavesModels.EM.indexOf(b) ? a : b;
+  };
+  WavesModels.emLongerWavelength = function (a, b) {
+    return WavesModels.EM.indexOf(a) < WavesModels.EM.indexOf(b) ? a : b;
+  };
+
+
+  /* ===================== STATIC RENDERERS: anatomy ====================== */
+  /* A side-on plotting frame for transverse pictures: x runs left->right,
+     y is vertical displacement with the rest line centred. Not CORE.grid
+     (no exam gridlines wanted for anatomy); a private light mapping.     */
+  function sideFrame(cfg) {
+    var w = cfg.w || 460, h = cfg.h || 220;
+    var m = { l: cfg.ml || 30, r: cfg.mr || 30, t: cfg.mt || 26, b: cfg.mb || 26 };
+    var svg = makeSVG(w, h, cfg.label);
+    var X0 = m.l, X1 = w - m.r, Yc = (m.t + (h - m.b)) / 2;
+    var halfH = (h - m.t - m.b) / 2;
+    var xmin = 0, xmax = cfg.xmax;
+    var yspan = cfg.yspan || 1;                  /* data y at +-yspan -> edges */
+    function px(x) { return X0 + (x - xmin) / (xmax - xmin) * (X1 - X0); }
+    function py(y) { return Yc - (y / yspan) * halfH; }
+    return { svg: svg, px: px, py: py, X0: X0, X1: X1, Yc: Yc, halfH: halfH,
+             w: w, h: h, add: function (n) { svg.appendChild(n); return this; } };
+  }
+
+  /* double-headed measurement arrow with a label, in PIXEL space         */
+  function measureArrow(x1, y1, x2, y2, label, opts) {
+    opts = opts || {};
+    /* house style: lambda renders as the symbol; no leading question marks
+       on deliberately-wrong annotations (they telegraph the distractor) */
+    if (label) label = String(label).replace(/lambda/g, "\u03BB").replace(/\?+$/, "");
+    var g = el("g");
+    var col = opts.color || C.accent;
+    var ang = Math.atan2(y2 - y1, x2 - x1);
+    g.appendChild(line(x1, y1, x2, y2, { color: col, width: opts.width || 1.6 }));
+    g.appendChild(arrowHead(x1, y1, ang + Math.PI, 6, col));
+    g.appendChild(arrowHead(x2, y2, ang, 6, col));
+    if (label) {
+      var mx = (x1 + x2) / 2 + (opts.ldx || 0), my = (y1 + y2) / 2 + (opts.ldy || -5);
+      g.appendChild(txt(mx, my, label, { fill: col, "font-size": opts.fontSize || 12.5,
+        "text-anchor": opts.anchor || "middle", "font-style": "italic" }));
+    }
+    return g;
+  }
+  /* short tick marks (end caps) for an extent line                        */
+  function endCaps(x1, y1, x2, y2, capLen, col) {
+    var g = el("g"), c = capLen || 6;
+    var ang = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2;
+    var dx = Math.cos(ang) * c, dy = Math.sin(ang) * c;
+    g.appendChild(line(x1 - dx, y1 - dy, x1 + dx, y1 + dy, { color: col || C.ink2, width: 1 }));
+    g.appendChild(line(x2 - dx, y2 - dy, x2 + dx, y2 + dy, { color: col || C.ink2, width: 1 }));
+    return g;
+  }
+
+  /* ---------------------------- wave_train ------------------------------
+     params: { wavelength, amplitude, cycles, orientation:"horizontal",
+               mark:{ wavelength, half_wavelength, amplitude, arrows,
+                      restLine }, distractor:"amplitude_double" |
+               "amplitude_diagonal" | "wavelength_half" |
+               "wavelength_peak_to_trough", label }
+     mark.* default false (clean anatomy unless an item asks to annotate);
+     a single named distractor renders a DELIBERATELY-WRONG annotation in
+     a warning colour, for MCQ-over-the-picture items (the 6.5 named-wrong
+     pattern). The interactive widget below grades pupil-placed marks.    */
+  function wave_train(params) {
+    params = params || {};
+    var mdl = WavesModels.wave(params);
+    var mark = params.mark || {};
+    var orient = params.orientation || "horizontal";
+    var fr = sideFrame({ w: params.w || 480, h: params.h || 230, xmax: mdl.xmax,
+      yspan: 1.25, label: params.label || "transverse wave" });
+    var ampPx = fr.halfH / 1.25;             /* pixels per unit amplitude (A=1) */
+
+    /* rest line (axis of the medium at rest) */
+    if (mark.restLine !== false)
+      fr.add(line(fr.X0, fr.Yc, fr.X1, fr.Yc, { color: C.line, width: 1.1, dash: "5 4" }));
+
+    /* the wave itself */
+    var d = "", i, N = 360, x, yy, first = true;
+    for (i = 0; i <= N; i++) {
+      x = mdl.xmax * i / N; yy = mdl.y(x) / Math.max(1, mdl.amplitude);
+      d += (first ? "M" : "L") + fr.px(x).toFixed(2) + "," + fr.py(yy).toFixed(2) + " ";
+      first = false;
+    }
+    fr.add(el("path", { d: d.trim(), fill: "none", stroke: C.accent,
+      "stroke-width": 2.6, "stroke-linecap": "round", "stroke-linejoin": "round" }));
+
+    /* crest / trough direction arrows (oscillation is perpendicular) */
+    if (mark.arrows) {
+      var aLen = ampPx * 0.55, cx;
+      if (mdl.crests[0] != null) {
+        cx = mdl.crests[0];
+        fr.add(CORE.forceArrow(fr.px(cx), fr.Yc - ampPx * 0.18, fr.px(cx), fr.Yc - ampPx - aLen * 0.0,
+          { color: C.ink2, width: 2, label: "" }));
+      }
+      if (mdl.troughs[0] != null) {
+        cx = mdl.troughs[0];
+        fr.add(CORE.forceArrow(fr.px(cx), fr.Yc + ampPx * 0.18, fr.px(cx), fr.Yc + ampPx,
+          { color: C.ink2, width: 2 }));
+      }
+    }
+
+    /* correct annotations (opt-in) */
+    if (mark.wavelength && mdl.crests.length >= 2) {
+      var a = mdl.crests[0], b = mdl.crests[1], yL = fr.py(1) - 14;
+      fr.add(endCaps(fr.px(a), yL, fr.px(b), yL, 6, C.ink2));
+      fr.add(measureArrow(fr.px(a), yL, fr.px(b), yL, "lambda", { ldy: -6 }));
+    }
+    if (mark.half_wavelength && mdl.crests[0] != null && mdl.troughs[0] != null) {
+      var c0 = Math.min(mdl.crests[0], mdl.troughs[0]);
+      var t0 = (mdl.troughs[0] > mdl.crests[0]) ? mdl.troughs[0] : (mdl.troughs[1] != null ? mdl.troughs[1] : mdl.troughs[0]);
+      var yH = fr.Yc + fr.halfH * 0.62;
+      fr.add(measureArrow(fr.px(mdl.crests[0]), yH, fr.px(t0), yH, "lambda/2", { ldy: 14, color: C.ink2 }));
+    }
+    if (mark.amplitude && mdl.crests[0] != null) {
+      var xc = mdl.crests[0];
+      fr.add(measureArrow(fr.px(xc) - 0, fr.Yc, fr.px(xc), fr.py(1), "A",
+        { color: C.ok, anchor: "start", ldx: 8, ldy: 4 }));
+    }
+
+    /* deliberately-wrong named annotation (for distractor pictures) */
+    var dz = params.distractor;
+    if (dz) {
+      var warn = C.accent;
+      if (dz === "amplitude_double" && mdl.crests[0] != null) {
+        var xa = mdl.crests[0];
+        fr.add(measureArrow(fr.px(xa), fr.py(1), fr.px(xa), fr.py(-1), "A?",
+          { color: warn, anchor: "start", ldx: 8 }));
+      } else if (dz === "amplitude_diagonal" && mdl.crests[0] != null && mdl.troughs[0] != null) {
+        fr.add(measureArrow(fr.px(mdl.crests[0]), fr.py(1), fr.px(mdl.troughs[0]), fr.py(-1),
+          "A?", { color: warn }));
+      } else if (dz === "wavelength_half" && mdl.crests[0] != null && mdl.troughs[0] != null) {
+        var yLh = fr.py(1) - 14;
+        fr.add(measureArrow(fr.px(mdl.crests[0]), yLh, fr.px(mdl.troughs[0]), yLh, "lambda?",
+          { color: warn, ldy: -6 }));
+      } else if (dz === "wavelength_peak_to_trough" && mdl.crests[0] != null && mdl.troughs[0] != null) {
+        fr.add(measureArrow(fr.px(mdl.crests[0]), fr.py(1), fr.px(mdl.troughs[0]), fr.py(-1),
+          "lambda?", { color: warn }));
+      }
+    }
+
+    /* vertical orientation: rotate the whole picture 90 degrees */
+    if (orient === "vertical") {
+      var gWrap = el("g", { transform: "rotate(90 " + (fr.w / 2) + " " + (fr.h / 2) + ")" });
+      while (fr.svg.childNodes.length > 1) gWrap.appendChild(fr.svg.childNodes[1]);
+      fr.svg.appendChild(gWrap);
+    }
+    return fr.svg;
+  }
+
+  /* ----------------------------- wavefronts -----------------------------
+     Plan view. Plane waves -> parallel fronts one wavelength apart; a
+     point source -> concentric arcs whose radii step by one wavelength.
+     params: { spacing|wavelength, count, curved, direction:"right",
+               mark:{ wavelength }, source:false, label }                 */
+  function wavefronts(params) {
+    params = params || {};
+    var info = WavesModels.wavefronts(params);
+    var w = params.w || 360, h = params.h || 240;
+    var svg = makeSVG(w, h, params.label || "wavefronts (plan view)");
+    var m = 26;
+    var curved = info.curved;
+    var n = info.count;
+
+    if (!curved) {
+      /* parallel vertical fronts moving in the direction of the ray */
+      var spanX = (w - 2 * m);
+      var dpx = spanX / (n + 0.5);
+      var i, x;
+      for (i = 0; i < n; i++) {
+        x = m + dpx * (i + 0.5);
+        svg.appendChild(line(x, m, x, h - m, { color: C.ink, width: 2 }));
+      }
+      /* direction-of-travel ray arrow */
+      svg.appendChild(rayLine(m + dpx * 0.3, h / 2, w - m * 0.6, h / 2,
+        { color: C.muted, width: 1.6, label: "" }));
+      if (params.mark && params.mark.wavelength && n >= 2) {
+        var xa = m + dpx * 0.5, xb = m + dpx * 1.5, yL = h - m + 0;
+        svg.appendChild(measureArrow(xa, m - 8, xb, m - 8, "lambda", { ldy: -5 }));
+      }
+    } else {
+      /* concentric circular fronts from a source at left-centre */
+      var sx = m + 6, sy = h / 2, j, r;
+      var dr = (w - 2 * m) / (n + 0.5);
+      svg.appendChild(circle(sx, sy, 3, { fill: C.accent, stroke: C.accent }));
+      for (j = 1; j <= n; j++) {
+        r = dr * j;
+        /* draw a forward arc (semicircle facing right) */
+        svg.appendChild(el("path", {
+          d: "M" + sx + "," + (sy - r) + " A" + r + "," + r + " 0 0 1 " + sx + "," + (sy + r),
+          fill: "none", stroke: C.ink, "stroke-width": 2 }));
+      }
+      if (params.mark && params.mark.wavelength && n >= 2) {
+        svg.appendChild(measureArrow(sx + dr * 1, sy, sx + dr * 2, sy, "lambda", { ldy: -6 }));
+      }
+    }
+    return svg;
+  }
+
+  /* -------------------------- longitudinal_wave -------------------------
+     Particle/coil density picture. Particles drawn as vertical lines;
+     base positions are displaced by s(x) = shift*sin(kx+phase) so that
+     d(x_drawn)/dx_base = 1 + shift*k*cos(kx) is minimum (lines crowd ->
+     COMPRESSION) where cos = -1, i.e. at x = lambda/2, 3lambda/2, ...,
+     consistent with WavesModels.longitudinal compressions. Rarefactions
+     where lines spread. wavelength = C-to-C (= R-to-R); C-to-R is HALF
+     (the named distractor).
+     params: { wavelength, cycles, phase, blanks:false (label boxes at a
+               C and an R), mark:{ wavelength, half_wavelength, labelCR },
+               distractor:"wavelength_C_to_R", label }                    */
+  function longitudinal_wave(params) {
+    params = params || {};
+    var info = WavesModels.longitudinal(params);
+    var lambda = info.wavelength, k = TAU / lambda, phase = params.phase || 0;
+    var w = params.w || 480, h = params.h || 200;
+    var svg = makeSVG(w, h, params.label || "longitudinal wave");
+    var m = 28, X0 = m, X1 = w - m, yTop = m, yBot = h - m - 18;
+    var shift = 0.7 / k;                       /* shift*k = 0.7 < 1, no crossing */
+    var px = function (x) { return X0 + (x / info.xmax) * (X1 - X0); };
+    /* draw base particle lines */
+    var step = lambda / 14, x;
+    for (x = 0; x <= info.xmax + 1e-9; x += step) {
+      var xd = x + shift * Math.sin(k * x + phase);
+      if (xd < -1e-6 || xd > info.xmax + 1e-6) continue;
+      svg.appendChild(line(px(xd), yTop, px(xd), yBot, { color: C.ink, width: 1.4 }));
+    }
+    /* C / R labels under the first compression and rarefaction */
+    var cX = info.compressions[0], rX = info.rarefactions.filter(function (v) { return v > 0.01; })[0];
+    var yLab = yBot + 14;
+    if (params.mark && params.mark.labelCR) {
+      if (cX != null) svg.appendChild(txt(px(cX), yLab, "C", { "text-anchor": "middle", fill: C.accent, "font-weight": "bold", "font-size": 13 }));
+      if (rX != null) svg.appendChild(txt(px(rX), yLab, "R", { "text-anchor": "middle", fill: C.ok, "font-weight": "bold", "font-size": 13 }));
+    }
+    if (params.blanks) {
+      /* empty label boxes (pupil writes C / R) */
+      [cX, rX].forEach(function (xx) {
+        if (xx == null) return;
+        svg.appendChild(el("rect", { x: px(xx) - 9, y: yLab - 12, width: 18, height: 16, rx: 3,
+          fill: C.paper, stroke: C.ink2, "stroke-width": 1, "stroke-dasharray": "3 2" }));
+      });
+    }
+    /* wavelength marked compression-to-compression */
+    if (params.mark && params.mark.wavelength && info.compressions.length >= 2) {
+      var ya = yTop - 8;
+      svg.appendChild(measureArrow(px(info.compressions[0]), ya, px(info.compressions[1]), ya, "lambda", { ldy: -5 }));
+    }
+    if (params.mark && params.mark.half_wavelength && cX != null && rX != null) {
+      var yh = yTop - 8;
+      svg.appendChild(measureArrow(px(Math.min(cX, rX)), yh, px(Math.max(cX, rX)), yh, "lambda/2", { ldy: -5, color: C.ink2 }));
+    }
+    /* distractor: wavelength marked C-to-R (half) */
+    if (params.distractor === "wavelength_C_to_R" && cX != null && rX != null) {
+      var yd = yTop - 8;
+      svg.appendChild(measureArrow(px(cX), yd, px(rX), yd, "lambda?", { ldy: -5, color: C.accent }));
+    }
+    return svg;
+  }
+
+  /* ================= PURE SCORER: wave-feature marking ==================
+     Re-scorable headless (no DOM), so Housing can grade stored attempts.
+     answer: { feature, p1:[x,y], p2:[x,y] } in DATA units (x along the
+     wave, y = displacement for transverse; for longitudinal/wavefronts y
+     is unused and any small value is fine).
+     cfg:    the wave params PLUS { kind:"transverse"|"longitudinal"|
+             "wavefronts", target, tolerance, marks }.
+     marks (default 2): METHOD mark (right feature, right orientation,
+     endpoints on the correct wave landmarks) + VALUE mark (length within
+     tolerance). errorCodes feed the d004 dashboard.                       */
+  WavesModels.scoreWaveMark = function (answer, cfg) {
+    cfg = cfg || {};
+    var marksPossible = (typeof cfg.marks === "number") ? cfg.marks : 2;
+    var target = (answer && answer.feature) || cfg.target || "wavelength";
+    var mdl, A = 1, lambda;
+    if (cfg.kind === "longitudinal") { mdl = WavesModels.longitudinal(cfg); lambda = mdl.wavelength; }
+    else if (cfg.kind === "wavefronts") {
+      lambda = (cfg.spacing != null) ? cfg.spacing : (cfg.wavelength != null ? cfg.wavelength : 1);
+      mdl = { features: { wavelength: { length: lambda, orientation: "horizontal" },
+                          half_wavelength: { length: lambda / 2, orientation: "horizontal" } } };
+    } else { mdl = WavesModels.wave(cfg); lambda = mdl.wavelength; A = mdl.amplitude; }
+    var feat = mdl.features[target];
+    if (!feat) return { marksAwarded: 0, marksPossible: marksPossible, status: "none",
+      hits: [], misses: ["unknown feature: " + target], errorCodes: ["feature_unknown"] };
+
+    var p1 = (answer && answer.p1) || [0, 0], p2 = (answer && answer.p2) || [0, 0];
+    var dx = Math.abs(p2[0] - p1[0]), dy = Math.abs(p2[1] - p1[1]);
+    var orient = feat.orientation;
+    var lenTol = (cfg.tolerance != null) ? cfg.tolerance : Math.max(feat.length * 0.12, lambda * 0.06);
+    /* orientation tolerances in data units */
+    var hTol = lambda * 0.10;           /* horizontal feature: |dy| small  */
+    var vTol = (A || 1) * 0.18;         /* vertical feature:   |dx| small  */
+
+    var hits = [], misses = [], codes = [], marks = 0;
+    var measured = (orient === "horizontal") ? dx : dy;
+    var orientationOk = (orient === "horizontal") ? (dy <= hTol) : (dx <= vTol);
+    var lengthOk = near(measured, feat.length, lenTol);
+
+    /* ---- diagnostics: catch the named distractor placements ---- */
+    if (orient === "horizontal") {
+      if (!orientationOk) codes.push("feature_orientation_wrong");   /* drew a diagonal/vertical */
+      if (target === "wavelength" && near(measured, lambda / 2, lenTol)) codes.push("wavelength_half");
+      if (target === "half_wavelength" && near(measured, lambda, lenTol)) codes.push("half_marked_as_full");
+      /* a diagonal crest->trough reads ~lambda/2 in x AND ~2A in y */
+      if (target === "wavelength" && !orientationOk && near(dx, lambda / 2, lenTol)) codes.push("wavelength_peak_to_trough");
+      if (cfg.kind === "longitudinal" && target === "wavelength" && near(measured, lambda / 2, lenTol)) codes.push("wavelength_C_to_R");
+    } else {  /* amplitude */
+      if (near(dy, 2 * A, Math.max(2 * A * 0.12, lenTol)) ) { codes.push("amplitude_peak_to_trough"); }
+      if (dx > vTol && dy > vTol) codes.push("amplitude_diagonal");
+      if (dx > vTol) codes.push("feature_orientation_wrong");
+    }
+
+    /* method mark */
+    if (orientationOk && (orient === "horizontal" ? true : true)) {
+      if (orient === "horizontal" || (dx <= vTol)) { marks++; hits.push("placement: correct orientation for " + target); }
+    }
+    if (!(orientationOk)) misses.push("placement: " + target + " should be measured " + orient + "ly");
+    /* value mark */
+    if (lengthOk) { marks++; hits.push(target + " length " + fmt(measured) + " (accepted " + fmt(feat.length) + " +- " + fmt(lenTol) + ")"); }
+    else { misses.push(target + ": expected about " + fmt(feat.length) + ", got " + fmt(measured)); if (codes.indexOf("amplitude_peak_to_trough") < 0) codes.push(orient === "horizontal" ? "wavelength_value_wrong" : "amplitude_value_wrong"); }
+
+    /* never award the value mark off a wrong-orientation read even if the
+       number coincides (e.g. amplitude read peak-to-trough that happens to
+       match a tolerance) */
+    if (!orientationOk && marks > 1) marks = 1;
+    /* de-dupe codes */
+    codes = codes.filter(function (v, i) { return codes.indexOf(v) === i; });
+    return { marksAwarded: marks, marksPossible: marksPossible,
+      status: marks >= marksPossible ? "full" : (marks > 0 ? "partial" : "none"),
+      hits: hits, misses: misses, errorCodes: codes };
+  };
+
+  /* ===================== INTERACTIVE WIDGETS ============================ */
+  /* Contract (proposed to Housing in Widgets_Housing_interactive_66.md,
+     identical shape to the 6.5 thread):
+       window.TOPIC_WIDGETS[kind](host, config) -> instance
+       instance.getAnswer() -> structured pupil response (shape per kind)
+       instance.score(answer, config) ->
+         { marksAwarded, marksPossible, status, hits, misses, errorCodes }
+       instance.destroy()                                                  */
+  function makePanel(host) {
+    var panel = document.createElement("div");
+    panel.className = "tw-panel";
+    panel.style.cssText = "margin-top:8px;padding:8px 10px;border:1px solid rgba(26,26,23,.18);border-radius:6px;font:13px var(--sans, system-ui)";
+    host.appendChild(panel);
+    return panel;
+  }
+  function featureSelect(panel, features, fixed) {
+    var row = document.createElement("label");
+    row.style.cssText = "display:flex;align-items:center;gap:8px;margin:2px 0 8px";
+    var span = document.createElement("span"); span.textContent = "I am marking:";
+    var sel = document.createElement("select");
+    features.forEach(function (f) {
+      var o = document.createElement("option"); o.value = f;
+      o.textContent = f.replace(/_/g, " "); sel.appendChild(o);
+    });
+    if (fixed) { sel.value = fixed; sel.disabled = true; }
+    sel.style.cssText = "font:inherit;padding:3px 6px";
+    row.appendChild(span); row.appendChild(sel); panel.appendChild(row);
+    return sel;
+  }
+
+  /* -- interactive wave marking: drag a two-handle measurement line ------
+     Used for wave_train (transverse), longitudinal_wave and wavefronts:
+     the pupil drags two snapped handles to span the feature, picks which
+     feature from a selector (or the author fixes it), and is scored by
+     WavesModels.scoreWaveMark.                                            */
+  function buildMarkWidget(host, config, kind) {
+    config = config || {};
+    host.innerHTML = "";
+    var featList = (kind === "transverse") ? ["wavelength", "half_wavelength", "amplitude"]
+                 : ["wavelength", "half_wavelength"];
+    /* rebuild the picture WITH coordinate maps so handles live in data space */
+    var maps;
+    if (kind === "transverse") {
+      var mdl = WavesModels.wave(config);
+      var fr = sideFrame({ w: config.w || 480, h: config.h || 230, xmax: mdl.xmax, yspan: 1.25,
+        label: "mark the feature" });
+      fr.add(line(fr.X0, fr.Yc, fr.X1, fr.Yc, { color: C.line, width: 1.1, dash: "5 4" }));
+      var d = "", i, N = 360, x, yy, first = true;
+      for (i = 0; i <= N; i++) { x = mdl.xmax * i / N; yy = mdl.y(x) / Math.max(1, mdl.amplitude);
+        d += (first ? "M" : "L") + fr.px(x).toFixed(2) + "," + fr.py(yy).toFixed(2) + " "; first = false; }
+      fr.add(el("path", { d: d.trim(), fill: "none", stroke: C.accent, "stroke-width": 2.6,
+        "stroke-linecap": "round", "stroke-linejoin": "round" }));
+      maps = { svg: fr.svg, px: fr.px, py: fr.py, x2data: function (X) { return (X - fr.X0) / (fr.X1 - fr.X0) * mdl.xmax; },
+        y2data: function (Y) { return (fr.Yc - Y) / fr.halfH * 1.25; }, xmax: mdl.xmax, yspan: 1.25 };
+    } else if (kind === "longitudinal") {
+      host.appendChild(longitudinal_wave(config));
+      var lm = WavesModels.longitudinal(config);
+      var w = config.w || 480, m = 28;
+      var X0 = m, X1 = w - m;
+      maps = { svg: host.firstChild, px: function (x) { return X0 + x / lm.xmax * (X1 - X0); },
+        py: function () { return (config.h || 200) / 2; },
+        x2data: function (X) { return (X - X0) / (X1 - X0) * lm.xmax; }, y2data: function () { return 0; },
+        xmax: lm.xmax, yspan: 1 };
+    } else { /* wavefronts */
+      host.appendChild(wavefronts(config));
+      var lamb = (config.spacing != null) ? config.spacing : (config.wavelength != null ? config.wavelength : 1);
+      var nfr = (config.count != null) ? config.count : 6;
+      var ww = config.w || 360, mm = 26, spanX = ww - 2 * mm, dpx = spanX / (nfr + 0.5);
+      maps = { svg: host.firstChild, px: function (x) { return mm + dpx * 0.5 + x / lamb * dpx; },
+        py: function () { return (config.h || 240) / 2; },
+        x2data: function (X) { return (X - (mm + dpx * 0.5)) / dpx * lamb; }, y2data: function () { return 0; },
+        xmax: lamb * nfr, yspan: 1 };
+    }
+    if (kind === "transverse") host.appendChild(maps.svg);
+
+    /* draggable measurement line over the picture */
+    var sb = maps.xmax / 10;
+    var p1 = [maps.xmax * 0.25, 0], p2 = [maps.xmax * 0.55, 0];
+    var lineEl = el("line", { stroke: C.ok, "stroke-width": 2.4, "stroke-linecap": "round" });
+    var h1 = el("circle", { r: 8, fill: C.ok, "fill-opacity": 0.55, stroke: C.ok, "stroke-width": 1.5 });
+    var h2 = el("circle", { r: 8, fill: C.ok, "fill-opacity": 0.55, stroke: C.ok, "stroke-width": 1.5 });
+    maps.svg.appendChild(lineEl); maps.svg.appendChild(h1); maps.svg.appendChild(h2);
+    function redraw() {
+      lineEl.setAttribute("x1", maps.px(p1[0])); lineEl.setAttribute("y1", maps.py(p1[1]));
+      lineEl.setAttribute("x2", maps.px(p2[0])); lineEl.setAttribute("y2", maps.py(p2[1]));
+      h1.setAttribute("cx", maps.px(p1[0])); h1.setAttribute("cy", maps.py(p1[1]));
+      h2.setAttribute("cx", maps.px(p2[0])); h2.setAttribute("cy", maps.py(p2[1]));
+    }
+    redraw();
+    CORE.makeDraggable(maps.svg, h1, function (pt) { p1 = [clamp(maps.x2data(pt.x), 0, maps.xmax), maps.y2data(pt.y)]; redraw(); });
+    CORE.makeDraggable(maps.svg, h2, function (pt) { p2 = [clamp(maps.x2data(pt.x), 0, maps.xmax), maps.y2data(pt.y)]; redraw(); });
+
+    var panel = makePanel(host);
+    var sel = featureSelect(panel, featList, config.target);
+    var note = document.createElement("div");
+    note.style.cssText = "color:var(--muted,#8c8579);font-size:12px";
+    note.textContent = "Drag the two green handles to span the feature.";
+    panel.appendChild(note);
+
+    var scoreKind = (kind === "transverse") ? "transverse" : kind;
+    return {
+      getAnswer: function () { return { feature: sel.value, p1: p1.slice(), p2: p2.slice() }; },
+      score: function (answer, cfg2) {
+        cfg2 = cfg2 || config; var c = {}; for (var kk in cfg2) c[kk] = cfg2[kk];
+        c.kind = scoreKind; if (!c.target) c.target = (answer && answer.feature);
+        return WavesModels.scoreWaveMark(answer, c);
+      },
+      destroy: function () { host.innerHTML = ""; }
+    };
+  }
+  function widget_wave_train(host, config) { return buildMarkWidget(host, config, "transverse"); }
+  function widget_longitudinal_wave(host, config) { return buildMarkWidget(host, config, "longitudinal"); }
+  function widget_wavefronts(host, config) { return buildMarkWidget(host, config, "wavefronts"); }
+
+  /* ===================== STATIC RENDERERS: scenarios ==================== */
+  /* small reusable sprites (schematic, not to scale; labels carry the
+     physics). All take a parent <svg> and pixel coords.                  */
+  function stickPerson(x, yFeet, h, col) {
+    var g = el("g"), c = col || C.ink, head = h * 0.18;
+    g.appendChild(circle(x, yFeet - h + head, head, { stroke: c, width: 1.6 }));
+    g.appendChild(line(x, yFeet - h + 2 * head, x, yFeet - h * 0.35, { color: c, width: 1.6 }));
+    g.appendChild(line(x, yFeet - h * 0.78, x - h * 0.2, yFeet - h * 0.55, { color: c, width: 1.6 }));
+    g.appendChild(line(x, yFeet - h * 0.78, x + h * 0.2, yFeet - h * 0.55, { color: c, width: 1.6 }));
+    g.appendChild(line(x, yFeet - h * 0.35, x - h * 0.18, yFeet, { color: c, width: 1.6 }));
+    g.appendChild(line(x, yFeet - h * 0.35, x + h * 0.18, yFeet, { color: c, width: 1.6 }));
+    return g;
+  }
+  /* ray convention: a ray is a full-length line with its arrowhead ALONG the
+     length (mid-ray), never on the tip. opts: {color, width, frac} */
+  function rayLine(x1, y1, x2, y2, opts) {
+    opts = opts || {};
+    var col = opts.color || C.accent, wdt = opts.width || 1.8;
+    var g = el("g");
+    g.appendChild(line(x1, y1, x2, y2, { color: col, width: wdt }));
+    var ang = Math.atan2(y2 - y1, x2 - x1);
+    var f = (opts.frac == null) ? 0.55 : opts.frac;
+    g.appendChild(arrowHead(x1 + (x2 - x1) * f, y1 + (y2 - y1) * f, ang, Math.max(7, wdt * 3.4), col));
+    return g;
+  }
+  function waterBand(svg, x0, x1, yTop, yBot, lambdaPx, opts) {
+    opts = opts || {};
+    svg.appendChild(el("rect", { x: x0, y: yTop, width: x1 - x0, height: yBot - yTop,
+      fill: "rgba(60,110,150,.12)", stroke: "none" }));
+    /* surface ripples drawn as a sine on the top edge */
+    var d = "", N = 200, i, x, amp = opts.amp || 5, first = true;
+    for (i = 0; i <= N; i++) { x = x0 + (x1 - x0) * i / N;
+      d += (first ? "M" : "L") + x.toFixed(1) + "," + (yTop + amp * Math.sin(TAU * (x - x0) / lambdaPx)).toFixed(1) + " "; first = false; }
+    svg.appendChild(el("path", { d: d.trim(), fill: "none", stroke: C.ink2, "stroke-width": 1.6 }));
+    return yTop;
+  }
+
+  /* ---------------------------- wave_scenario ---------------------------
+     variants: "shore" | "pier" | "sonar" | "speed_clap" | "echo_wall" |
+               "clap_rhythm"
+     params: { variant, mark:{distance,time,count}, values:{...}, label }
+     Each scene is schematic; markable distances/times carry the physics.
+     Models: pier frequency = count/time; sonar depth = v t/2; clap-distance
+     v = d/t; echo-wall/clap-rhythm v = 2d/t.                              */
+  function wave_scenario(params) {
+    params = params || {};
+    var v = params.variant || "shore";
+    var w = params.w || 460, h = params.h || 240;
+    var svg = makeSVG(w, h, params.label || ("wave scenario: " + v));
+    var mk = params.mark || {}, val = params.values || {};
+
+    if (v === "shore") {
+      /* gentle ripples on a LOW waterline; the beach rises above the water
+         (the old 140px-deep water wall against a tiny wedge read as a
+         tsunami). */
+      waterBand(svg, 20, w - 70, 150, h - 30, 50, { amp: 4 });
+      svg.appendChild(el("path", { d: "M" + (w - 120) + "," + (h - 30) + " L" + (w - 20) + ",118" +
+        " L" + (w - 20) + "," + (h - 30) + " Z", fill: "rgba(180,150,90,.5)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(rayLine(60, 132, w - 140, 132, { color: C.muted, width: 1.6 }));
+      if (params.caption !== false)
+        svg.appendChild(txt(w / 2 - 30, 46, params.caption || "ripples travel toward the shore", { fill: C.ink2, "font-size": 11.5, "text-anchor": "middle" }));
+      if (mk.distance) svg.appendChild(measureArrow(50, h - 18, w - 130, h - 18, (val.distance || "d"), { ldy: 12 }));
+    } else if (v === "pier") {
+      waterBand(svg, 20, w - 20, 95, h - 24, 40, { amp: 6 });
+      /* pier post + person counting */
+      svg.appendChild(el("rect", { x: w * 0.5 - 6, y: 70, width: 12, height: h - 24 - 70, fill: "rgba(120,90,60,.5)", stroke: C.ink2, "stroke-width": 1 }));
+      svg.appendChild(stickPerson(w * 0.5, 70, 40, C.ink));
+      if (params.caption !== false) {
+        svg.appendChild(txt(w * 0.5 + 16, 40, params.caption || "counts waves passing a point", { fill: C.ink2, "font-size": 11.5 }));
+        if (!params.caption) svg.appendChild(txt(w * 0.5 + 16, 56, "in a measured time", { fill: C.muted, "font-size": 10.5 }));
+      }
+      if (mk.count) svg.appendChild(txt(40, 120, "N = " + (val.count || "?") + " waves", { fill: C.accent, "font-size": 12 }));
+      if (mk.time) svg.appendChild(txt(40, 138, "t = " + (val.time || "?") + " s", { fill: C.accent, "font-size": 12 }));
+    } else if (v === "sonar") {
+      /* boat on the surface, pulse down to seabed and back */
+      svg.appendChild(line(20, 60, w - 20, 60, { color: "rgba(60,110,150,.5)", width: 2 }));
+      svg.appendChild(el("rect", { x: 20, y: 60, width: w - 40, height: h - 90, fill: "rgba(60,110,150,.12)" }));
+      svg.appendChild(el("path", { d: "M" + (w / 2 - 28) + ",54 q28,16 56,0 z", fill: "rgba(120,90,60,.7)", stroke: C.ink2, "stroke-width": 1 }));
+      svg.appendChild(el("rect", { x: 20, y: h - 30, width: w - 40, height: 16, fill: "rgba(120,90,60,.4)", stroke: C.ink2, "stroke-width": 1 }));
+      svg.appendChild(rayLine(w / 2 - 6, 64, w / 2 - 6, h - 32, { color: C.accent, width: 1.6 }));
+      svg.appendChild(rayLine(w / 2 + 6, h - 32, w / 2 + 6, 64, { color: C.ok, width: 1.6 }));
+      if (params.caption !== false)
+        svg.appendChild(txt(w / 2 + 14, h / 2, params.caption || "pulse goes down, echo comes back", { fill: C.ink2, "font-size": 11 }));
+      if (mk.time) svg.appendChild(txt(40, 80, "echo time t = " + (val.time || "?") + " s", { fill: C.accent, "font-size": 12 }));
+      if (mk.distance) svg.appendChild(measureArrow(34, 64, 34, h - 32, (val.depth || "depth"), { ldx: -2, ldy: 0, anchor: "end" }));
+    } else if (v === "speed_clap") {
+      /* two people a measured distance apart; clap + stopwatch */
+      svg.appendChild(line(20, h - 40, w - 20, h - 40, { color: C.ink2, width: 1.4 }));
+      svg.appendChild(stickPerson(60, h - 40, 46, C.ink));
+      svg.appendChild(stickPerson(w - 60, h - 40, 46, C.ink));
+      svg.appendChild(txt(60, h - 96, "claps", { fill: C.ink2, "font-size": 11, "text-anchor": "middle" }));
+      svg.appendChild(txt(w - 60, h - 96, "stopwatch", { fill: C.ink2, "font-size": 11, "text-anchor": "middle" }));
+      var scx = 84, scy = h - 58;
+      [12, 20, 28].forEach(function (rr) { svg.appendChild(el("path", { d: "M" + scx + "," + (scy - rr) + " A" + rr + "," + rr + " 0 0 1 " + scx + "," + (scy + rr),
+        fill: "none", stroke: C.accent, "stroke-width": 1.3, "stroke-opacity": 0.6 })); });
+      svg.appendChild(txt(scx + 34, scy - 30, "sound", { "font-size": 9.5, fill: C.muted }));
+      if (params.caption !== false)
+        svg.appendChild(txt(w / 2, 30, params.caption || "sound travels a measured distance", { fill: C.ink2, "font-size": 11.5, "text-anchor": "middle" }));
+      if (mk.distance) svg.appendChild(measureArrow(60, h - 22, w - 60, h - 22, (val.distance || "d"), { ldy: 12 }));
+      if (mk.time) svg.appendChild(txt(w - 60, h - 110, "t = " + (val.time || "?") + " s", { fill: C.accent, "font-size": 11, "text-anchor": "middle" }));
+    } else if (v === "echo_wall" || v === "clap_rhythm") {
+      /* person a measured distance from a wall; clap, hear echo */
+      svg.appendChild(line(20, h - 40, w - 40, h - 40, { color: C.ink2, width: 1.4 }));
+      svg.appendChild(el("rect", { x: w - 40, y: 50, width: 20, height: h - 90, fill: "rgba(120,120,120,.5)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(txt(w - 30, 44, "wall", { fill: C.ink2, "font-size": 10.5, "text-anchor": "middle" }));
+      svg.appendChild(stickPerson(70, h - 40, 46, C.ink));
+      svg.appendChild(rayLine(86, h - 70, w - 48, h - 70, { color: C.accent, width: 1.5 }));
+      svg.appendChild(rayLine(w - 48, h - 86, 86, h - 86, { color: C.ok, width: 1.5 }));
+      var msg = (v === "clap_rhythm")
+        ? "clap in rhythm with each echo"
+        : "time between the clap and the echo";
+      if (params.caption !== false)
+        svg.appendChild(txt(w / 2, 30, params.caption || msg, { fill: C.ink2, "font-size": 11, "text-anchor": "middle" }));
+      if (mk.distance) svg.appendChild(measureArrow(70, h - 22, w - 30, h - 22, (val.distance || "d"), { ldy: 12 }));
+      if (mk.time) svg.appendChild(txt(120, h - 100, "t = " + (val.time || "?") + " s", { fill: C.accent, "font-size": 11 }));
+    }
+    return svg;
+  }
+
+  /* ----------------------------- ripple_tank ----------------------------
+     Apparatus: a vibrating dipper/beam makes ripples on water; a lamp
+     above casts shadows of the wavefronts onto a screen/paper below; a
+     stroboscope (or a photo/video) freezes the pattern so a ruler can
+     measure ACROSS SEVERAL wavelengths, then lambda = distance / n (the
+     count-several-and-divide method that reduces measurement error). With
+     f set by the vibrator, v = f lambda.
+     params: { variant:"shadow"|"strobe"|"ruler", waves (n spanned),
+               mark:{ distance, wavelength }, label }                      */
+  function ripple_tank(params) {
+    params = params || {};
+    var w = params.w || 460, h = params.h || 300;
+    var svg = makeSVG(w, h, params.label || "ripple tank");
+    var nWaves = (params.waves != null) ? params.waves : 5;
+    /* lamp */
+    svg.appendChild(circle(w / 2, 26, 9, { fill: "rgba(240,210,80,.8)", stroke: C.ink2, width: 1.2 }));
+    svg.appendChild(txt(w / 2 + 16, 28, "lamp", { fill: C.ink2, "font-size": 10.5 }));
+    /* light cone */
+    svg.appendChild(el("path", { d: "M" + (w / 2 - 6) + ",34 L40,120 L" + (w - 40) + ",120 Z",
+      fill: "rgba(240,210,80,.10)", stroke: "none" }));
+    /* tank with water + straight wavefronts (plan-ish, seen edge-on) */
+    var tx0 = 40, tx1 = w - 40, ty = 96, tb = 124;
+    svg.appendChild(el("rect", { x: tx0, y: ty, width: tx1 - tx0, height: tb - ty, fill: "rgba(60,110,150,.14)", stroke: C.ink2, "stroke-width": 1.3 }));
+    var rwn = nWaves + 1, rwi, rwx;
+    for (rwi = 1; rwi <= rwn; rwi++) { rwx = tx0 + 28 + (tx1 - tx0 - 40) * (rwi - 0.5) / rwn;
+      svg.appendChild(line(rwx, ty + 3, rwx, tb - 3, { color: "rgba(60,110,150,.75)", width: 1.4 })); }
+    svg.appendChild(txt(tx1 - 2, tb + 11, "water with ripples", { "text-anchor": "end", "font-size": 9.5, fill: C.muted }));
+    /* vibrating beam at left makes the ripples */
+    svg.appendChild(el("rect", { x: tx0 - 6, y: ty - 10, width: 14, height: 12, fill: "rgba(120,90,60,.6)", stroke: C.ink2, "stroke-width": 1 }));
+    svg.appendChild(txt(tx0 + 4, ty - 14, "vibrating beam (frequency f)", { fill: C.ink2, "font-size": 10 }));
+    /* screen below with projected wavefronts and a ruler */
+    var sy = 150, sb = h - 40;
+    svg.appendChild(el("rect", { x: tx0, y: sy, width: tx1 - tx0, height: sb - sy, fill: C.paper, stroke: C.ink2, "stroke-width": 1.2 }));
+    svg.appendChild(txt(tx0, sy - 6, "screen (shadows of the ripples)", { fill: C.muted, "font-size": 10.5 }));
+    var span = tx1 - tx0 - 30, lamPx = span / (nWaves + 1), i, x;
+    for (i = 1; i <= nWaves + 1; i++) {
+      x = tx0 + 15 + lamPx * (i - 0.5);
+      svg.appendChild(line(x, sy + 10, x, sb - 24, { color: C.ink, width: 2 }));
+    }
+    /* ruler measuring across n wavelengths */
+    var rx0 = tx0 + 15 + lamPx * 0.5, rx1 = rx0 + lamPx * nWaves;
+    if (params.mark && params.mark.distance) {
+      svg.appendChild(txt(rx0 - 4, sb - 16, "ruler", { "text-anchor": "end", "font-size": 9, fill: C.muted }));
+      svg.appendChild(measureArrow(rx0, sb - 16, rx1, sb - 16, (nWaves + " wavelengths"), { ldy: 11 }));
+      svg.appendChild(txt(tx1, sy - 6, "λ = distance / " + nWaves, { fill: C.muted, "font-size": 10, "text-anchor": "end" }));
+    }
+    svg.appendChild(txt(w / 2, h - 5, "freeze the ripples (strobe or photo), then measure across several wavelengths", { "text-anchor": "middle", "font-size": 8.5, fill: C.muted }));
+    return svg;
+  }
+
+  /* ---------------------------- standing_wave ---------------------------
+     Required-practical apparatus: a signal generator drives a vibration
+     generator (transducer) at one end; the string passes over a pulley to
+     a hanging mass that sets the tension. At the right driving frequency a
+     STANDING WAVE forms: fixed NODES (zero amplitude) at the ends and
+     between loops, ANTINODES (maximum amplitude) at loop centres. Each
+     loop is HALF a wavelength, so lambda = 2 * (node-to-node distance) and
+     for n loops over length L, lambda = 2L / n. Changing the masses
+     (tension) changes the wave speed and so the pattern.
+     params: { loops, masses, mark:{ nodes, antinodes, length, halfLambda },
+               label }                                                     */
+  function standing_wave(params) {
+    params = params || {};
+    var loops = (params.loops != null) ? params.loops : 3;
+    var w = params.w || 480, h = params.h || 220;
+    var svg = makeSVG(w, h, params.label || "standing wave on a string (required practical)");
+    var Lx0 = 70, Lx1 = w - 70, yMid = h / 2 - 6, A = Math.min(34, (h / 2 - 30));
+    /* vibration generator (left clamp/box) */
+    svg.appendChild(el("rect", { x: 28, y: yMid - 22, width: 30, height: 44, rx: 3, fill: "rgba(150,150,150,.4)", stroke: C.ink2, "stroke-width": 1.2 }));
+    svg.appendChild(txt(43, yMid + 40, "vibration", { fill: C.ink2, "font-size": 9.5, "text-anchor": "middle" }));
+    svg.appendChild(txt(43, yMid + 50, "generator", { fill: C.ink2, "font-size": 9.5, "text-anchor": "middle" }));
+    /* the standing-wave envelope: two mirrored sine curves over n loops */
+    function envY(x, sgn) {
+      var u = (x - Lx0) / (Lx1 - Lx0);
+      return yMid + sgn * A * Math.sin(loops * Math.PI * u);
+    }
+    var d1 = "", d2 = "", N = 240, i, x;
+    for (i = 0; i <= N; i++) { x = Lx0 + (Lx1 - Lx0) * i / N;
+      d1 += (i ? "L" : "M") + x.toFixed(1) + "," + envY(x, 1).toFixed(1) + " ";
+      d2 += (i ? "L" : "M") + x.toFixed(1) + "," + envY(x, -1).toFixed(1) + " "; }
+    svg.appendChild(el("path", { d: d1.trim(), fill: "none", stroke: C.accent, "stroke-width": 2, "stroke-opacity": 0.85 }));
+    svg.appendChild(el("path", { d: d2.trim(), fill: "none", stroke: C.accent, "stroke-width": 2, "stroke-opacity": 0.5, "stroke-dasharray": "5 3" }));
+    svg.appendChild(line(Lx0, yMid, Lx1, yMid, { color: C.line, width: 1, dash: "4 3" }));
+    /* pulley at right + hanging masses */
+    svg.appendChild(circle(Lx1 + 14, yMid, 9, { stroke: C.ink2, width: 1.4 }));
+    svg.appendChild(line(Lx1, yMid, Lx1 + 14, yMid, { color: C.ink, width: 1.6 }));
+    svg.appendChild(line(Lx1 + 23, yMid, Lx1 + 23, h - 36, { color: C.ink, width: 1.4 }));
+    svg.appendChild(el("rect", { x: Lx1 + 16, y: h - 36, width: 14, height: 18, fill: "rgba(80,80,80,.6)", stroke: C.ink2, "stroke-width": 1 }));
+    svg.appendChild(txt(Lx1 + 23, h - 6, "masses", { fill: C.ink2, "font-size": 9.5, "text-anchor": "middle" }));
+    /* node / antinode marks */
+    var k, xn;
+    if (params.mark && params.mark.nodes) {
+      for (k = 0; k <= loops; k++) { xn = Lx0 + (Lx1 - Lx0) * k / loops;
+        svg.appendChild(circle(xn, yMid, 3, { fill: C.ink, stroke: C.paper, width: 1 }));
+      }
+      svg.appendChild(txt(Lx0, yMid - A - 6, "N = node", { fill: C.ink2, "font-size": 10 }));
+    }
+    if (params.mark && params.mark.antinodes) {
+      for (k = 0; k < loops; k++) { xn = Lx0 + (Lx1 - Lx0) * (k + 0.5) / loops;
+        svg.appendChild(txt(xn, yMid - A - 4, "A", { fill: C.ok, "font-size": 11, "text-anchor": "middle", "font-weight": "bold" }));
+      }
+    }
+    if (params.mark && params.mark.halfLambda && loops >= 1) {
+      var x0 = Lx0, x1 = Lx0 + (Lx1 - Lx0) / loops;
+      svg.appendChild(measureArrow(x0, yMid + A + 14, x1, yMid + A + 14, "lambda/2", { ldy: 12, color: C.ink2 }));
+    }
+    if (params.mark && params.mark.length) {
+      svg.appendChild(measureArrow(Lx0, h - 22, Lx1, h - 22, (params.lengthLabel || "L"), { ldy: 12 }));
+    }
+    return svg;
+  }
+
+  /* ================= PURE SCORER: scenario / count reads ================
+     For light interactive items where the pupil reads/computes one number
+     (frequency from a count, depth from an echo, a node count, a wave
+     speed). cfg.quantity selects the model; cfg carries the inputs.       */
+  WavesModels.scenarioExpected = function (cfg) {
+    cfg = cfg || {};
+    switch (cfg.quantity) {
+      case "frequency_count": return WavesModels.frequencyFromCount(cfg.count, cfg.time);
+      case "sonar_depth":     return WavesModels.echoDistance(cfg.speed, cfg.time);
+      case "speed_direct":    return WavesModels.speedDirect(cfg.distance, cfg.time);
+      case "speed_echo":      return WavesModels.speedFromEcho(cfg.distance, cfg.time);
+      case "wave_speed":      return WavesModels.waveSpeed(cfg.frequency, cfg.wavelength);
+      case "wavelength_ripple": return cfg.distance / cfg.waves;
+      case "node_count":      return (cfg.loops != null) ? cfg.loops + 1 : null;   /* nodes = loops + 1 */
+      case "wavelength_standing": return (cfg.length != null && cfg.loops) ? 2 * cfg.length / cfg.loops : null;
+      default: return null;
+    }
+  };
+  WavesModels.scoreScenarioRead = function (answer, cfg) {
+    cfg = cfg || {};
+    var marksPossible = (typeof cfg.marks === "number") ? cfg.marks : 1;
+    var expected = WavesModels.scenarioExpected(cfg);
+    var got = (answer && answer.value);
+    var tol = (cfg.tolerance != null) ? cfg.tolerance : Math.max(Math.abs(expected) * 0.05, 1e-9);
+    var hits = [], misses = [], codes = [], marks = 0;
+    if (expected == null) return { marksAwarded: 0, marksPossible: marksPossible, status: "none",
+      hits: [], misses: ["no model for quantity " + cfg.quantity], errorCodes: ["quantity_unknown"] };
+    if (isFinite(got) && near(got, expected, tol)) { marks++; hits.push(cfg.quantity + " = " + fmt(got)); }
+    else {
+      misses.push(cfg.quantity + ": expected about " + fmt(expected) + ", got " + fmt(got));
+      /* common halving slips: forgot the factor of 2 in echo methods */
+      if ((cfg.quantity === "sonar_depth" || cfg.quantity === "speed_echo") && isFinite(got)) {
+        if (near(got, expected * 2, tol * 2) || near(got, expected / 2, tol)) codes.push("echo_factor_two_missed");
+      }
+      if (cfg.quantity === "node_count" && isFinite(got) && near(got, cfg.loops, 0.5)) codes.push("counted_loops_not_nodes");
+      if (codes.length === 0) codes.push(cfg.quantity + "_wrong");
+    }
+    return { marksAwarded: marks, marksPossible: marksPossible,
+      status: marks >= marksPossible ? "full" : "none", hits: hits, misses: misses, errorCodes: codes };
+  };
+
+  /* -- interactive numeric read: render a scene, pupil reads/computes one
+        number, scored by WavesModels.scoreScenarioRead -------------------*/
+  function inputRow(panel, labelText, unitText) {
+    var row = document.createElement("label");
+    row.style.cssText = "display:flex;align-items:center;gap:8px;margin:6px 0;font:13px var(--sans, system-ui)";
+    var span = document.createElement("span"); span.textContent = labelText; span.style.minWidth = "210px";
+    var inp = document.createElement("input"); inp.type = "number"; inp.step = "any";
+    inp.style.cssText = "width:110px;padding:4px 6px;font:inherit";
+    var unit = document.createElement("span"); unit.textContent = unitText || "";
+    row.appendChild(span); row.appendChild(inp); row.appendChild(unit); panel.appendChild(row);
+    return inp;
+  }
+  function buildReadWidget(host, config, renderFn) {
+    config = config || {};
+    host.innerHTML = "";
+    host.appendChild(renderFn(config));
+    var panel = makePanel(host);
+    var label = config.readLabel || ((config.quantity || "value") + ":");
+    var inp = inputRow(panel, label, config.unit || "");
+    return {
+      getAnswer: function () { return { value: parseFloat(inp.value) }; },
+      score: function (answer, cfg2) { return WavesModels.scoreScenarioRead(answer, cfg2 || config); },
+      destroy: function () { host.innerHTML = ""; }
+    };
+  }
+  function widget_wave_scenario(host, config) { return buildReadWidget(host, config, wave_scenario); }
+  function widget_ripple_tank(host, config) { return buildReadWidget(host, config, ripple_tank); }
+  function widget_standing_wave(host, config) { return buildReadWidget(host, config, standing_wave); }
+
+  /* ===================== STATIC RENDERERS: EM spectrum ================== */
+  /* per-region tints (editorial, distinguishable, not literal colour) */
+  var EM_TINT = {
+    radio: "rgba(90,120,170,.30)", microwave: "rgba(110,150,170,.30)",
+    infrared: "rgba(190,110,80,.32)", visible: "rgba(120,170,110,.34)",
+    ultraviolet: "rgba(140,110,180,.32)", xray: "rgba(120,130,150,.34)",
+    gamma: "rgba(170,90,110,.34)"
+  };
+  /* draw the seven-region band; returns segment x-centres by region name.
+     opts: { x0,x1,y,bh, blanks:[...], highlight:[...], hide:[...],
+             labels:true }                                                 */
+  function emBand(svg, opts) {
+    opts = opts || {};
+    var order = WavesModels.EM.order, n = order.length;
+    var x0 = opts.x0, x1 = opts.x1, y = opts.y, bh = opts.bh || 34;
+    var segW = (x1 - x0) / n, centres = {}, i, name, sx;
+    var blanks = opts.blanks || [], hi = opts.highlight || [], hide = opts.hide || [];
+    for (i = 0; i < n; i++) {
+      name = order[i]; sx = x0 + segW * i; centres[name] = sx + segW / 2;
+      if (hide.indexOf(name) >= 0) {
+        svg.appendChild(el("rect", { x: sx, y: y, width: segW, height: bh, fill: C.paper, stroke: C.line, "stroke-width": 1, "stroke-dasharray": "3 2" }));
+        continue;
+      }
+      svg.appendChild(el("rect", { x: sx, y: y, width: segW, height: bh,
+        fill: EM_TINT[name] || "rgba(0,0,0,.1)", stroke: C.ink2,
+        "stroke-width": (hi.indexOf(name) >= 0) ? 2.4 : 1 }));
+      if (opts.labels !== false) {
+        if (blanks.indexOf(name) >= 0) {
+          svg.appendChild(el("rect", { x: sx + segW * 0.18, y: y + bh / 2 - 8, width: segW * 0.64, height: 16, rx: 3,
+            fill: C.paper, stroke: C.ink2, "stroke-width": 1, "stroke-dasharray": "3 2" }));
+        } else {
+          svg.appendChild(txt(centres[name], y + bh / 2 + 4, WavesModels.EM.region[name].label,
+            { "text-anchor": "middle", "font-size": (segW < 56 ? 9.5 : 11), fill: C.ink }));
+        }
+      }
+    }
+    svg.appendChild(el("rect", { x: x0, y: y, width: x1 - x0, height: bh, fill: "none", stroke: C.ink2, "stroke-width": 1.2 }));
+    return { centres: centres, segW: segW, x0: x0, x1: x1, y: y, bh: bh };
+  }
+
+  /* ----------------------------- em_spectrum ----------------------------
+     params: { mark:{ frequencyArrow, wavelengthArrow, ends }, blanks:[...],
+               highlight:[...], hide:[...], label }
+     ends marks the low/high wavelength + frequency ends (radio = long
+     wavelength / low frequency; gamma = short wavelength / high frequency).*/
+  function em_spectrum(params) {
+    params = params || {};
+    var w = params.w || 560, h = params.h || 170;
+    var svg = makeSVG(w, h, params.label || "electromagnetic spectrum");
+    var mk = params.mark || {};
+    var band = emBand(svg, { x0: 30, x1: w - 30, y: 52, bh: 38,
+      blanks: params.blanks, highlight: params.highlight, hide: params.hide });
+    svg.appendChild(txt(w / 2, 26, "The electromagnetic spectrum", { "text-anchor": "middle", fill: C.ink2, "font-size": 12, "font-style": "italic" }));
+    /* end labels */
+    if (mk.ends !== false) {
+      svg.appendChild(txt(band.x0, 48, "long wavelength", { "font-size": 9.5, fill: C.muted }));
+      svg.appendChild(txt(band.x1, 48, "short wavelength", { "font-size": 9.5, fill: C.muted, "text-anchor": "end" }));
+      svg.appendChild(txt(band.x0, band.y + band.bh + 14, "low frequency", { "font-size": 9.5, fill: C.muted }));
+      svg.appendChild(txt(band.x1, band.y + band.bh + 14, "high frequency", { "font-size": 9.5, fill: C.muted, "text-anchor": "end" }));
+    }
+    if (mk.wavelengthArrow) {
+      var yw = band.y + band.bh + 30;
+      svg.appendChild(CORE.forceArrow(band.x1, yw, band.x0, yw, { color: C.ink2, width: 1.6, label: "" }));
+      svg.appendChild(txt(w / 2, yw - 5, "wavelength increases", { "text-anchor": "middle", "font-size": 10.5, fill: C.ink2 }));
+    }
+    if (mk.frequencyArrow) {
+      var yf = band.y + band.bh + (mk.wavelengthArrow ? 50 : 30);
+      svg.appendChild(CORE.forceArrow(band.x0, yf, band.x1, yf, { color: C.accent, width: 1.6, label: "" }));
+      svg.appendChild(txt(w / 2, yf - 5, "frequency increases", { "text-anchor": "middle", "font-size": 10.5, fill: C.accent }));
+    }
+    return svg;
+  }
+
+  /* ------------------------------ em_origins ----------------------------
+     Where each region is produced. Author-specifiable: pass regions to
+     show (default all). Light: a band with origin captions; gamma from the
+     nucleus, radio from oscillations of charge in a circuit/aerial, the
+     rest in between.
+     params: { regions:["gamma","radio"] | "all", label }                 */
+  /* A labelled reference: each region connects by a line down to its origin.
+     Author can blank chosen origins (gaps) for a fill-in question.
+     params: { regions:[...]|"all", blanks:[...]|"all", title, label }     */
+  var EM_ORIGIN_SHORT = {
+    radio: ["charges oscillating", "in a circuit/aerial"],
+    microwave: ["electron", "oscillations"],
+    infrared: ["warm and hot", "objects"],
+    visible: ["very hot", "objects"],
+    ultraviolet: ["very hot objects;", "electron jumps"],
+    xray: ["fast electrons on", "a metal target"],
+    gamma: ["the nucleus", "of an atom"]
+  };
+  function em_origins(params) {
+    params = params || {};
+    var all = WavesModels.EM.order.slice();
+    var regions = (params.regions && params.regions !== "all") ? params.regions : all;
+    var bl = params.blanks;
+    var blanks = (bl === "all" || (bl && bl[0] === "all")) ? all.slice() : (bl || []);
+    var w = params.w || 660, h = params.h || 152;
+    var svg = makeSVG(w, h, params.label || "origins of EM radiation");
+    svg.appendChild(txt(w / 2, 16, params.title || "Where does each region come from?", { "text-anchor": "middle", fill: C.ink2, "font-size": 12, "font-style": "italic" }));
+    var band = emBand(svg, { x0: 24, x1: w - 24, y: 26, bh: 26 });
+    var bandBot = band.y + band.bh, by = bandBot + 22, boxH = 32, i, r, cx, boxW, li, lines;
+    for (i = 0; i < regions.length; i++) {
+      r = regions[i]; if (band.centres[r] == null) continue;
+      cx = band.centres[r]; boxW = Math.min(band.segW - 6, 96);
+      svg.appendChild(line(cx, bandBot, cx, by, { color: C.ink2, width: 1 }));
+      svg.appendChild(circle(cx, bandBot, 2.2, { fill: C.ink2, stroke: "none" }));
+      if (blanks.indexOf(r) >= 0) {
+        svg.appendChild(el("rect", { x: cx - boxW / 2, y: by, width: boxW, height: boxH, rx: 4, fill: C.paper, stroke: C.ink2, "stroke-width": 1, "stroke-dasharray": "4 3" }));
+      } else {
+        svg.appendChild(el("rect", { x: cx - boxW / 2, y: by, width: boxW, height: boxH, rx: 4, fill: "rgba(255,253,246,.9)", stroke: C.line, "stroke-width": 1 }));
+        lines = EM_ORIGIN_SHORT[r] || [WavesModels.EM.region[r].origin];
+        for (li = 0; li < lines.length; li++)
+          svg.appendChild(txt(cx, by + 14 + li * 11, lines[li], { "text-anchor": "middle", "font-size": 8.5, fill: C.ink2 }));
+      }
+    }
+    if (blanks.length) svg.appendChild(txt(w / 2, h - 6, "fill in where each region is produced", { "text-anchor": "middle", "font-size": 9, fill: C.muted }));
+    return svg;
+  }
+
+  /* ------------------------------- em_uses ------------------------------
+     Author-specifiable illustrations of EM uses (the spec examples).
+     params: { regions:[...] | "all", label }                             */
+  function em_uses(params) {
+    params = params || {};
+    var regions = (params.regions && params.regions !== "all") ? params.regions : WavesModels.EM.order.slice();
+    var w = params.w || 560, h = params.h || 90 + regions.length * 17;
+    var svg = makeSVG(w, h, params.label || "uses of EM radiation");
+    var band = emBand(svg, { x0: 30, x1: w - 30, y: 30, bh: 30, highlight: regions });
+    svg.appendChild(txt(w / 2, 18, "Uses of each region", { "text-anchor": "middle", fill: C.ink2, "font-size": 11.5, "font-style": "italic" }));
+    var yy = band.y + band.bh + 18, i, r, uses;
+    for (i = 0; i < regions.length; i++) {
+      r = regions[i]; uses = WavesModels.EM.region[r].uses.join("; ");
+      svg.appendChild(el("rect", { x: band.centres[r] - 3, y: band.y + band.bh, width: 6, height: 6, fill: C.ink2 }));
+      svg.appendChild(txt(34, yy + i * 17, WavesModels.EM.region[r].label + ": " + uses, { "font-size": 10.5, fill: C.ink2 }));
+    }
+    return svg;
+  }
+
+  /* ================= PURE SCORER: EM spectrum marking ===================
+     answer: { region } (name a region) OR { end, attribute } (which end is
+     high/low frequency/wavelength). cfg: { question, target } where
+     question in {"name_region","which_end"}.                              */
+  WavesModels.scoreEmMark = function (answer, cfg) {
+    cfg = cfg || {}; answer = answer || {};
+    var marksPossible = (typeof cfg.marks === "number") ? cfg.marks : 1;
+    var hits = [], misses = [], codes = [], marks = 0;
+    if (cfg.question === "which_end") {
+      /* cfg.attribute in {high_frequency,low_frequency,long_wavelength,short_wavelength}
+         correct region is gamma (high f / short wl) or radio (low f / long wl) */
+      var attr = cfg.attribute || "high_frequency";
+      var correct = (attr === "high_frequency" || attr === "short_wavelength") ? "gamma" : "radio";
+      if (answer.region === correct) { marks++; hits.push(attr + " end = " + correct); }
+      else {
+        misses.push(attr + " end is " + correct);
+        if (answer.region === (correct === "gamma" ? "radio" : "gamma")) codes.push("spectrum_ends_swapped");
+        else codes.push("em_end_wrong");
+      }
+    } else { /* name_region against a target */
+      if (answer.region === cfg.target) { marks++; hits.push("named " + cfg.target); }
+      else {
+        misses.push("expected " + cfg.target + ", got " + (answer.region || "(none)"));
+        var ti = WavesModels.EM.indexOf(cfg.target), gi = WavesModels.EM.indexOf(answer.region);
+        if (gi >= 0 && Math.abs(gi - ti) === 1) codes.push("em_off_by_one_region");
+        else codes.push("em_region_wrong");
+      }
+    }
+    return { marksAwarded: marks, marksPossible: marksPossible,
+      status: marks >= marksPossible ? "full" : "none", hits: hits, misses: misses, errorCodes: codes };
+  };
+
+  /* -- interactive em_spectrum: click/select a region or an end --------- */
+  function widget_em_spectrum(host, config) {
+    config = config || {};
+    host.innerHTML = "";
+    host.appendChild(em_spectrum(config));
+    var panel = makePanel(host);
+    var q = document.createElement("div");
+    q.style.cssText = "margin-bottom:6px;font:13px var(--sans, system-ui)";
+    q.textContent = config.prompt || (config.question === "which_end"
+      ? ("Which region is at the " + (config.attribute || "high_frequency").replace(/_/g, " ") + " end?")
+      : "Which region is highlighted?");
+    panel.appendChild(q);
+    var sel = document.createElement("select");
+    WavesModels.EM.order.forEach(function (r) {
+      var o = document.createElement("option"); o.value = r; o.textContent = WavesModels.EM.region[r].label; sel.appendChild(o);
+    });
+    sel.style.cssText = "font:13px var(--sans, system-ui);padding:4px 8px";
+    panel.appendChild(sel);
+    return {
+      getAnswer: function () { return { region: sel.value }; },
+      score: function (answer, cfg2) { return WavesModels.scoreEmMark(answer, cfg2 || config); },
+      destroy: function () { host.innerHTML = ""; }
+    };
+  }
+
+  /* ===================== STATIC RENDERERS: refraction ================== */
+  var D2R = Math.PI / 180, R2D = 180 / Math.PI;
+  /* Exit point where the infinite line through (bx,by) along (dx,dy) leaves
+     the rect, travelling +direction. Wavefronts are drawn B -> exit so each
+     keeps its TRUE angle inside the medium; per-axis clamping was rotating
+     and squashing them at the edges/corners (the reported bug). */
+  function rayExit(bx, by, dx, dy, xmin, xmax, ymin, ymax) {
+    var t = Infinity;
+    if (dx > 1e-9) t = Math.min(t, (xmax - bx) / dx);
+    else if (dx < -1e-9) t = Math.min(t, (xmin - bx) / dx);
+    if (dy > 1e-9) t = Math.min(t, (ymax - by) / dy);
+    else if (dy < -1e-9) t = Math.min(t, (ymin - by) / dy);
+    if (!isFinite(t) || t < 0) t = 0;
+    return [bx + t * dx, by + t * dy];
+  }
+  /* law of reflection: reflect direction (dx,dy) about unit normal (nx,ny) */
+  function reflectDir(dx, dy, nx, ny) { var d = 2 * (dx * nx + dy * ny); return [dx - d * nx, dy - d * ny]; }
+  /* small-angle arc for marking an angle from the normal, in pixels */
+  function angleArc(svg, ox, oy, fromAng, toAng, r, label, col) {
+    var p0 = [ox + r * Math.cos(fromAng), oy + r * Math.sin(fromAng)];
+    var p1 = [ox + r * Math.cos(toAng), oy + r * Math.sin(toAng)];
+    var large = Math.abs(toAng - fromAng) > Math.PI ? 1 : 0;
+    var sweep = (toAng > fromAng) ? 1 : 0;
+    svg.appendChild(el("path", { d: "M" + p0[0].toFixed(1) + "," + p0[1].toFixed(1) +
+      " A" + r + "," + r + " 0 " + large + " " + sweep + " " + p1[0].toFixed(1) + "," + p1[1].toFixed(1),
+      fill: "none", stroke: col || C.ink2, "stroke-width": 1 }));
+    if (label) {
+      var mid = (fromAng + toAng) / 2;
+      svg.appendChild(txt(ox + (r + 12) * Math.cos(mid), oy + (r + 12) * Math.sin(mid) + 3, label,
+        { "font-size": 10, fill: col || C.ink2, "text-anchor": "middle" }));
+    }
+  }
+
+  /* -------------------------- refraction_wavefronts ---------------------
+     Parallel wavefronts crossing a straight boundary. Medium 1 (n1) above,
+     medium 2 (n2) below. Snell bends the ray; the perpendicular spacing of
+     the fronts changes from lambda1 to lambda2 = lambda1 * n1/n2 (slower ->
+     closer). The trace spacing ALONG the boundary is continuous
+     (lambda1/sin t1 = lambda2/sin t2), which is why the fronts join up at
+     the interface; that identity is the construction used here.
+     params: { n1, n2, theta1 (deg), mark:{normal,angles,spacing,ray},
+               label }                                                     */
+  function refraction_wavefronts(params) {
+    params = params || {};
+    var n1 = (params.n1 != null) ? params.n1 : 1.0;
+    var n2 = (params.n2 != null) ? params.n2 : 1.5;
+    var t1 = (params.theta1 != null) ? params.theta1 : 40;
+    var t2d = WavesModels.refractAngle(t1, n1, n2);
+    var w = params.w || 420, h = params.h || 320;
+    var svg = makeSVG(w, h, params.label || "refraction of wavefronts");
+    var yB = h / 2, xL = 24, xR = w - 24, ox = w * 0.46;
+    var mk = params.mark || {};
+    /* media tint + boundary */
+    svg.appendChild(el("rect", { x: xL, y: 16, width: xR - xL, height: yB - 16, fill: "rgba(60,110,150,.06)" }));
+    svg.appendChild(el("rect", { x: xL, y: yB, width: xR - xL, height: h - 16 - yB, fill: "rgba(60,110,150,.18)" }));
+    svg.appendChild(line(xL, yB, xR, yB, { color: C.ink, width: 1.6 }));
+    /* Trilogy is QUALITATIVE: never print a readable refractive index on the
+       diagram. Label media by name + the wave-speed cue (the spec cause of
+       refraction). n1/n2 are used only to compute correct-looking geometry. */
+    var slower2 = n2 > n1, showSpd = params.showSpeedCue !== false;
+    var med1L = (params.medium1 || "medium 1") + (showSpd ? (slower2 ? " (wave faster)" : " (wave slower)") : "");
+    var med2L = (params.medium2 || "medium 2") + (showSpd ? (slower2 ? " (wave slower)" : " (wave faster)") : "");
+    svg.appendChild(txt(xR, 28, med1L, { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
+    svg.appendChild(txt(xR, h - 22, med2L, { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
+
+    var lam1 = 26, t1r = t1 * D2R;
+    if (t1 < 0.5) {
+      /* normal incidence: fronts parallel to the boundary, spacing only */
+      var lam2n = lam1 * n1 / n2, yy;
+      for (yy = yB - lam1; yy > 20; yy -= lam1) svg.appendChild(line(xL + 8, yy, xR - 8, yy, { color: C.ink, width: 2 }));
+      for (yy = yB + lam2n; yy < h - 20; yy += lam2n) svg.appendChild(line(xL + 8, yy, xR - 8, yy, { color: C.ink, width: 2 }));
+    } else {
+      var t2r = t2d * D2R;
+      var dAlong = lam1 / Math.sin(t1r);          /* boundary trace spacing */
+      var perp1 = [Math.cos(t1r), -Math.sin(t1r)];/* up into medium1        */
+      var perp2 = [-Math.cos(t2r), Math.sin(t2r)]; /* down-left into medium2 */
+      var j, bx, e1, e2;
+      for (j = -8; j <= 8; j++) {
+        bx = ox + j * dAlong;
+        if (bx < xL + 2 || bx > xR - 2) continue;
+        e1 = rayExit(bx, yB, perp1[0], perp1[1], xL, xR, 16, yB);
+        svg.appendChild(line(bx, yB, e1[0], e1[1], { color: C.ink, width: 1.8 }));
+        e2 = rayExit(bx, yB, perp2[0], perp2[1], xL, xR, yB, h - 16);
+        svg.appendChild(line(bx, yB, e2[0], e2[1], { color: C.ink, width: 1.8 }));
+      }
+      /* the ray is OFF by default on a wavefront diagram (mark.ray to add) */
+      if (mk.ray) {
+        var dr1 = [Math.sin(t1r), Math.cos(t1r)], dr2 = [Math.sin(t2r), Math.cos(t2r)];
+        svg.appendChild(rayLine(ox - 70 * dr1[0], yB - 70 * dr1[1], ox, yB, { color: C.accent, width: 1.8 }));
+        svg.appendChild(rayLine(ox, yB, ox + 70 * dr2[0], yB + 70 * dr2[1], { color: C.accent, width: 1.8 }));
+      }
+    }
+    /* normal + angle marks */
+    if (mk.normal !== false) svg.appendChild(line(ox, 20, ox, h - 16, { color: C.muted, width: 1, dash: "5 4" }));
+    if (mk.angles && t1 >= 0.5 && t2d != null) {
+      angleArc(svg, ox, yB, -Math.PI / 2, -Math.PI / 2 + t1 * D2R, 30, "i", C.ink2);
+      angleArc(svg, ox, yB, Math.PI / 2, Math.PI / 2 + t2d * D2R, 30, "r", C.ink2);
+    }
+    if (mk.spacing) {
+      svg.appendChild(txt(xL + 6, yB - 8, "λ1", { "font-size": 10, fill: C.ink2 }));
+      svg.appendChild(txt(xL + 6, yB + 16, "λ2 (" + (n2 > n1 ? "closer" : "wider") + ")", { "font-size": 10, fill: C.ink2 }));
+    }
+    return svg;
+  }
+
+  /* ----------------------------- refraction_ray -------------------------
+     A single ray refracting through a block. shapes:
+       "rectangle"  - two parallel faces; emergent ray parallel to incident
+                      with a lateral shift (the classic glass-block result).
+       "triangle"   - equilateral prism; ray bends toward the base at both
+                      faces (deviation).
+       "semicircle" - ray entering the flat face aimed at the centre of the
+                      curved face hits the curved face along its normal and
+                      passes straight out (the standard "ray box +
+                      semicircular block" set-up); a non-central ray
+                      refracts at the curved face.
+     params: { shape, n (block index, vs air=1), theta1 (deg), reflect:false
+               (show the weak reflected ray), mark:{normal,angles,labels},
+               label }                                                     */
+  function refraction_ray(params) {
+    params = params || {};
+    var shape = params.shape || "rectangle";
+    var n = (params.n != null) ? params.n : 1.5;
+    var t1 = (params.theta1 != null) ? params.theta1 : 40;
+    var w = params.w || 420, h = params.h || 300;
+    var svg = makeSVG(w, h, params.label || ("refraction through a " + shape));
+    var mk = params.mark || {};
+    var glassFill = "rgba(120,170,190,.22)", glassStroke = C.ink2;
+
+    if (shape === "rectangle") {
+      var bx0 = w * 0.28, bx1 = w * 0.72, by0 = 60, by1 = h - 50;
+      svg.appendChild(el("rect", { x: bx0, y: by0, width: bx1 - bx0, height: by1 - by0, fill: glassFill, stroke: glassStroke, "stroke-width": 1.4 }));
+      /* entry on the top face at point E; normal is vertical there */
+      var E = [w * 0.42, by0], t1r = t1 * D2R, t2 = WavesModels.refractAngle(t1, 1, n), t2r = t2 * D2R;
+      svg.appendChild(rayLine(E[0] - 70 * Math.sin(t1r), E[1] - 70 * Math.cos(t1r), E[0], E[1], { color: C.accent, width: 1.8 }));
+      /* internal ray to the bottom face */
+      var run = (by1 - by0) * Math.tan(t2r);
+      var X = [E[0] + run, by1];
+      svg.appendChild(line(E[0], E[1], X[0], X[1], { color: C.accent, width: 1.8 }));
+      /* emergent ray: parallel to incident (exit angle = t1) */
+      svg.appendChild(rayLine(X[0], X[1], X[0] + 70 * Math.sin(t1r), X[1] + 70 * Math.cos(t1r), { color: C.accent, width: 1.8 }));
+      if (mk.normal !== false) { svg.appendChild(line(E[0], by0 - 30, E[0], by0 + 40, { color: C.muted, width: 1, dash: "5 4" }));
+        svg.appendChild(line(X[0], by1 - 40, X[0], by1 + 30, { color: C.muted, width: 1, dash: "5 4" })); }
+      if (mk.angles) { angleArc(svg, E[0], E[1], -Math.PI / 2, -Math.PI / 2 + t1r, 26, "i", C.ink2);
+        angleArc(svg, E[0], E[1], Math.PI / 2, Math.PI / 2 + t2r, 26, "r", C.ink2); }
+      if (mk.labels !== false) svg.appendChild(txt(bx0 + 6, by0 + 16, (params.material || "glass block"), { "font-size": 10, fill: C.ink2 }));
+    } else if (shape === "triangle") {
+      var cx = w / 2, Ttop = [cx, 64], halfBase = 94, baseY = h - 54;
+      var Lp = [cx - halfBase, baseY], Rp = [cx + halfBase, baseY];
+      svg.appendChild(el("path", { d: "M" + Ttop[0] + "," + Ttop[1] + " L" + Lp[0] + "," + Lp[1] + " L" + Rp[0] + "," + Rp[1] + " Z",
+        fill: glassFill, stroke: glassStroke, "stroke-width": 1.4 }));
+      function unit(v) { var L = Math.hypot(v[0], v[1]); return [v[0] / L, v[1] / L]; }
+      /* left face (L->T): outward normal points up-left (x<0) */
+      var leftEdge = unit([Ttop[0] - Lp[0], Ttop[1] - Lp[1]]);
+      var nLeftOut = [-leftEdge[1], leftEdge[0]]; if (nLeftOut[0] > 0) nLeftOut = [-nLeftOut[0], -nLeftOut[1]];
+      var rightEdge = unit([Rp[0] - Ttop[0], Rp[1] - Ttop[1]]);
+      var nRightOut = [-rightEdge[1], rightEdge[0]]; if (nRightOut[0] < 0) nRightOut = [-nRightOut[0], -nRightOut[1]];
+      var E1 = [(Ttop[0] + Lp[0]) / 2 + 4, (Ttop[1] + Lp[1]) / 2 + 8];
+      var dInc = unit([Math.cos(16 * D2R), Math.sin(16 * D2R)]);   /* down-right */
+      var dIn = WavesModels.refractDir(dInc, nLeftOut, 1 / n) || dInc;
+      /* intersect E1 + s*dIn with right face line Ttop + u*rightEdge */
+      var det = dIn[0] * (-rightEdge[1]) - (-rightEdge[0]) * dIn[1];
+      var bx = Ttop[0] - E1[0], by = Ttop[1] - E1[1];
+      var sS = (bx * (-rightEdge[1]) - (-rightEdge[0]) * by) / det;
+      var E2 = [E1[0] + sS * dIn[0], E1[1] + sS * dIn[1]];
+      var dOut = WavesModels.refractDir(dIn, [-nRightOut[0], -nRightOut[1]], n) || dIn;
+      svg.appendChild(rayLine(E1[0] - 72 * dInc[0], E1[1] - 72 * dInc[1], E1[0], E1[1], { color: C.accent, width: 1.8 }));
+      svg.appendChild(line(E1[0], E1[1], E2[0], E2[1], { color: C.accent, width: 1.8 }));
+      svg.appendChild(rayLine(E2[0], E2[1], E2[0] + 72 * dOut[0], E2[1] + 72 * dOut[1], { color: C.accent, width: 1.8 }));
+      if (mk.normal !== false) {
+        svg.appendChild(line(E1[0] - 24 * nLeftOut[0], E1[1] - 24 * nLeftOut[1], E1[0] + 24 * nLeftOut[0], E1[1] + 24 * nLeftOut[1], { color: C.muted, width: 1, dash: "5 4" }));
+        svg.appendChild(line(E2[0] - 24 * nRightOut[0], E2[1] - 24 * nRightOut[1], E2[0] + 24 * nRightOut[0], E2[1] + 24 * nRightOut[1], { color: C.muted, width: 1, dash: "5 4" }));
+      }
+      if (mk.angles) {
+        angleArc(svg, E1[0], E1[1], Math.atan2(nLeftOut[1], nLeftOut[0]), Math.atan2(-dInc[1], -dInc[0]), 18, "i", C.ink2);
+        angleArc(svg, E1[0], E1[1], Math.atan2(-nLeftOut[1], -nLeftOut[0]), Math.atan2(dIn[1], dIn[0]), 18, "r", C.ink2);
+      }
+      svg.appendChild(txt(cx, baseY - 8, "bends toward the base", { "text-anchor": "middle", "font-size": 10, fill: C.ink2 }));
+      if (mk.labels !== false) svg.appendChild(txt(cx, Ttop[1] - 8, (params.material || "glass prism"), { "text-anchor": "middle", "font-size": 10, fill: C.ink2 }));
+    } else { /* semicircle */
+      var rad = 92, flatX = w * 0.40, sc = [flatX, h / 2];
+      /* flat (diameter) face vertical on the left; curved face bulges right */
+      svg.appendChild(el("path", { d: "M" + flatX + "," + (sc[1] - rad) + " A" + rad + "," + rad + " 0 0 1 " + flatX + "," + (sc[1] + rad) + " Z",
+        fill: glassFill, stroke: glassStroke, "stroke-width": 1.4 }));
+      svg.appendChild(line(flatX, sc[1] - rad, flatX, sc[1] + rad, { color: glassStroke, width: 1.4 }));
+      /* ray meets the flat face AT THE CENTRE; flat-face normal is horizontal.
+         It refracts toward the normal, travels a RADIUS to the curved face and
+         exits undeviated (curved face normal = radius). */
+      var t1s = t1 * D2R, t2s = WavesModels.refractAngle(t1, 1, n) * D2R;
+      var dIn0 = [Math.cos(t1s), Math.sin(t1s)];
+      svg.appendChild(rayLine(sc[0] - 82 * dIn0[0], sc[1] - 82 * dIn0[1], sc[0], sc[1], { color: C.accent, width: 1.8 }));
+      var dR = [Math.cos(t2s), Math.sin(t2s)];
+      var P = [sc[0] + rad * dR[0], sc[1] + rad * dR[1]];
+      svg.appendChild(line(sc[0], sc[1], P[0], P[1], { color: C.accent, width: 1.8 }));
+      svg.appendChild(rayLine(P[0], P[1], P[0] + 70 * dR[0], P[1] + 70 * dR[1], { color: C.accent, width: 1.8 }));
+      if (mk.normal !== false) svg.appendChild(line(sc[0] - 40, sc[1], sc[0] + 40, sc[1], { color: C.muted, width: 1, dash: "5 4" }));
+      if (mk.angles) { angleArc(svg, sc[0], sc[1], Math.PI, Math.PI - t1s, 26, "i", C.ink2);
+        angleArc(svg, sc[0], sc[1], 0, t2s, 26, "r", C.ink2); }
+      if (mk.labels !== false) svg.appendChild(txt(sc[0] + rad * 0.4, sc[1] - rad * 0.55, (params.material || "glass"), { "font-size": 10, fill: C.ink2 }));
+    }
+    return svg;
+  }
+
+  /* ================= PURE SCORER: refraction angle ======================
+     answer: { theta2_deg } (the refracted angle the pupil set, measured
+     from the normal). cfg: { n1, n2, theta1, tolerance(deg), marks }.
+     marks (default 2): DIRECTION mark (bent the correct way) + VALUE mark
+     (within tolerance of Snell). Handles TIR (no real refracted ray).     */
+  WavesModels.scoreRefraction = function (answer, cfg) {
+    cfg = cfg || {}; answer = answer || {};
+    var n1 = (cfg.n1 != null) ? cfg.n1 : 1, n2 = (cfg.n2 != null) ? cfg.n2 : 1.5;
+    var t1 = (cfg.theta1 != null) ? cfg.theta1 : 40;
+    var marksPossible = (typeof cfg.marks === "number") ? cfg.marks : 2;
+    var expected = WavesModels.refractAngle(t1, n1, n2);
+    var tol = (cfg.tolerance != null) ? cfg.tolerance : 3;
+    var got = answer.theta2_deg;
+    var hits = [], misses = [], codes = [], marks = 0;
+    if (expected == null) {               /* total internal reflection */
+      if (answer.tir === true || answer.theta2_deg == null) { marks = marksPossible; hits.push("total internal reflection (no refracted ray)"); }
+      else { misses.push("beyond the critical angle: total internal reflection, no refracted ray"); codes.push("tir_not_recognised"); }
+      return { marksAwarded: marks, marksPossible: marksPossible,
+        status: marks >= marksPossible ? "full" : "none", hits: hits, misses: misses, errorCodes: codes };
+    }
+    var towardNormal = n2 > n1;           /* slowing -> bend toward normal */
+    var bentToward = isFinite(got) && (got < t1 - 0.5);
+    var bentAway = isFinite(got) && (got > t1 + 0.5);
+    var directionOk = towardNormal ? bentToward : bentAway;
+    if (directionOk) { marks++; hits.push("bent " + (towardNormal ? "toward" : "away from") + " the normal"); }
+    else {
+      misses.push("a ray entering the " + (towardNormal ? "slower (denser)" : "faster (less dense)") + " medium bends " + (towardNormal ? "toward" : "away from") + " the normal");
+      if (isFinite(got) && near(got, t1, 1.0)) codes.push("equal_angle_no_refraction");
+      else codes.push("bent_wrong_way");
+    }
+    if (directionOk && isFinite(got) && near(got, expected, tol)) { marks++; hits.push("refracted angle " + fmt(got) + " deg (Snell: " + expected.toFixed(1) + " deg)"); }
+    else if (isFinite(got)) { misses.push("refracted angle: it should bend " + (towardNormal ? "toward" : "away from") + " the normal" + (directionOk ? " a little " + (got > expected ? "less" : "more") : "")); if (directionOk) codes.push("snell_angle_off"); }
+    /* optional third mark: the wavefront SPACING change (lambda2/lambda1 = n1/n2) */
+    if (cfg.gradeSpacing || answer.lambda2_over_lambda1 != null || answer.spacing_change != null) {
+      marksPossible = (typeof cfg.marks === "number") ? cfg.marks : 3;
+      var slower = n2 > n1;                 /* wave slows -> fronts closer */
+      if (answer.spacing_change != null) {  /* Trilogy qualitative default */
+        var want = slower ? "closer" : "further";
+        if (answer.spacing_change === want) { marks++; hits.push("wavefront spacing: " + want + " together"); }
+        else if (answer.spacing_change === "same") { misses.push("the wavefronts change spacing across the boundary"); codes.push("spacing_unchanged"); }
+        else { misses.push("entering the " + (slower ? "slower" : "faster") + " medium the wavefronts get " + want); codes.push("spacing_inverted"); }
+      } else {                              /* numeric ratio (Triple/HT) */
+        var expRatio = n1 / n2, gotR = answer.lambda2_over_lambda1, rtol = (cfg.spacingTolerance != null) ? cfg.spacingTolerance : 0.1;
+        if (isFinite(gotR) && near(gotR, expRatio, rtol)) { marks++; hits.push("spacing ratio " + fmt(gotR)); }
+        else {
+          misses.push("wavefront spacing ratio should be " + expRatio.toFixed(2));
+          if (isFinite(gotR) && near(gotR, n2 / n1, rtol)) codes.push("spacing_inverted");
+          else if (isFinite(gotR) && near(gotR, 1, rtol)) codes.push("spacing_unchanged");
+          else codes.push("spacing_wrong");
+        }
+      }
+    }
+    codes = codes.filter(function (v, i) { return codes.indexOf(v) === i; });
+    return { marksAwarded: marks, marksPossible: marksPossible,
+      status: marks >= marksPossible ? "full" : (marks > 0 ? "partial" : "none"),
+      hits: hits, misses: misses, errorCodes: codes };
+  };
+
+  /* -- interactive refraction: drag the refracted ray, set the angle -----
+     A fixed incident ray meets a horizontal boundary at O; the pupil drags
+     a handle in medium 2 to place the refracted ray. theta2 is read from
+     the handle and scored by WavesModels.scoreRefraction. Used for both
+     refraction_wavefronts and refraction_ray items (same physics; the
+     static pictures differ, the graded quantity is the refracted angle).
+     v1.1 flagged to Housing: drag-the-wavefronts-through and lateral-shift
+     reads; the contract is unchanged (getAnswer gains fields).            */
+  function buildRefractionWidget(host, config) {
+    config = config || {};
+    host.innerHTML = "";
+    var n1 = (config.n1 != null) ? config.n1 : 1, n2 = (config.n2 != null) ? config.n2 : 1.5;
+    var t1 = (config.theta1 != null) ? config.theta1 : 40;
+    var w = config.w || 380, h = config.h || 320;
+    var svg = makeSVG(w, h, "place the refracted ray");
+    var yB = h / 2, xL = 20, xR = w - 20, ox = w / 2;
+    svg.appendChild(el("rect", { x: xL, y: 16, width: xR - xL, height: yB - 16, fill: "rgba(60,110,150,.06)" }));
+    svg.appendChild(el("rect", { x: xL, y: yB, width: xR - xL, height: h - 16 - yB, fill: "rgba(60,110,150,.18)" }));
+    svg.appendChild(line(xL, yB, xR, yB, { color: C.ink, width: 1.6 }));
+    svg.appendChild(line(ox, 22, ox, h - 16, { color: C.muted, width: 1, dash: "5 4" }));
+    var slowerB = n2 > n1, showB = config.showSpeedCue !== false;
+    svg.appendChild(txt(xR, 28, (config.medium1 || "medium 1") + (showB ? (slowerB ? " (faster)" : " (slower)") : ""), { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
+    svg.appendChild(txt(xR, h - 22, (config.medium2 || "medium 2") + (showB ? (slowerB ? " (slower)" : " (faster)") : ""), { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
+    /* fixed incident ray */
+    var t1r = t1 * D2R;
+    svg.appendChild(rayLine(ox - 80 * Math.sin(t1r), yB - 80 * Math.cos(t1r), ox, yB, { color: C.muted, width: 1.8 }));
+    svg.appendChild(txt(ox - 80 * Math.sin(t1r) - 6, yB - 80 * Math.cos(t1r), "incident, i = " + fmt(t1) + " deg", { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
+    /* draggable refracted-ray handle in medium 2 */
+    var refLen = 90, t2start = 25 * D2R;
+    var hp = [ox + refLen * Math.sin(t2start), yB + refLen * Math.cos(t2start)];
+    var refLine = el("line", { stroke: C.accent, "stroke-width": 2, "stroke-linecap": "round" });
+    var handle = el("circle", { r: 9, fill: C.accent, "fill-opacity": 0.5, stroke: C.accent, "stroke-width": 1.5 });
+    svg.appendChild(refLine); svg.appendChild(handle);
+    var readout = null, theta2 = 25;
+    function redraw() {
+      var dx = hp[0] - ox, dy = hp[1] - yB;
+      theta2 = Math.atan2(dx, dy) * R2D;     /* from the downward normal */
+      refLine.setAttribute("x1", ox); refLine.setAttribute("y1", yB);
+      refLine.setAttribute("x2", hp[0]); refLine.setAttribute("y2", hp[1]);
+      handle.setAttribute("cx", hp[0]); handle.setAttribute("cy", hp[1]);
+      if (readout) readout.textContent = "refracted angle r = " + theta2.toFixed(0) + " deg";
+    }
+    CORE.makeDraggable(svg, handle, function (pt) {
+      var dx = pt.x - ox, dy = Math.max(6, pt.y - yB);   /* keep in medium 2 */
+      var L = Math.sqrt(dx * dx + dy * dy);
+      hp = [ox + refLen * dx / L, yB + refLen * dy / L]; redraw();
+    });
+    host.appendChild(svg);
+    var panel = makePanel(host);
+    readout = document.createElement("div");
+    readout.style.cssText = "font:13px var(--sans, system-ui);color:var(--accent,#b03030)";
+    panel.appendChild(readout);
+    var hint = document.createElement("div");
+    hint.style.cssText = "font:12px var(--sans, system-ui);color:var(--muted,#8c8579);margin-top:4px";
+    hint.textContent = "Drag the red handle so the refracted ray has the correct angle.";
+    panel.appendChild(hint);
+    redraw();
+    return {
+      getAnswer: function () { return { theta2_deg: theta2 }; },
+      score: function (answer, cfg2) { return WavesModels.scoreRefraction(answer, cfg2 || config); },
+      destroy: function () { host.innerHTML = ""; }
+    };
+  }
+  /* v1.1 (dispatch-named): drag the parallel wavefronts THROUGH the
+     boundary. The pupil rotates the refracted fronts (sets the refracted
+     angle) AND types how the spacing changes; both are graded. Contract
+     unchanged: getAnswer gains lambda2_over_lambda1, scored by the same
+     WAVES_MODELS.scoreRefraction with gradeSpacing. */
+  function widget_refraction_wavefronts(host, config) {
+    config = config || {};
+    host.innerHTML = "";
+    var n1 = (config.n1 != null) ? config.n1 : 1, n2 = (config.n2 != null) ? config.n2 : 1.5;
+    var t1 = (config.theta1 != null) ? config.theta1 : 40;
+    var w = config.w || 380, h = config.h || 320;
+    var svg = makeSVG(w, h, "drag the refracted wavefronts");
+    var yB = h / 2, xL = 18, xR = w - 18, ox = w / 2;
+    svg.appendChild(el("rect", { x: xL, y: 14, width: xR - xL, height: yB - 14, fill: "rgba(60,110,150,.06)" }));
+    svg.appendChild(el("rect", { x: xL, y: yB, width: xR - xL, height: h - 14 - yB, fill: "rgba(60,110,150,.18)" }));
+    svg.appendChild(line(xL, yB, xR, yB, { color: C.ink, width: 1.6 }));
+    svg.appendChild(line(ox, 18, ox, h - 14, { color: C.muted, width: 1, dash: "5 4" }));
+    var slowerW = n2 > n1, showW = config.showSpeedCue !== false;
+    svg.appendChild(txt(xR, 26, (config.medium1 || "medium 1") + (showW ? (slowerW ? " (faster)" : " (slower)") : ""), { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
+    svg.appendChild(txt(xR, h - 20, (config.medium2 || "medium 2") + (showW ? (slowerW ? " (slower)" : " (faster)") : ""), { "font-size": 10, fill: C.ink2, "text-anchor": "end" }));
+    var t1r = t1 * D2R, lam1 = 24, dAlong = lam1 / Math.sin(t1r);
+    var perp1 = [Math.cos(t1r), -Math.sin(t1r)], jj, bx;
+    for (jj = -8; jj <= 8; jj++) { bx = ox + jj * dAlong; if (bx < xL + 2 || bx > xR - 2) continue;
+      var ei = rayExit(bx, yB, perp1[0], perp1[1], xL, xR, 14, yB);
+      svg.appendChild(line(bx, yB, ei[0], ei[1], { color: C.muted, width: 1.5 })); }
+    svg.appendChild(rayLine(ox - 64 * Math.sin(t1r), yB - 64 * Math.cos(t1r), ox, yB, { color: C.muted, width: 1.4 }));
+    var gFront = el("g"); svg.appendChild(gFront);
+    var handle = el("circle", { r: 9, fill: C.accent, "fill-opacity": 0.5, stroke: C.accent, "stroke-width": 1.5 });
+    svg.appendChild(handle);
+    var t2 = 25, ratio = 1.0, spacingChange = "same", readout = null;
+    function redraw() {
+      while (gFront.firstChild) gFront.removeChild(gFront.firstChild);
+      var t2r = Math.max(0.02, t2 * D2R), perp2 = [-Math.cos(t2r), Math.sin(t2r)], k, b2;
+      /* refracted fronts start from the SAME boundary trace points as the
+         incident fronts (ox + k*dAlong) so they stay CONTIGUOUS at the boundary */
+      for (k = -8; k <= 8; k++) { b2 = ox + k * dAlong; if (b2 < xL + 2 || b2 > xR - 2) continue;
+        var er = rayExit(b2, yB, perp2[0], perp2[1], xL, xR, yB, h - 14);
+        gFront.appendChild(line(b2, yB, er[0], er[1], { color: C.accent, width: 1.8 })); }
+      handle.setAttribute("cx", ox + 84 * Math.sin(t2r)); handle.setAttribute("cy", yB + 84 * Math.cos(t2r));
+      if (readout) readout.textContent = "refracted angle r = " + t2.toFixed(0) + "°,  wavefronts: " + spacingChange;
+    }
+    CORE.makeDraggable(svg, handle, function (pt) { var dx = pt.x - ox, dy = Math.max(6, pt.y - yB); t2 = Math.atan2(dx, dy) * R2D; redraw(); });
+    host.appendChild(svg);
+    var panel = makePanel(host);
+    readout = document.createElement("div"); readout.style.cssText = "font:13px var(--sans, system-ui);color:var(--accent,#b03030)"; panel.appendChild(readout);
+    var srow = document.createElement("label");
+    srow.style.cssText = "display:flex;align-items:center;gap:8px;margin:6px 0;font:13px var(--sans, system-ui)";
+    var sspan = document.createElement("span"); sspan.textContent = "In medium 2 the wavefronts are:"; sspan.style.minWidth = "180px";
+    var ssel = document.createElement("select"); ssel.style.cssText = "font:inherit;padding:3px 6px";
+    [["same", "the same distance apart"], ["closer", "closer together"], ["further", "further apart"]].forEach(function (o) { var e = document.createElement("option"); e.value = o[0]; e.textContent = o[1]; ssel.appendChild(e); });
+    srow.appendChild(sspan); srow.appendChild(ssel); panel.appendChild(srow);
+    ssel.addEventListener("change", function () { spacingChange = ssel.value; ratio = (spacingChange === "closer") ? 0.7 : (spacingChange === "further") ? 1.4 : 1.0; redraw(); });
+    var hint = document.createElement("div"); hint.style.cssText = "font:12px var(--sans, system-ui);color:var(--muted,#8c8579);margin-top:4px";
+    hint.textContent = "Drag the handle to set the refracted angle; choose how the spacing changes."; panel.appendChild(hint);
+    redraw();
+    return {
+      getAnswer: function () { return { theta2_deg: t2, spacing_change: spacingChange }; },
+      score: function (answer, cfg2) { var c = {}, src = cfg2 || config, kk; for (kk in src) c[kk] = src[kk]; c.gradeSpacing = true; return WavesModels.scoreRefraction(answer, c); },
+      destroy: function () { host.innerHTML = ""; }
+    };
+  }
+  function widget_refraction_ray(host, config) { return buildRefractionWidget(host, config); }
+
+  /* ================ STATIC: material behaviour + radiation =============== */
+  /* ----------------------- material_wave_behaviour ----------------------
+     Different materials/wavelengths transmit, absorb, reflect or refract.
+     Author-specifiable: each ray names its behaviour at the material.
+     params: { material, rays:[{label, behaviour, tint}], label }
+       behaviour in {transmit, absorb, reflect, refract}                   */
+  function material_wave_behaviour(params) {
+    params = params || {};
+    var rays = params.rays || [
+      { label: "visible", behaviour: "transmit" },
+      { label: "ultraviolet", behaviour: "absorb" },
+      { label: "infrared", behaviour: "reflect" }
+    ];
+    var w = params.w || 480, h = params.h || 72 + rays.length * 62;
+    var svg = makeSVG(w, h, params.label || "wavelength-dependent behaviour");
+    var mx0 = w * 0.44, mx1 = w * 0.57;
+    svg.appendChild(el("rect", { x: mx0, y: 26, width: mx1 - mx0, height: h - 52, fill: "rgba(120,150,170,.30)", stroke: C.ink2, "stroke-width": 1.4 }));
+    svg.appendChild(txt((mx0 + mx1) / 2, 18, params.material || "material", { "text-anchor": "middle", "font-size": 10.5, fill: C.ink2 }));
+    var th = 20 * D2R, dc = Math.cos(th), ds = Math.sin(th), Lin = 62, Lout = 66;
+    var i, r, y, col;
+    for (i = 0; i < rays.length; i++) {
+      r = rays[i]; y = 62 + i * 62; col = r.tint || C.accent;
+      svg.appendChild(rayLine(mx0 - Lin * dc, y - Lin * ds, mx0, y, { color: col, width: 2 }));
+      svg.appendChild(txt(mx0 - Lin * dc, y - Lin * ds - 6, r.label, { "font-size": 10.5, fill: C.ink2 }));
+      if (r.behaviour === "transmit") {
+        var by = y + (mx1 - mx0) * Math.tan(th);
+        svg.appendChild(line(mx0, y, mx1, by, { color: col, width: 2 }));
+        svg.appendChild(rayLine(mx1, by, mx1 + Lout * dc, by + Lout * ds, { color: col, width: 2 }));
+        svg.appendChild(txt(w - 14, by + Lout * ds, "transmitted", { "font-size": 10, fill: C.muted, "text-anchor": "end" }));
+      } else if (r.behaviour === "refract") {
+        var t2 = 11 * D2R, by2 = y + (mx1 - mx0) * Math.tan(t2);
+        svg.appendChild(line(mx0, y, mx1, by2, { color: col, width: 2 }));
+        svg.appendChild(rayLine(mx1, by2, mx1 + Lout * dc, by2 + Lout * ds, { color: col, width: 2 }));
+        svg.appendChild(txt(w - 14, by2 + Lout * ds, "refracted", { "font-size": 10, fill: C.muted, "text-anchor": "end" }));
+      } else if (r.behaviour === "reflect") {
+        var rd = reflectDir(dc, ds, 1, 0);   /* horizontal normal: angle of reflection = angle of incidence */
+        svg.appendChild(line(mx0 - 40, y, mx0 + 8, y, { color: C.muted, width: 1, dash: "5 4" }));
+        svg.appendChild(rayLine(mx0, y, mx0 + Lout * rd[0], y + Lout * rd[1], { color: col, width: 2 }));
+        svg.appendChild(txt(mx0 - Lout * dc - 4, y + Lout * ds + 4, "reflected", { "font-size": 10, fill: C.muted, "text-anchor": "end" }));
+      } else { /* absorb */
+        svg.appendChild(circle((mx0 + mx1) / 2, y + (mx1 - mx0) * 0.5 * Math.tan(th), 4, { fill: col, stroke: col }));
+        svg.appendChild(txt(mx1 + 8, y + 4, "absorbed", { "font-size": 10, fill: C.muted }));
+      }
+    }
+    return svg;
+  }
+
+  /* emission/absorption ranking of surfaces (matt black best emitter AND
+     absorber; shiny silver worst). Used by the radiation demos + scorer.  */
+  WavesModels.SURFACE_RANK = { matt_black: 4, dull_black: 3, dull_white: 2, shiny_white: 1, shiny_silver: 0 };
+  WavesModels.bestEmitter = function (surfaces) {
+    var best = null, bv = -1;
+    surfaces.forEach(function (s) { var v = WavesModels.SURFACE_RANK[s]; if (v > bv) { bv = v; best = s; } });
+    return best;
+  };
+
+  /* ----------------------------- radiation_demo -------------------------
+     Infrared required practical. variants:
+       "leslie_cube" - a hot Leslie cube; an IR detector reads each face;
+                       the matt black face emits the most.
+       "wax_rod"     - matt-black vs shiny rods/plates around a heat source;
+                       wax holding a ball melts first on the matt black side.
+       "two_bottles" - matt-black vs shiny bottles of hot water cooling; a
+                       cooling curve (black cools faster).
+       "ir_detection"- detecting IR from a warm object by hand, IR sensor
+                       and thermal camera.
+     params: { variant, faces:[...], mark:{...}, label }                   */
+  function radiation_demo(params) {
+    params = params || {};
+    var v = params.variant || "leslie_cube";
+    var w = params.w || 460, h = params.h || 280;
+    var svg = makeSVG(w, h, params.label || ("infrared demo: " + v));
+
+    if (v === "leslie_cube") {
+      var cx = w * 0.44, cy = h / 2 + 6, s = 84, ox = 26, oy = 20;
+      var x0 = cx - s / 2, y0 = cy - s / 2;
+      svg.appendChild(el("path", { d: "M" + x0 + "," + y0 + " L" + (x0 + ox) + "," + (y0 - oy) + " L" + (x0 + s + ox) + "," + (y0 - oy) + " L" + (x0 + s) + "," + y0 + " Z",
+        fill: "rgba(150,150,150,.55)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(el("path", { d: "M" + (x0 + s) + "," + y0 + " L" + (x0 + s + ox) + "," + (y0 - oy) + " L" + (x0 + s + ox) + "," + (y0 + s - oy) + " L" + (x0 + s) + "," + (y0 + s) + " Z",
+        fill: "rgba(205,205,210,.65)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(el("rect", { x: x0, y: y0, width: s, height: s, fill: "rgba(28,28,26,.82)", stroke: C.ink2, "stroke-width": 1.4 }));
+      svg.appendChild(txt(x0 + s / 2, y0 + s / 2 + 3, "matt black", { "text-anchor": "middle", "font-size": 9.5, fill: C.paper }));
+      svg.appendChild(txt(x0 + s + ox + 6, cy, "shiny side", { "text-anchor": "start", "font-size": 9, fill: C.ink2 }));
+      svg.appendChild(txt(cx, y0 - oy - 8, "Leslie cube (hot water inside)", { "text-anchor": "middle", "font-size": 10.5, fill: C.ink2 }));
+      var dxp = x0 - 66;
+      svg.appendChild(el("rect", { x: dxp, y: cy - 13, width: 28, height: 26, rx: 3, fill: "rgba(150,150,150,.5)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(rayLine(x0 - 4, cy, dxp + 30, cy, { color: C.accent, width: 1.8 }));
+      svg.appendChild(txt(dxp + 14, cy + 40, "IR detector", { "text-anchor": "middle", "font-size": 9.5, fill: C.ink2 }));
+      svg.appendChild(circle(dxp - 24, cy, 15, { stroke: C.ink2, width: 1.4 }));
+      svg.appendChild(txt(dxp - 24, cy + 4, "mV", { "text-anchor": "middle", "font-size": 9, fill: C.ink2 }));
+      svg.appendChild(txt(w - 16, h - 14, "the matt black face emits the most infrared", { "text-anchor": "end", "font-size": 10, fill: C.muted }));
+    } else if (v === "wax_rod") {
+      var hx = w / 2;
+      svg.appendChild(el("rect", { x: hx - 10, y: 40, width: 20, height: h - 90, fill: "rgba(200,90,40,.5)", stroke: C.ink2, "stroke-width": 1.2 }));
+      svg.appendChild(txt(hx, 32, "heat source", { "text-anchor": "middle", "font-size": 10, fill: C.ink2 }));
+      [["matt black", hx - 116, "rgba(30,30,28,.8)", true], ["shiny", hx + 100, "rgba(180,180,185,.8)", false]].forEach(function (a) {
+        var px = a[1], dir = (px < hx) ? -1 : 1, outer = (px < hx) ? px : px + 16;
+        svg.appendChild(el("rect", { x: px, y: 60, width: 16, height: h - 130, fill: a[2], stroke: C.ink2, "stroke-width": 1.2 }));
+        svg.appendChild(txt(px + 8, 54, a[0], { "text-anchor": "middle", "font-size": 9.5, fill: C.ink2 }));
+        /* wax (yellow) holds a ball on the OUTER face, away from the heat source */
+        svg.appendChild(circle(outer + dir * 4, h - 86, 3.5, { fill: "rgba(220,200,120,.95)", stroke: "none" }));
+        if (a[3]) {
+          svg.appendChild(CORE.forceArrow(outer + dir * 9, h - 84, outer + dir * 9, h - 56, { color: C.accent, width: 1.3 }));
+          svg.appendChild(circle(outer + dir * 9, h - 48, 5, { fill: "rgba(120,120,125,.9)", stroke: C.ink2, width: 1 }));
+          svg.appendChild(txt(px + 8, h - 32, "wax melts, ball falls first", { "text-anchor": "middle", "font-size": 9, fill: C.accent }));
+        } else {
+          svg.appendChild(circle(outer + dir * 9, h - 86, 5, { fill: "rgba(120,120,125,.9)", stroke: C.ink2, width: 1 }));
+          svg.appendChild(txt(px + 8, h - 40, "ball stays", { "text-anchor": "middle", "font-size": 9, fill: C.muted }));
+        }
+      });
+      svg.appendChild(txt(w / 2, h - 14, "matt black absorbs more IR: its wax melts first", { "text-anchor": "middle", "font-size": 10, fill: C.muted }));
+    } else if (v === "two_bottles") {
+      /* cooling curve: black bottle cools faster (steeper) */
+      var g = CORE.grid({ w: w, h: h, xmax: 10, xstep: 2, ymax: 80, ystep: 20, minorDiv: 4,
+        xlabel: "time / min", ylabel: "temperature / C", label: "cooling curves" });
+      var T0 = 80, Tamb = 20;
+      function cool(kr) { return function (t) { return Tamb + (T0 - Tamb) * Math.exp(-kr * t); }; }
+      g.addFn(cool(0.30), 0, 10, { color: C.ink, width: 2.4 });            /* matt black: cools faster */
+      g.addFn(cool(0.10), 0, 10, { color: C.accent, width: 2.4, dash: "6 4" }); /* shiny: cools slower */
+      g.note(g.px(5.2), g.py(cool(0.30)(5.2)) - 9, "matt black", { "font-size": 10.5, fill: C.ink });
+      g.note(g.px(6.4), g.py(cool(0.10)(6.4)) + 14, "shiny", { "font-size": 10.5, fill: C.accent });
+      return g.svg;
+    } else { /* ir_detection */
+      var oy = h / 2, obx = 60;
+      svg.appendChild(circle(obx, oy, 22, { fill: "rgba(200,90,40,.5)", stroke: C.ink2, width: 1.4 }));
+      svg.appendChild(txt(obx, oy + 40, "warm object", { "text-anchor": "middle", "font-size": 10, fill: C.ink2 }));
+      ["hand", "IR sensor + meter", "thermal camera"].forEach(function (lab, i) {
+        var ty = 50 + i * ((h - 90) / 2), tx = w - 150;
+        svg.appendChild(CORE.forceArrow(obx + 26, oy, tx - 4, ty, { color: C.accent, width: 1.4 }));
+        svg.appendChild(el("rect", { x: tx, y: ty - 12, width: 120, height: 24, rx: 4, fill: C.paper, stroke: C.ink2, "stroke-width": 1.1 }));
+        svg.appendChild(txt(tx + 60, ty + 4, lab, { "text-anchor": "middle", "font-size": 10, fill: C.ink2 }));
+      });
+      svg.appendChild(txt(w / 2, h - 12, "infrared can be detected by hand, an IR sensor and a thermal camera", { "text-anchor": "middle", "font-size": 9.5, fill: C.muted }));
+    }
+    return svg;
+  }
+
+  /* ============================ REGISTRATION ============================= */
+  var registry = {
+    wave_train: wave_train,
+    wavefronts: wavefronts,
+    longitudinal_wave: longitudinal_wave,
+    wave_scenario: wave_scenario,
+    ripple_tank: ripple_tank,
+    standing_wave: standing_wave,
+    em_spectrum: em_spectrum,
+    em_origins: em_origins,
+    em_uses: em_uses,
+    refraction_wavefronts: refraction_wavefronts,
+    refraction_ray: refraction_ray,
+    material_wave_behaviour: material_wave_behaviour,
+    radiation_demo: radiation_demo
+  };
+  var interactive = {
+    wave_train: widget_wave_train,
+    wavefronts: widget_wavefronts,
+    longitudinal_wave: widget_longitudinal_wave,
+    wave_scenario: widget_wave_scenario,
+    ripple_tank: widget_ripple_tank,
+    standing_wave: widget_standing_wave,
+    em_spectrum: widget_em_spectrum,
+    refraction_wavefronts: widget_refraction_wavefronts,
+    refraction_ray: widget_refraction_ray
+  };
+
+  if (typeof window !== "undefined") {
+    window.TOPIC_DIAGRAMS = window.TOPIC_DIAGRAMS || {};
+    for (var k in registry) if (registry.hasOwnProperty(k)) window.TOPIC_DIAGRAMS[k] = registry[k];
+    window.TOPIC_WIDGETS = window.TOPIC_WIDGETS || {};
+    for (var k2 in interactive) if (interactive.hasOwnProperty(k2)) window.TOPIC_WIDGETS[k2] = interactive[k2];
+    window.WAVES_MODELS = WavesModels;
+  }
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { registry: registry, interactive: interactive, Models: WavesModels };
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this);
+
+</script>
+<script>
+(function () {
+  "use strict";
+  var DIAG = window.TOPIC_DIAGRAMS, WID = window.TOPIC_WIDGETS;
+  var REGIONS = ["radio","microwave","infrared","visible","ultraviolet","xray","gamma"];
+  var INTERACTIVE = { wave_train:1, wavefronts:1, longitudinal_wave:1, wave_scenario:1,
+    ripple_tank:1, standing_wave:1, em_spectrum:1, refraction_wavefronts:1, refraction_ray:1 };
+  var SCHEMA = {
+    wave_train: [
+      {k:"wavelength", t:"num", d:4, step:0.5}, {k:"amplitude", t:"num", d:1, step:0.5},
+      {k:"cycles", t:"num", d:2, step:1, min:1},
+      {k:"orientation", t:"sel", o:["horizontal","vertical"], d:"horizontal"},
+      {k:"mark.wavelength", t:"bool"}, {k:"mark.half_wavelength", t:"bool"},
+      {k:"mark.amplitude", t:"bool"}, {k:"mark.arrows", t:"bool"},
+      {k:"distractor", t:"sel", o:["(none)","amplitude_double","amplitude_diagonal","wavelength_half","wavelength_peak_to_trough"], d:"(none)",
+        hint:"renders a deliberately-WRONG marking for MCQ-over-the-picture items"},
+      {k:"target", t:"sel", o:["(pupil picks)","wavelength","half_wavelength","amplitude"], d:"(pupil picks)", io:1, hint:"fix which feature the pupil must mark"}
+    ],
+    wavefronts: [
+      {k:"count", t:"num", d:6, step:1, min:1}, {k:"spacing", t:"num", d:1, step:0.5, hint:"wavelength between fronts"},
+      {k:"curved", t:"bool", hint:"point source (arcs) vs plane waves (straight)"}, {k:"mark.wavelength", t:"bool"},
+      {k:"target", t:"sel", o:["(pupil picks)","wavelength","half_wavelength"], d:"(pupil picks)", io:1}
+    ],
+    longitudinal_wave: [
+      {k:"wavelength", t:"num", d:4, step:0.5}, {k:"cycles", t:"num", d:3, step:1, min:1},
+      {k:"mark.labelCR", t:"bool", hint:"label a compression (C) and rarefaction (R)"},
+      {k:"mark.wavelength", t:"bool"}, {k:"mark.half_wavelength", t:"bool"},
+      {k:"blanks", t:"bool", hint:"empty C/R boxes for the pupil to fill"},
+      {k:"distractor", t:"sel", o:["(none)","wavelength_C_to_R"], d:"(none)"}
+    ],
+    wave_scenario: [
+      {k:"variant", t:"sel", o:["shore","pier","sonar","speed_clap","echo_wall","clap_rhythm"], d:"shore"},
+      {k:"mark.distance", t:"bool"}, {k:"mark.time", t:"bool"}, {k:"mark.count", t:"bool"},
+      {k:"values.distance", t:"text", hint:"label on the distance arrow, e.g. '100 m'"},
+      {k:"values.time", t:"text"}, {k:"values.count", t:"text"}, {k:"values.depth", t:"text"},
+      {k:"caption", t:"text", hint:"your own caption; blank = default"}
+    ],
+    ripple_tank: [ {k:"waves", t:"num", d:5, step:1, min:1, hint:"how many wavelengths the ruler spans"}, {k:"mark.distance", t:"bool"} ],
+    standing_wave: [
+      {k:"loops", t:"num", d:3, step:1, min:1, hint:"number of loops (antinodes)"},
+      {k:"mark.nodes", t:"bool"}, {k:"mark.antinodes", t:"bool"}, {k:"mark.halfLambda", t:"bool"}, {k:"mark.length", t:"bool"},
+      {k:"lengthLabel", t:"text", d:"L"}
+    ],
+    em_spectrum: [
+      {k:"mark.frequencyArrow", t:"bool"}, {k:"mark.wavelengthArrow", t:"bool"}, {k:"mark.ends", t:"bool", d:true},
+      {k:"blanks", t:"regions", hint:"comma list, e.g. infrared,xray - blanks those labels"},
+      {k:"highlight", t:"regions"}, {k:"hide", t:"regions"},
+      {k:"question", t:"sel", o:["which_end","name_region"], d:"which_end", io:1},
+      {k:"attribute", t:"sel", o:["high_frequency","low_frequency","short_wavelength","long_wavelength"], d:"high_frequency", io:1},
+      {k:"target", t:"sel", o:REGIONS, d:"gamma", io:1}
+    ],
+    em_origins: [ {k:"regions", t:"text", d:"all", hint:"'all' or comma list"}, {k:"blanks", t:"regions", hint:"comma list of regions to gap out (or 'all') - makes it a question"} ],
+    em_uses:    [ {k:"regions", t:"text", d:"all", hint:"'all' or comma list of regions"} ],
+    refraction_wavefronts: [
+      {k:"n1", t:"num", d:1, step:0.05, hint:"index of top medium (drives geometry; never drawn)"},
+      {k:"n2", t:"num", d:1.5, step:0.05}, {k:"theta1", t:"num", d:40, step:5, hint:"angle of incidence, degrees"},
+      {k:"medium1", t:"text", hint:"name shown for top medium, e.g. air"}, {k:"medium2", t:"text"},
+      {k:"showSpeedCue", t:"bool", d:true},
+      {k:"mark.normal", t:"bool", d:true}, {k:"mark.angles", t:"bool"}, {k:"mark.spacing", t:"bool"},
+      {k:"mark.ray", t:"bool", hint:"off by default - usually you don't draw the ray on a wavefront diagram"}
+    ],
+    refraction_ray: [
+      {k:"shape", t:"sel", o:["rectangle","triangle","semicircle"], d:"rectangle"},
+      {k:"n", t:"num", d:1.5, step:0.05}, {k:"theta1", t:"num", d:40, step:5},
+      {k:"material", t:"text", hint:"label on the block, e.g. 'glass block'"},
+      {k:"mark.normal", t:"bool", d:true}, {k:"mark.angles", t:"bool"}, {k:"mark.labels", t:"bool", d:true}
+    ],
+    material_wave_behaviour: [
+      {k:"material", t:"text", d:"coloured glass"},
+      {k:"_preset", t:"sel", o:["visible through / UV absorbed / IR reflected","all transmitted (transparent)","all reflected (mirror)","visible through / IR absorbed"],
+        d:"visible through / UV absorbed / IR reflected", hint:"authors can also pass a custom rays:[{label,behaviour}] array"}
+    ],
+    radiation_demo: [ {k:"variant", t:"sel", o:["leslie_cube","wax_rod","two_bottles","ir_detection"], d:"leslie_cube"} ]
+  };
+  var MAT_PRESETS = {
+    "visible through / UV absorbed / IR reflected": [{label:"visible",behaviour:"transmit"},{label:"ultraviolet",behaviour:"absorb"},{label:"infrared",behaviour:"reflect"}],
+    "all transmitted (transparent)": [{label:"visible",behaviour:"transmit"},{label:"infrared",behaviour:"transmit"}],
+    "all reflected (mirror)": [{label:"visible",behaviour:"reflect"},{label:"infrared",behaviour:"reflect"}],
+    "visible through / IR absorbed": [{label:"visible",behaviour:"transmit"},{label:"infrared",behaviour:"absorb"}]
+  };
+  var kindSel=document.getElementById("kind"), interToggle=document.getElementById("inter"),
+      controlsEl=document.getElementById("controls"), hostEl=document.getElementById("host"),
+      markBtn=document.getElementById("mark"), scoreEl=document.getElementById("score"), cfgEl=document.getElementById("cfg");
+  var ctrls=[], current=null;
+  Object.keys(SCHEMA).forEach(function(k){ var o=document.createElement("option"); o.value=k; o.textContent=k+(INTERACTIVE[k]?"":"  (static only)"); kindSel.appendChild(o); });
+  function setPath(obj,path,val){ var parts=path.split("."),o=obj,i; for(i=0;i<parts.length-1;i++){ if(!o[parts[i]])o[parts[i]]={}; o=o[parts[i]]; } o[parts[parts.length-1]]=val; }
+  function buildControls(kind){
+    controlsEl.innerHTML=""; ctrls=[];
+    var isInter=interToggle.checked && INTERACTIVE[kind];
+    SCHEMA[kind].forEach(function(p){
+      if(p.io && !isInter) return;
+      var row=document.createElement("div"); row.className="ctrl";
+      var lab=document.createElement("label"); lab.textContent=p.k+(p.io?" *":""); var inp;
+      if(p.t==="bool"){ inp=document.createElement("input"); inp.type="checkbox"; inp.checked=!!p.d; }
+      else if(p.t==="sel"){ inp=document.createElement("select"); p.o.forEach(function(v){ var e=document.createElement("option"); e.value=v; e.textContent=v; inp.appendChild(e); }); inp.value=(p.d!=null)?p.d:p.o[0]; }
+      else if(p.t==="num"){ inp=document.createElement("input"); inp.type="number"; if(p.step!=null)inp.step=p.step; if(p.min!=null)inp.min=p.min; if(p.d!=null)inp.value=p.d; }
+      else { inp=document.createElement("input"); inp.type="text"; if(p.d!=null)inp.value=p.d; }
+      inp.addEventListener("input",render); inp.addEventListener("change",render);
+      row.appendChild(lab); row.appendChild(inp);
+      if(p.hint){ var hh=document.createElement("div"); hh.className="hint"; hh.textContent=p.hint; row.appendChild(hh); }
+      controlsEl.appendChild(row); ctrls.push({p:p,inp:inp});
+    });
+  }
+  function readConfig(){
+    var cfg={};
+    ctrls.forEach(function(c){
+      var p=c.p, inp=c.inp, v;
+      if(p.t==="bool"){ if(inp.checked) setPath(cfg,p.k,true); }
+      else if(p.t==="num"){ v=parseFloat(inp.value); if(isFinite(v)) setPath(cfg,p.k,v); }
+      else if(p.t==="regions"){ var a=inp.value.split(",").map(function(x){return x.trim();}).filter(Boolean); if(a.length) setPath(cfg,p.k,a); }
+      else { v=inp.value; if(v!=="" && v.charAt(0)!=="("){ if(p.k==="_preset"){ cfg.rays=MAT_PRESETS[v]; } else setPath(cfg,p.k,v); } }
+    });
+    return cfg;
+  }
+  function augmentForScoring(kind,cfg){
+    if(kind==="wave_scenario"){ var v=cfg.variant||"shore";
+      if(v==="sonar"){cfg.quantity="sonar_depth";cfg.speed=1500;cfg.time=0.4;cfg.readLabel="depth:";cfg.unit="m";}
+      else if(v==="pier"){cfg.quantity="frequency_count";cfg.count=8;cfg.time=20;cfg.readLabel="frequency:";cfg.unit="Hz";}
+      else if(v==="speed_clap"){cfg.quantity="speed_direct";cfg.distance=100;cfg.time=0.3;cfg.readLabel="speed:";cfg.unit="m/s";}
+      else {cfg.quantity="speed_echo";cfg.distance=50;cfg.time=0.3;cfg.readLabel="speed:";cfg.unit="m/s";}
+    } else if(kind==="ripple_tank"){cfg.quantity="wavelength_ripple";cfg.distance=0.20;cfg.readLabel="wavelength:";cfg.unit="m";}
+    else if(kind==="standing_wave"){cfg.quantity="wavelength_standing";cfg.length=1.2;cfg.readLabel="wavelength:";cfg.unit="m";if(!cfg.mark)cfg.mark={};cfg.mark.length=true;cfg.lengthLabel="1.2 m";}
+    return cfg;
+  }
+  function render(){
+    var kind=kindSel.value, isInter=interToggle.checked && INTERACTIVE[kind], cfg=readConfig();
+    hostEl.innerHTML=""; scoreEl.textContent=""; current=null;
+    markBtn.style.display=isInter?"inline-block":"none";
+    var shown=JSON.parse(JSON.stringify(cfg));
+    try{
+      if(isInter){ augmentForScoring(kind,cfg); current=WID[kind](hostEl,cfg); }
+      else { var node=DIAG[kind](cfg); if(node) hostEl.appendChild(node); }
+    }catch(e){ hostEl.innerHTML="<div class='err'>render error: "+e.message+"</div>"; }
+    var field=isInter?"widget":"diagram", inner=isInter?"config":"params";
+    cfgEl.textContent="// the author writes this on the item:\nitem."+field+" = {\n  kind: \""+kind+"\",\n  "+inner+": "+JSON.stringify(shown,null,2).replace(/\n/g,"\n  ")+"\n};";
+  }
+  markBtn.addEventListener("click",function(){
+    if(!current) return;
+    var kind=kindSel.value, cfg=augmentForScoring(kind,readConfig());
+    var ans=current.getAnswer(), res=current.score(ans,cfg);
+    scoreEl.innerHTML="<b>getAnswer()</b>\n"+JSON.stringify(ans,null,2)+"\n\n<b>score()</b>  <span class='st-"+res.status+"'>"+res.status+" "+res.marksAwarded+"/"+res.marksPossible+"</span>\n"+JSON.stringify(res,null,2);
+  });
+  function reload(){ buildControls(kindSel.value); render(); }
+  kindSel.addEventListener("change",reload); interToggle.addEventListener("change",reload);
+  kindSel.value="wave_train"; reload();
+})();
+
+</script>
+</body></html>

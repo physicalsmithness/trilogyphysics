@@ -1,0 +1,15 @@
+# Node dependencies (dev/test only; the app is vanilla JS loaded via <script>)
+node_modules/
+
+# Linux/virtiofs open-but-deleted file handles
+.fuse_hidden*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Office lock/temp files
+~$*
+
+# Scratch / temp
+*.tmp

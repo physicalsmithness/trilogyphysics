@@ -1,0 +1,3 @@
+# Batch review: em_origins (Waves 6.6, batch 6)
+
+5 items (`eo_*`), 6.6.2.3.a/b/c. The topic's most catastrophic AQA scorer (1% full 2018, ~90% zero 2020, 10% >1 mark 2024) authored three ways: the production MCQ (oscillations in circuits), the absorption MCQ (induced a.c. of the SAME frequency: the load-bearing fact), and the full transmitter-to-receiver chain as 4-mark claim-points with the ionosphere story and transverse/longitudinal padding as wrong claims. Gamma-from-the-nucleus covered both directions (where does gamma originate / which group is nuclear). Misconceptions: radio_oscillation_link_missed throughout. Two HT items + the claim set HT; the gamma pair FH. Nothing awkward.
