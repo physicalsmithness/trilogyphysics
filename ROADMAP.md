@@ -9,3 +9,7 @@ Milestones. The Architecture-and-Housing chat owns this and re-sequences as need
 - **M4: widen to the remaining topics**, several authors by topic, each running the two-pass method and reporting batch reviews.
 - **M5: cross-board engine review.** With Trilogy and Pre-IB both running, the Overview seat brokers whether a shared GCSE driller engine/display is worth consolidating (the answer to the Fields/electricity duplication). Decide keep-separate or converge.
 - **Later: accounts, server-side question delivery, monetisation runway** if Trilogy follows the IB drillers toward a public product. Out of near-term scope.
+
+---
+
+**M2 progress (Housing, 2026-06-08, DECISIONS d022):** engine spine built and running behind the `app/` shell — blended ECM drilling + atom dashboard + Circuit Builder, TOPIC_CONFIG-driven, with MCQ/short/calc_workings graders and the `window.TOPIC_DIAGRAMS` registry. 44 automated assertions green. REMAINING for M2: lock the schema (q-schema-lock, Architecture) then fold the ~160-question Magnetism bank to it; lift calc_workings verbatim + add per-line method-marking once the Pre-IB source is reachable (currently online-only, see d022).

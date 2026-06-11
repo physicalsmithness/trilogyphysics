@@ -21,7 +21,7 @@ A coordinated, multi-chat driller project with a question bank backed by real ex
 
 - **Architecture-and-Housing (combined):** owns project shape and the engine/display. Combined deliberately (see DECISIONS d002).
 - **Authoring:** one to begin, several by topic as it grows.
-- **Housing/Implementation (later, on trigger):** see DECISIONS d002.
+- **Housing/Implementation:** ACTIVE since 2026-06-08 (d018 (housing chat commissioned)); owns the engine blend. Brief: inter_chat/Architecture_Housing_dispatch.md.
 
 ## Homes
 

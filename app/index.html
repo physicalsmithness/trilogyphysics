@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trilogy Physics practice</title>
+<style>
+  :root{
+    --bg:#faf6ed; --paper:#fffdf6; --ink:#1a1a17; --ink-2:#4d4943;
+    --muted:#8c8579; --line:rgba(26,26,23,.10); --line-2:rgba(26,26,23,.20);
+    --accent:#b03030; --ok:#2d6a3f;
+    --serif:"Iowan Old Style",Georgia,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--serif);line-height:1.5}
+  .wrap{max-width:1040px;margin:0 auto;padding:24px}
+
+  /* login gate */
+  .login-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+  .login-card{background:var(--paper);border:1px solid var(--line-2);border-radius:14px;max-width:460px;width:100%;padding:28px 26px;box-shadow:0 10px 30px rgba(26,26,23,.08)}
+  .login-card h2{margin:0 0 4px;font-size:1.5rem}
+  .login-sub{margin:0 0 18px;color:var(--ink-2);font-size:.95rem}
+  .method-row{display:flex;gap:10px;margin-bottom:18px}
+  .method{flex:1;border:1px solid var(--line-2);border-radius:10px;background:var(--paper);padding:12px 10px;cursor:pointer;text-align:left;font-family:var(--sans);transition:border-color .15s,background .15s}
+  .method .m-title{font-weight:600;color:var(--ink);font-size:.92rem;display:flex;align-items:center;gap:6px}
+  .method .m-desc{color:var(--muted);margin-top:2px;font-size:.8rem;line-height:1.35}
+  .method[aria-selected="true"]{border-color:var(--accent);background:#fff}
+  .method[aria-selected="true"] .m-title{color:var(--accent)}
+  .method[disabled]{cursor:not-allowed;opacity:.5}
+  .badge{font-family:var(--sans);font-size:.62rem;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line-2);border-radius:999px;padding:1px 7px;color:var(--muted)}
+  .login-field{margin-bottom:12px}
+  .login-field label{display:block;font-family:var(--sans);font-size:.78rem;color:var(--ink-2);margin-bottom:4px}
+  .login-input{width:100%;font-family:var(--sans);font-size:1rem;padding:10px 12px;border:1px solid var(--line-2);border-radius:8px;background:#fff;color:var(--ink)}
+  .login-input:focus{outline:none;border-color:var(--accent)}
+  .login-btn{width:100%;margin-top:6px;font-family:var(--sans);font-size:1rem;font-weight:600;padding:11px;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer}
+  .login-btn:disabled{background:var(--line-2);cursor:not-allowed}
+  .login-note{font-family:var(--sans);font-size:.74rem;color:var(--muted);margin:12px 0 0}
+
+  /* signed-in shell */
+  .topbar{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px}
+  .eyebrow{font-family:var(--sans);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .title{font-size:1.6rem;margin:2px 0 0}
+  .identity-strip{display:flex;align-items:center;gap:12px;font-family:var(--sans);font-size:.82rem;color:var(--ink-2)}
+  .identity-strip b{color:var(--ink);font-weight:600}
+  .linkbtn{background:none;border:0;color:var(--accent);cursor:pointer;font-family:var(--sans);font-size:.82rem;padding:0}
+  .send-status{color:var(--ok);font-size:.74rem}
+
+  /* topic picker */
+  .pick-h{font-family:var(--sans);font-size:.82rem;color:var(--ink-2);margin:4px 0 12px}
+  .topic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .topic-card{text-align:left;border:1px solid var(--line-2);border-radius:12px;background:var(--paper);padding:16px;cursor:pointer;font-family:var(--serif);transition:border-color .15s,box-shadow .15s}
+  .topic-card:hover:not([disabled]){border-color:var(--accent);box-shadow:0 6px 18px rgba(26,26,23,.07)}
+  .topic-card[disabled]{cursor:not-allowed;opacity:.45}
+  .tc-code{font-family:var(--sans);font-size:.72rem;color:var(--muted);letter-spacing:.04em}
+  .tc-name{font-size:1.15rem;font-weight:600;margin:2px 0 4px}
+  .tc-state{font-family:var(--sans);font-size:.74rem;color:var(--ink-2)}
+  .tc-state.soon{color:var(--muted)}
+
+  .stub{background:var(--paper);border:1px dashed var(--line-2);border-radius:12px;padding:28px;text-align:center;color:var(--ink-2)}
+  .stub h1{font-size:1.35rem;margin:0 0 8px;color:var(--ink)}
+</style>
+<link rel="stylesheet" href="engine.css" />
+</head>
+<body>
+
+<!-- Course-wide sign-in: two methods. Class sign-in (Apps Script) active; Google (Firebase) greyed. -->
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-card">
+    <h2>Trilogy Physics practice</h2>
+    <p class="login-sub">GCSE Combined Science: Trilogy. Sign in once; it covers every topic. Your teacher can see how you are getting on.</p>
+    <div class="method-row">
+      <button class="method" id="methodAppsScript" aria-selected="true">
+        <div class="m-title">Class sign-in</div>
+        <div class="m-desc">Name and class code. Active.</div>
+      </button>
+      <button class="method" id="methodFirebase" disabled aria-selected="false">
+        <div class="m-title">Google sign-in <span class="badge">soon</span></div>
+        <div class="m-desc">Firebase account. Coming later.</div>
+      </button>
+    </div>
+    <div class="login-field"><label for="loginName">Your name</label>
+      <input id="loginName" class="login-input" type="text" autocomplete="off" placeholder="e.g. Sam Smith" /></div>
+    <div class="login-field"><label for="loginClass">Class code</label>
+      <input id="loginClass" class="login-input" type="text" autocomplete="off" placeholder="e.g. 10X1-2026" /></div>
+    <button id="loginBtn" class="login-btn" disabled>Start</button>
+    <p class="login-note">Saved on this device so you do not retype it. Honour-system sign-in, not a password.</p>
+  </div>
+</div>
+
+<div class="wrap" id="appShell" style="display:none">
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">GCSE Combined Science: Trilogy</div>
+      <div class="title">Physics practice</div>
+    </div>
+    <div class="identity-strip">
+      <span>Signed in as <b id="idName">&mdash;</b> &middot; <b id="idClass">&mdash;</b></span>
+      <span class="send-status" id="sendStatus"></span>
+      <button class="linkbtn" id="switchTopicBtn" style="display:none">Switch topic</button>
+      <button class="linkbtn" id="signoutBtn">Sign out</button>
+    </div>
+  </div>
+
+  <section id="topicPicker">
+    <div class="pick-h">Choose a topic to practise. More are being built.</div>
+    <div class="topic-grid" id="topicGrid"></div>
+  </section>
+
+  <!-- The blended engine mounts into this panel (TrilogyEngine.mount). -->
+  <section id="drillerArea" style="display:none">
+    <div class="stub">
+      <h1 id="drillerTitle">Topic</h1>
+      <p>Loading the driller&hellip;</p>
+    </div>
+  </section>
+</div>
+
+<!-- ===== Engine stack (lifted from Electric Circuits Mastery per d016, plus the
+     Trilogy blend) ============================================================ -->
+<!-- Circuit Builder embed: self-contained DSL->SVG renderer (window.CircuitBuilder). -->
+<script src="circuit-builder-embed.js"></script>
+<!-- Formula evaluator + rounding classifier (used by calc_workings when items
+     carry the formula/sample shape). -->
+<script src="formula.js"></script>
+<script src="rounding_classifier.js"></script>
+<!-- Diagram registry (window.TOPIC_DIAGRAMS): circuit kind wired here; Widgets
+     plug the rest in. -->
+<script src="diagrams.js"></script>
+<!-- Widgets/Diagrams catalogue (d019): registers iv_characteristic, ac_dc_trace,
+     resistance_*, transformer, transmission_line, mains_three_wire, live_earth_danger. -->
+<script src="widgets/topic-diagrams.js"></script>
+<!-- calc_workings marks-the-method grader (window.TrilogyCalcWorkings), lifted
+     verbatim from the Pre-IB engine. -->
+<script src="calc_workings.js"></script>
+<!-- The blended Trilogy engine (window.TrilogyEngine). -->
+<script src="engine.js"></script>
+<!-- Per-topic configs (TOPIC_CONFIG pattern). One per topic as they are built. -->
+<script src="topics/electricity_6_2.js"></script>
+
+<script>
+(function(){
+  "use strict";
+  // ===== Backend wiring (Apps Script). Paste your deployed /exec URL here. =====
+  const REPORT_URL  = "https://script.google.com/macros/s/AKfycbwQ2NxNi-AWGCpBVDa6nT9DDYsS66F53ENZvtZozDwuWkKaivqgLaGUyjSFd_InJ4Kt/exec";
+  const PROJECT_TAG = "trilogy_physics";
+  const LS_KEY      = "trilogy_physics_identity_v1";
+
+  // AQA Trilogy physics topics 6.1-6.7. Flip enabled:true as each is built.
+  const TOPICS = [
+    {id:"6.1", slug:"energy",        name:"Energy",            enabled:false},
+    {id:"6.2", slug:"electricity",   name:"Electricity",       enabled:true },
+    {id:"6.3", slug:"particle_model",name:"Particle model",    enabled:false},
+    {id:"6.4", slug:"atomic",        name:"Atomic structure",  enabled:false},
+    {id:"6.5", slug:"forces",        name:"Forces",            enabled:false},
+    {id:"6.6", slug:"waves",         name:"Waves",             enabled:false},
+    {id:"6.7", slug:"magnetism",     name:"Magnetism & EM",    enabled:false}
+  ];
+
+  const el = id => document.getElementById(id);
+  const overlay=el("loginOverlay"), nameI=el("loginName"), classI=el("loginClass"),
+        startBtn=el("loginBtn"), shell=el("appShell"), picker=el("topicPicker"),
+        driller=el("drillerArea"), sendStatus=el("sendStatus");
+
+  let IDENTITY = loadIdentity();
+  let CURRENT_TOPIC = null;
+
+  function loadIdentity(){
+    try{ const o=JSON.parse(localStorage.getItem(LS_KEY)||"null");
+      if(o && o.display_name && o.cohort) return o; }catch(e){} return null;
+  }
+  function newId(){ return "a_"+Math.random().toString(36).slice(2)+Date.now().toString(36); }
+  function sessionId(){
+    let s=sessionStorage.getItem("trilogy_session");
+    if(!s){ s="s_"+Math.random().toString(36).slice(2); sessionStorage.setItem("trilogy_session",s); }
+    return s;
+  }
+
+  // reporting payload schema matches the ECM engine reportAttempt()
+  function report(partial){
+    if(!REPORT_URL || REPORT_URL.indexOf("script.google.com")===-1) return;
+    if(!IDENTITY) return;
+    const payload = Object.assign({
+      project:PROJECT_TAG, timestamp:new Date().toISOString(),
+      anonymous_id:IDENTITY.anonymous_id, display_name:IDENTITY.display_name,
+      cohort:IDENTITY.cohort, google_email:IDENTITY.google_email||"",
+      session_id:sessionId(), item_id:"",
+      topic: CURRENT_TOPIC ? (CURRENT_TOPIC.id+"_"+CURRENT_TOPIC.slug) : "",
+      qtype:"", mode:"", level:"", status:"", picked_id:"", misconception_id:""
+    }, partial||{});
+    try{
+      fetch(REPORT_URL,{method:"POST",mode:"no-cors",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify(payload),keepalive:true})
+        .then(()=>flash("sent ✓")).catch(()=>flash("offline"));
+    }catch(e){ flash("offline"); }
+  }
+  function flash(t){ if(!sendStatus) return; sendStatus.textContent=t;
+    setTimeout(()=>{ if(sendStatus.textContent===t) sendStatus.textContent=""; },1400); }
+
+  // ----- sign-in -----
+  function validate(){ startBtn.disabled=!(nameI.value.trim() && classI.value.trim()); }
+  nameI.addEventListener("input",validate);
+  classI.addEventListener("input",validate);
+
+  function enterApp(){
+    el("idName").textContent=IDENTITY.display_name;
+    el("idClass").textContent=IDENTITY.cohort;
+    overlay.style.display="none"; shell.style.display="block";
+    showPicker();
+  }
+  function signIn(fresh){
+    localStorage.setItem(LS_KEY,JSON.stringify(IDENTITY));
+    enterApp();
+    if(fresh) report({status:"session_start"});
+  }
+  startBtn.addEventListener("click",function(){
+    const name=nameI.value.trim(), cohort=classI.value.trim();
+    if(!name||!cohort) return;
+    IDENTITY={display_name:name, cohort:cohort,
+              anonymous_id:(IDENTITY&&IDENTITY.anonymous_id)||newId(), google_email:""};
+    signIn(true);
+  });
+  [nameI,classI].forEach(i=>i.addEventListener("keydown",e=>{
+    if(e.key==="Enter" && !startBtn.disabled) startBtn.click(); }));
+  el("methodFirebase").addEventListener("click",e=>e.preventDefault());
+  el("signoutBtn").addEventListener("click",function(){ localStorage.removeItem(LS_KEY); location.reload(); });
+
+  // ----- topic picker -----
+  function showPicker(){
+    if(window.TrilogyEngine && typeof window.TrilogyEngine.unmount==="function"){
+      try{ window.TrilogyEngine.unmount(); }catch(e){}
+    }
+    CURRENT_TOPIC=null;
+    picker.style.display="block"; driller.style.display="none";
+    el("switchTopicBtn").style.display="none";
+    const grid=el("topicGrid"); grid.innerHTML="";
+    TOPICS.forEach(t=>{
+      const b=document.createElement("button");
+      b.className="topic-card"; if(!t.enabled) b.disabled=true;
+      b.innerHTML='<div class="tc-code">'+t.id+'</div><div class="tc-name">'+t.name+'</div>'+
+        '<div class="tc-state'+(t.enabled?'':' soon')+'">'+(t.enabled?'Practise now':'Coming soon')+'</div>';
+      if(t.enabled) b.addEventListener("click",()=>selectTopic(t));
+      grid.appendChild(b);
+    });
+  }
+  function selectTopic(t){
+    CURRENT_TOPIC=t;
+    picker.style.display="none"; driller.style.display="block";
+    el("switchTopicBtn").style.display="inline";
+    report({status:"topic_open"});
+    mountEngine(t);
+  }
+  function mountEngine(t){
+    const cfg = (window.TRILOGY_TOPICS||{})[t.id];
+    if(!window.TrilogyEngine || !cfg){
+      driller.innerHTML='<div class="stub"><h1>'+t.id+' '+t.name+'</h1>'+
+        '<p>The engine or this topic&rsquo;s config did not load. Check the script tags.</p></div>';
+      return;
+    }
+    if((cfg.items||[]).length===0){
+      driller.innerHTML='<div class="stub"><h1>'+t.id+' '+t.name+'</h1>'+
+        '<p>This topic is being authored. Add <code>?demo=1</code> to the URL to try the engine with sample items.</p></div>';
+      return;
+    }
+    window.TrilogyEngine.mount({
+      container: driller,
+      topic: { id:t.id, slug:t.slug, name:t.name },
+      config: cfg,
+      identity: IDENTITY,
+      report: report
+    });
+  }
+  el("switchTopicBtn").addEventListener("click",showPicker);
+
+  // resume if already signed in
+  if(IDENTITY){ nameI.value=IDENTITY.display_name; classI.value=IDENTITY.cohort; validate(); enterApp(); }
+})();
+</script>
+</body>
+</html>

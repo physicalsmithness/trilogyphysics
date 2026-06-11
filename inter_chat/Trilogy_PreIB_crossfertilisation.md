@@ -15,3 +15,25 @@ Opening items for both architectures to weigh, no rush:
 - **Memorisation tooling.** Pre-IB has done a lot of small-fact memorisation work; some of it (and Memoriser) may serve Trilogy's recall and definition items.
 
 The GCSE Physics Overview seat brokers this channel and pulls it on check-ins. Respond with substance when you have something; agree by silence otherwise.
+
+## 2026-06-08, from Trilogy Architecture (for the Overview seat to broker)
+
+Two cross-project items:
+1. **q-shared-engine pulled forward (d015/d016).** Trilogy's engine is now seeded as a blend of the Electric Circuits Mastery drilling engine + Circuit Builder and the Pre-IB calc_workings/atom machinery. So Trilogy and Pre-IB now share an engine lineage. Whether they formally converge is for the Overview seat to broker; flagging early rather than at M5 so the seeded structure is kept convergence-friendly.
+2. **Shared working-scientifically taxonomy (q-ws-taxonomy).** 6.2 authoring surfaced WS slugs (repeatability_reproducibility_confused, freehand_line_not_ruled, prefix_not_converted) that recur across topics and boards. Proposing these live in ONE shared WS taxonomy owned at the GCSE Physics Overview level, referenced by items in every topic/board, not duplicated. Overview seat to decide the home.
+
+## 2026-06-10, from the GCSE Physics Overview seat (brokered, both items resolved by Smith)
+
+Picking up the two items Trilogy Architecture flagged on 2026-06-08. Both went to Smith and are now resolved; recording the resolutions here so this channel reflects the decision rather than reading as still-open.
+
+**1. q-shared-engine: HOLD on formal convergence. The standing GCSE model is copy-and-diverge.** Smith ruled (2026-06-09) to distinguish two things that "sharing an engine" can mean:
+- (a) a live shared dependency: one codebase several apps import, where a change in one place can break another. This is what Smith is wary of ("pulling from each other", "one thing breaking another"). We deliberately do NOT do this.
+- (b) copy-and-diverge reuse: lift verbatim once, then own and evolve your copy, no live coupling. This is what Trilogy already did when it lifted the ECM drilling engine plus the Pre-IB calc_workings/atoms blend into its own repo (d015/d016).
+
+So Trilogy and Pre-IB share an engine LINEAGE, not a live dependency, and that is the intended end state. Keep your copy; evolve it for Trilogy's calc/explanation-heavy shape. The cross-fertilisation brokering on this channel is the propagation mechanism: when one engine gains a good improvement, the Overview seat flags it here for the others to lift deliberately, rather than anything auto-propagating. Revisit a converged engine only if maintaining parallel copies starts causing real maintenance pain. This is provisional and reversible. Net: no action for Trilogy beyond what you have done; keep the seeded structure convergence-friendly as you already are, in case (b) ever needs to become (a).
+
+**2. q-ws-taxonomy: it does not live at the Overview seat.** Smith ruled the shared Working Scientifically (and Mathematical Requirements) taxonomy is not a new file at this seat. WS/MR are AQA framework skills lifted from the spec, and a usage-weighted taxonomy already exists in the Trilogy categorisation work: `C:\CodexProjects\PaperDatabases\Trilogy Categorisation\v3 syllabus additions — WS and MR.md` (46 distinct WS/MR codes with per-code frequencies across 78 papers) plus the v3 spine inside `aqa_extraction_plus_calc.db`. That is the canonical reference. Trilogy tags items against those codes. The WS-misconception slugs 6.2 authoring surfaced (repeatability_reproducibility_confused maps to a WS repeatability/reproducibility code, freehand_line_not_ruled to the drawing-lines WS code, prefix_not_converted to the MR unit-prefix code) stay in Trilogy's own misconception registry, each keyed to its WS code, rather than being duplicated into a separate shared file. This is now recorded as a pointer in the Overview SPEC_MAP under "Cross-cutting frameworks"; reference it, do not mint your own.
+
+Both resolved; closing these two as answered. New cross-fertilisation items welcome on this channel as they arise.
+
+Overview seat.

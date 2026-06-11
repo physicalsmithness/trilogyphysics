@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trilogy 6.2 widget harness</title>
+<style>
+  /* editorial paper-on-ink tokens, mirrored from app/index.html so var() resolves */
+  :root{
+    --bg:#faf6ed; --paper:#fffdf6; --ink:#1a1a17; --ink-2:#4d4943;
+    --muted:#8c8579; --line:rgba(26,26,23,.10); --line-2:rgba(26,26,23,.20);
+    --accent:#b03030; --ok:#2d6a3f;
+    --serif:"Iowan Old Style",Georgia,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--serif);line-height:1.5;padding:20px}
+  header{max-width:1100px;margin:0 auto 14px}
+  h1{font-size:1.3rem;margin:0 0 4px}
+  .sub{font-family:var(--sans);font-size:.84rem;color:var(--ink-2);margin:0}
+  .checks{font-family:var(--sans);font-size:.8rem;color:var(--ink-2);background:var(--paper);
+    border:1px solid var(--line-2);border-radius:10px;padding:10px 14px;margin:12px auto;max-width:1100px}
+  .checks b{color:var(--ink)}
+  .badge{display:inline-block;font-family:var(--sans);font-size:.7rem;font-weight:600;
+    border-radius:999px;padding:1px 8px;margin-left:8px}
+  .badge.ok{background:rgba(45,106,63,.12);color:var(--ok)}
+  .badge.bad{background:rgba(176,48,48,.14);color:var(--accent)}
+  .grid{max-width:1100px;margin:0 auto;display:grid;gap:16px;
+    grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+  .card{background:var(--paper);border:1px solid var(--line-2);border-radius:12px;padding:12px 12px 14px}
+  .card h2{font-family:var(--sans);font-size:.82rem;font-weight:600;margin:0 0 2px;color:var(--ink)}
+  .card .params{font-family:var(--sans);font-size:.72rem;color:var(--muted);margin:0 0 8px}
+  .card .note{font-family:var(--sans);font-size:.72rem;color:var(--ink-2);margin:8px 0 0}
+  .wrong{border-color:rgba(176,48,48,.5)}
+  .wrong h2::after{content:" - DISTRACTOR (wrong on purpose)";color:var(--accent);font-weight:400}
+  details{font-family:var(--sans);font-size:.78rem;max-width:1100px;margin:10px auto}
+  pre{background:var(--paper);border:1px solid var(--line-2);border-radius:8px;padding:10px;overflow:auto;font-size:.74rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>Trilogy Physics - Electricity 6.2 widget harness</h1>
+  <p class="sub">Every <code>kind</code> rendered with sample params via <code>window.TOPIC_DIAGRAMS[kind](params)</code>. Items carry <code>diagram:{kind, params}</code> (schema v1.0); the engine passes the inner <code>params</code>. Distractor variants are flagged. In-browser physics checks run below.</p>
+</header>
+
+<div class="checks" id="checks"><b>Physics self-checks:</b> running...</div>
+<div class="grid" id="grid"></div>
+
+<details>
+  <summary>Registry contract (confirmed with Housing, SCHEMA.md v1.0)</summary>
+  <pre>// Each renderer: (params) -> SVGElement, registered on window.TOPIC_DIAGRAMS[kind].
+// An item carries a nested diagram (locked schema v1.0):
+//   item.diagram = { kind: "iv_characteristic",
+//                    params: { device: "filament", variant: "correct" } };
+// The engine renders via its single entry point, passing the INNER params:
+//   window.TrilogyDiagrams.render(item.diagram);   // -> TOPIC_DIAGRAMS[kind](diagram.params)
+// Returns the SVG node (inserted above the prompt); null shows a non-fatal placeholder.
+// The `circuit` kind is owned by Housing (ECM CircuitBuilder), registered on the SAME object:
+//   window.TOPIC_DIAGRAMS.circuit = (p) =&gt; window.CircuitBuilder.renderDSL(p.dsl);</pre>
+</details>
+
+<script src="topic-diagrams.js"></script>
+<script>
+(function(){
+  var grid = document.getElementById("grid");
+  function card(title, params, kind, opts){
+    opts = opts || {};
+    var c = document.createElement("div");
+    c.className = "card" + (opts.wrong ? " wrong" : "");
+    var h = document.createElement("h2"); h.textContent = title; c.appendChild(h);
+    var p = document.createElement("p"); p.className = "params";
+    p.textContent = kind + "  " + JSON.stringify(params); c.appendChild(p);
+    var fn = window.TOPIC_DIAGRAMS[kind];
+    if (fn) c.appendChild(fn(params));
+    else { var e = document.createElement("p"); e.textContent = "no renderer for " + kind; c.appendChild(e); }
+    if (opts.note){ var n = document.createElement("p"); n.className = "note"; n.textContent = opts.note; c.appendChild(n); }
+    grid.appendChild(c);
+  }
+
+  card("Ohmic resistor I-V", {device:"ohmic"}, "iv_characteristic",
+    {note:"Straight line through the origin, symmetric: I proportional to V."});
+  card("Filament lamp I-V (CORRECT)", {device:"filament",variant:"correct"}, "iv_characteristic",
+    {note:"S-shape. Current keeps rising with V but the gradient falls as the filament heats and R rises. Never plateaus, never droops."});
+  card("Filament lamp I-V", {device:"filament",variant:"plateau"}, "iv_characteristic",
+    {wrong:true, note:"Wrongly plateaus flat at high V."});
+  card("Filament lamp I-V", {device:"filament",variant:"droop"}, "iv_characteristic",
+    {wrong:true, note:"Wrongly droops downward at high V."});
+  card("Filament lamp I-V", {device:"filament",variant:"linear"}, "iv_characteristic",
+    {wrong:true, note:"Wrongly drawn ohmic (straight line)."});
+  card("Filament lamp I-V", {device:"filament",variant:"negative"}, "iv_characteristic",
+    {wrong:true, note:"Goes the other way: straight line with negative gradient (current falling as V rises)."});
+  card("Diode I-V", {device:"diode"}, "iv_characteristic",
+    {note:"~Zero for reverse bias and small forward V; steep rise past the threshold."});
+  card("Resistance vs voltage (filament)", {device:"filament"}, "resistance_voltage",
+    {note:"Optional widget. R rises with V as the filament heats."});
+  card("Resistance vs voltage (resistor)", {device:"resistor"}, "resistance_voltage",
+    {note:"Optional widget. Constant R (horizontal)."});
+  card("Thermistor R vs temperature", {device:"thermistor"}, "resistance_temperature",
+    {note:"NTC: resistance falls as temperature rises."});
+  card("Metal wire R vs temperature", {device:"metal_wire"}, "resistance_temperature",
+    {note:"Resistance rises with temperature, roughly linear."});
+  card("Metal wire R vs temperature", {device:"metal_wire",variant:"negative"}, "resistance_temperature",
+    {wrong:true, note:"Goes the other way: straight line with negative gradient (R falling as temperature rises)."});
+  card("LDR R vs light intensity", {}, "resistance_light",
+    {note:"Resistance falls as light intensity rises."});
+  card("AC current vs time", {quantity:"current",signal:"ac"}, "ac_dc_trace",
+    {note:"Sinusoid oscillating about zero."});
+  card("DC current vs time", {quantity:"current",signal:"dc"}, "ac_dc_trace",
+    {note:"Constant horizontal line."});
+  card("AC p.d. vs time", {quantity:"pd",signal:"ac"}, "ac_dc_trace",
+    {note:"Same trace, potential-difference axis."});
+  card("DC p.d. vs time", {quantity:"pd",signal:"dc"}, "ac_dc_trace", {});
+  card("Transformer (step-up)", {type:"step_up"}, "transformer",
+    {note:"More turns on the secondary (Ns > Np)."});
+  card("Transformer (step-down)", {type:"step_down"}, "transformer",
+    {note:"Fewer turns on the secondary (Ns < Np)."});
+  card("National Grid transmission line", {}, "transmission_line",
+    {note:"High voltage, low current => small I^2R loss in the cables."});
+  card("Three-wire mains colour code", {}, "mains_three_wire",
+    {note:"Live brown, neutral blue, earth green-and-yellow."});
+  card("Live-to-earth shock hazard", {}, "live_earth_danger",
+    {note:"Fault path: live -> metal case -> person -> earth."});
+
+  /* ---- in-browser physics self-checks (mirror of verify_models.js) ---- */
+  var M = window.TOPIC_DIAGRAMS_MODELS, results = [];
+  function g(f,V){var h=1e-3;return (f(V+h)-f(V-h))/(2*h);}
+  function add(name,cond){results.push([name,!!cond]);}
+  add("filament rises throughout", (function(){for(var v=0.02;v<1;v+=0.02)if(M.iv.filament(v)<=M.iv.filament(v-0.02))return false;return true;})());
+  add("filament gradient falls (flattens)", g(M.iv.filament,0.1)>g(M.iv.filament,0.9));
+  add("filament gradient stays positive (no plateau/droop)", (function(){for(var v=0.02;v<=1;v+=0.02)if(g(M.iv.filament,v)<=0.02)return false;return true;})());
+  add("ohmic linear", Math.abs(g(M.iv.ohmic,0.2)-g(M.iv.ohmic,0.9))<1e-6);
+  add("diode zero in reverse", M.iv.diode(-0.5)===0);
+  add("diode steep past threshold", M.iv.diode(1)>0.6 && M.iv.diode(0.3)<0.05);
+  add("plateau distractor is visibly flat by mid-range", g(M.iv.filament_plateau,0.7)<0.05);
+  add("droop distractor falls at high V", M.iv.filament_droop(1)<M.iv.filament_droop(0.7));
+  add("iv negative-line distractor has negative gradient", g(M.iv.negative_line,0.5)<0);
+  add("rt negative-line distractor falls linearly", M.rt.negative_line(0.1)>M.rt.negative_line(0.9));
+  add("thermistor decreasing", M.rt.thermistor(0.1)>M.rt.thermistor(0.9));
+  add("metal wire increasing", M.rt.metal_wire(0.1)<M.rt.metal_wire(0.9));
+  add("LDR decreasing", M.rl.ldr(0.1)>M.rl.ldr(0.9));
+  add("AC about zero", M.trace.ac(1/6)>0.5 && M.trace.ac(0.5)<-0.5);
+  add("DC constant", M.trace.dc(0)===M.trace.dc(0.9));
+
+  var bad = results.filter(function(r){return !r[1];});
+  var box = document.getElementById("checks");
+  box.innerHTML = "<b>Physics self-checks:</b> " + (results.length-bad.length) + "/" + results.length + " passed " +
+    '<span class="badge ' + (bad.length?"bad":"ok") + '">' + (bad.length?(bad.length+" FAILED"):"ALL PASS") + "</span>";
+  results.forEach(function(r){
+    var s=document.createElement("span"); s.className="badge "+(r[1]?"ok":"bad"); s.textContent=r[0]; box.appendChild(s);
+  });
+})();
+</script>
+</body>
+</html>

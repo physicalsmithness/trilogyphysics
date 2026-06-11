@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forces 6.5 widget harness - Trilogy Physics</title>
+<style>
+  :root { --ink:#1a1a17; --ink-2:#4d4943; --muted:#8c8579; --paper:#fffdf6;
+          --bg:#faf6ed; --accent:#b03030; --ok:#2d6a3f; --line-2:rgba(26,26,23,.22);
+          --sans: system-ui, sans-serif; --serif: Georgia, serif; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--serif);
+         margin: 0; padding: 24px; }
+  h1 { font-size: 1.3rem; } h2 { font-size: 1.05rem; margin-top: 2rem;
+       border-bottom: 1px solid var(--line-2); padding-bottom: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; }
+  .card { background: var(--paper); border: 1px solid var(--line-2); border-radius: 8px;
+          padding: 12px; }
+  .card .cap { font-family: var(--sans); font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+  .card.distractor { outline: 2px dashed var(--accent); }
+  .card.distractor .cap::before { content: "DISTRACTOR (deliberately wrong): ";
+          color: var(--accent); font-weight: bold; }
+  .iwrap { background: var(--paper); border: 1px solid var(--line-2); border-radius: 8px;
+           padding: 14px; margin-bottom: 20px; max-width: 560px; }
+  button.mark { font: 13px var(--sans); margin-top: 8px; padding: 6px 14px; cursor: pointer; }
+  pre.result { font-size: 11.5px; background: #f3eee2; padding: 8px; border-radius: 6px;
+               white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Forces 6.5 widget harness</h1>
+<p style="font-family:var(--sans);font-size:13px;color:var(--ink-2)">
+Every <code>kind</code> and named variant, rendered with sample params through
+<code>window.TOPIC_DIAGRAMS</code>, plus the three interactive widgets
+(<code>window.TOPIC_WIDGETS</code>) with a Mark button that calls
+<code>getAnswer()</code> then <code>score()</code> and shows the payload the
+engine would receive. Distractor renders are flagged.</p>
+
+<h2>Static renders</h2>
+<div class="grid" id="static"></div>
+
+<h2>Interactive: count squares (area_under_vt)</h2>
+<div class="iwrap"><div id="i-area"></div>
+  <button class="mark" data-w="area">Mark it</button><pre class="result" id="r-area"></pre></div>
+
+<h2>Interactive: place the tangent (gradient_tool)</h2>
+<div class="iwrap"><div id="i-grad"></div>
+  <button class="mark" data-w="grad">Mark it</button><pre class="result" id="r-grad"></pre></div>
+
+<h2>Interactive: quick numeric form (vector_addition_quick)</h2>
+<div class="iwrap"><div id="i-vec"></div>
+  <button class="mark" data-w="vec">Mark it</button><pre class="result" id="r-vec"></pre></div>
+
+<h2>Interactive: the full staged scale drawing (choose scale, draw, ruler, convert, protractor, reference)</h2>
+<div class="iwrap"><div id="i-sd"></div>
+  <button class="mark" data-w="sd">Mark it</button><pre class="result" id="r-sd"></pre></div>
+
+<h2>Interactive: resolve a vector (numeric entry)</h2>
+<div class="iwrap"><div id="i-res"></div>
+  <button class="mark" data-w="res">Mark it</button><pre class="result" id="r-res"></pre></div>
+
+<script src="widgets_core.js"></script>
+<script src="forces-diagrams.js"></script>
+<script>
+(function () {
+  var jobs = [
+    ["motion_graph: d-t, walk to the shops", "motion_graph", { kind: "distance_time", scenario: "walk_to_shops" }, 0],
+    ["motion_graph: displacement-t, walk (returns to 0)", "motion_graph", { kind: "displacement_time", scenario: "walk_to_shops" }, 0],
+    ["motion_graph: speed-t, walk", "motion_graph", { kind: "speed_time", scenario: "walk_to_shops" }, 0],
+    ["motion_graph: velocity-t, walk (return leg negative)", "motion_graph", { kind: "velocity_time", scenario: "walk_to_shops" }, 0],
+    ["motion_graph: d-t, bus journey (curved while accelerating)", "motion_graph", { kind: "distance_time", scenario: "bus_journey" }, 0],
+    ["motion_graph: v-t, bus journey", "motion_graph", { kind: "velocity_time", scenario: "bus_journey" }, 0],
+    ["motion_graph: a-t, bus journey", "motion_graph", { kind: "acceleration_time", scenario: "bus_journey" }, 0],
+    ["motion_graph: constant speed drawn as a curve", "motion_graph", { kind: "distance_time", scenario: "walk_to_shops", variant: "curved_constant" }, 1],
+    ["area_under_vt: braking curve, 48 squares x 0.5 m", "area_under_vt", { preset: "braking_curve" }, 0],
+    ["area_under_vt: triangle + rectangle", "area_under_vt", { preset: "accelerate_cruise" }, 0],
+    ["gradient_tool: straight line, triangle (2,3)-(6,9)", "gradient_tool", { curve: "line" }, 0],
+    ["gradient_tool: tangent at t=6 on d=0.5t^2", "gradient_tool", { curve: "curve" }, 0],
+    ["gradient_tool: chord instead of tangent", "gradient_tool", { curve: "curve", variant: "chord" }, 1],
+    ["braking_vt: base (20 m/s, tr 1.0 s, a 5)", "braking_vt", { condition: "base" }, 0],
+    ["braking_vt: faster initial speed", "braking_vt", { condition: "fast" }, 0],
+    ["braking_vt: wet road / worn brakes", "braking_vt", { condition: "wet_road" }, 0],
+    ["braking_vt: tired/distracted driver", "braking_vt", { condition: "tired_driver" }, 0],
+    ["braking_vt: v rises during reaction", "braking_vt", { variant: "rising_reaction" }, 1],
+    ["braking_vt: reaction segment slopes", "braking_vt", { variant: "sloped_reaction" }, 1],
+    ["braking_vt: braking flattens, never stops", "braking_vt", { variant: "curved_brake" }, 1],
+    ["stopping_distance_speed: thinking linear, braking quadratic", "stopping_distance_speed", {}, 0],
+    ["stopping_distance_speed: thinking drawn quadratic", "stopping_distance_speed", { variant: "thinking_quadratic" }, 1],
+    ["stopping_distance_speed: braking drawn linear", "stopping_distance_speed", { variant: "braking_linear" }, 1],
+    ["free_body_diagram: car at constant speed", "free_body_diagram", { preset: "car_constant_speed" }, 0],
+    ["free_body_diagram: car accelerating", "free_body_diagram", { preset: "car_accelerating" }, 0],
+    ["free_body_diagram: terminal velocity", "free_body_diagram", { preset: "falling_terminal", object: "ball" }, 0],
+    ["free_body_diagram: falling, speeding up", "free_body_diagram", { preset: "falling_speeding_up", object: "ball" }, 0],
+    ["ramp_fbd: block with friction", "ramp_fbd", { angle: 30, friction: true }, 0],
+    ["ramp_fbd: weight resolved into components", "ramp_fbd", { angle: 30, resolve: true }, 0],
+    ["ramp_fbd: weight drawn along the slope", "ramp_fbd", { angle: 30, variant: "weight_along_slope" }, 1],
+    ["ramp_fbd: normal drawn vertical", "ramp_fbd", { angle: 30, variant: "normal_vertical" }, 1],
+    ["vector_addition: scale mode, 30 N + 40 N", "vector_addition", { method: "scale" }, 0],
+    ["vector_addition: maths mode (Pythagoras + trig)", "vector_addition", { method: "maths" }, 0],
+    ["vector_addition: scalar sum offered (distance vs displacement)", "vector_addition", { quantity: "displacement", variant: "distance_scalar" }, 1],
+    ["spring_extension: single", "spring_extension", { arrangement: "single", masses: 2 }, 0],
+    ["spring_extension: series (2x extension)", "spring_extension", { arrangement: "series", masses: 2 }, 0],
+    ["spring_extension: parallel (x/2)", "spring_extension", { arrangement: "parallel", masses: 2 }, 0],
+    ["spring_extension: total length marked as extension", "spring_extension", { arrangement: "single", masses: 2, variant: "total_as_extension" }, 1],
+    ["collision_illustration: sticky (inelastic)", "collision_illustration", { type: "sticky" }, 0],
+    ["collision_illustration: bouncy (elastic, equal masses swap)", "collision_illustration", { type: "bouncy", m1: 1, m2: 1, u1: 4 }, 0],
+    ["collision_illustration: explosion from rest", "collision_illustration", { type: "explosion", m1: 1, m2: 2, v2: 2 }, 0],
+    ["v2 AUTHOR PARAMS: area as lettered regions A/B/C + values", "area_under_vt", { phases: [{ dur: 10, v0: 0, v1: 12 }, { dur: 20, v0: 12, v1: 12 }, { dur: 10, v0: 12, v1: 0 }], axes: { xmax: 40, xstep: 5, ymax: 14, ystep: 2, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" }, display: "regions", mark: { areaValues: true } }, 0],
+    ["v2: area unmarked (display none, pupil works unaided)", "area_under_vt", { phases: [{ dur: 4, v0: 0, v1: 8 }, { dur: 6, v0: 8, v1: 8 }], axes: { xmax: 10, xstep: 2, ymax: 10, ystep: 2, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" }, display: "none" }, 0],
+    ["v2: author curved phase (curve_down braking) with squares", "area_under_vt", { phases: [{ dur: 6, v0: 12, v1: 0, shape: "curve_down" }], axes: { xmax: 6, xstep: 2, ymax: 12, ystep: 4, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" }, display: "squares" }, 0],
+    ["v2: asymptote phase (terminal velocity shape)", "motion_graph", { kind: "velocity_time", phases: [{ dur: 8, v0: 0, v1: 10, shape: "asymptote" }, { dur: 4, v0: 10, v1: 10 }], axes: { xmax: 12, xstep: 2, ymax: 12, ystep: 2, minorDiv: 5, xlabel: "time / s", ylabel: "velocity / m/s" } }, 0],
+    ["v2: over_top / under_bottom shapes", "motion_graph", { kind: "velocity_time", phases: [{ dur: 6, v0: 2, v1: 8, shape: "over_top" }], axes: { xmax: 6, xstep: 1, ymax: 12, ystep: 2, minorDiv: 5, xlabel: "time / s", ylabel: "velocity / m/s" } }, 0],
+    ["v2: author gradient curve (asymptote family), tangent at t=2", "gradient_tool", { fspec: { type: "asymptote", A: 10, k: 0.5 }, domain: [0, 8], axes: { xmax: 8, xstep: 1, ymax: 10, ystep: 2, minorDiv: 5, xlabel: "time / s", ylabel: "velocity / m/s" }, tangentAt: 2, slopeUnits: "m/s²" }, 0],
+    ["v2: gradient with working/deltas hidden (stimulus form)", "gradient_tool", { curve: "curve", mark: { working: false, deltas: false, dropLines: false } }, 0],
+    ["v2: braking compare, dry solid vs wet dotted + key", "braking_vt", { condition: "base", keyLabel: "dry road", compare: [{ condition: "wet_road", label: "wet road" }], mark: { areas: false, values: false, caption: false, dropLines: false } }, 0],
+    ["v2: vectors with resultant hidden (draw-it-yourself stimulus)", "vector_addition", { method: "scale", mark: { resultant: false, protractor: false } }, 0],
+    ["w2: FBD on a car sprite", "free_body_diagram", { preset: "car_accelerating", object: "car" }, 0],
+    ["w2: FBD on a boat (upthrust)", "free_body_diagram", { object: "boat", forces: [ { name: "weight", dir: "down", mag: 10 }, { name: "upthrust", dir: "up", mag: 10 }, { name: "thrust", dir: "right", mag: 6 }, { name: "water resistance", dir: "left", mag: 6 } ] }, 0],
+    ["w2: FBD on a car with trailer", "free_body_diagram", { object: "car_trailer", forces: [ { name: "weight", dir: "down", mag: 14 }, { name: "normal contact force", dir: "up", mag: 14 }, { name: "driving force", dir: "right", mag: 9 }, { name: "resistive forces", dir: "left", mag: 6 } ] }, 0],
+    ["w2: sticky collision between cars", "collision_illustration", { type: "sticky", object1: "car", object2: "car", m1: 2, m2: 1, u1: 3 }, 0],
+    ["w2: person stepping off a boat (explosion-type)", "collision_illustration", { type: "explosion", object1: "boat", object2: "person", m1: 4, m2: 1, v2: 2 }, 0],
+    ["w2: resolve by calculation (F cos θ, F sin θ)", "vector_resolve", { method: "calculation" }, 0],
+    ["w2: resolve by hand, 5-12-13 triple × 2", "vector_resolve", { mag: 26, angle: 22.62, method: "triples", unitsPerBox: 5 }, 0],
+    ["w2: resolve by scale drawing", "vector_resolve", { method: "scale" }, 0],
+    ["w2: components swapped (sin/cos the wrong way)", "vector_resolve", { variant: "sin_cos_swapped" }, 1]
+  ];
+  var holder = document.getElementById("static");
+  jobs.forEach(function (j) {
+    var card = document.createElement("div");
+    card.className = "card" + (j[3] ? " distractor" : "");
+    var node = window.TOPIC_DIAGRAMS[j[1]](j[2]);
+    card.appendChild(node);
+    var cap = document.createElement("div");
+    cap.className = "cap";
+    cap.textContent = j[0] + "  |  " + j[1] + " " + JSON.stringify(j[2]);
+    card.appendChild(cap);
+    holder.appendChild(card);
+  });
+
+  var instances = {
+    area: window.TOPIC_WIDGETS.area_under_vt(document.getElementById("i-area"), { preset: "braking_curve" }),
+    grad: window.TOPIC_WIDGETS.gradient_tool(document.getElementById("i-grad"), { curve: "curve" }),
+    vec:  window.TOPIC_WIDGETS.vector_addition_quick(document.getElementById("i-vec"), { quantity: "force" }),
+    sd:   window.TOPIC_WIDGETS.vector_scale_drawing(document.getElementById("i-sd"), { quantity: "force" }),
+    res:  window.TOPIC_WIDGETS.vector_resolve(document.getElementById("i-res"), { method: "triples" })
+  };
+  document.querySelectorAll("button.mark").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var key = b.getAttribute("data-w");
+      var inst = instances[key];
+      var ans = inst.getAnswer();
+      var res = inst.score(ans, {});
+      document.getElementById("r-" + key).textContent =
+        "getAnswer() -> " + JSON.stringify(ans, null, 1) +
+        "\nscore() -> " + JSON.stringify(res, null, 1);
+    });
+  });
+})();
+</script>
+</body>
+</html>

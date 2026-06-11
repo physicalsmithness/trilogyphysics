@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forces 6.5 widget playground - edit any params live</title>
+<style>
+  :root { --ink:#1a1a17; --ink-2:#4d4943; --muted:#8c8579; --paper:#fffdf6;
+          --bg:#faf6ed; --accent:#b03030; --ok:#2d6a3f; --line-2:rgba(26,26,23,.22);
+          --sans: system-ui, sans-serif; --serif: Georgia, serif; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--serif);
+         margin: 0; padding: 18px; }
+  h1 { font-size: 1.2rem; margin: 0 0 4px 0; }
+  .sub { font: 12.5px var(--sans); color: var(--ink-2); margin-bottom: 14px; }
+  .cols { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+  .left { flex: 0 0 430px; max-width: 100%; }
+  .right { flex: 1 1 480px; min-width: 320px; }
+  select, button { font: 13px var(--sans); padding: 5px 8px; margin: 0 6px 8px 0; }
+  textarea { width: 100%; height: 300px; font: 12.5px/1.45 ui-monospace, Consolas, monospace;
+             border: 1px solid var(--line-2); border-radius: 6px; padding: 8px;
+             background: var(--paper); box-sizing: border-box; }
+  .stage { background: var(--paper); border: 1px solid var(--line-2); border-radius: 8px;
+           padding: 14px; min-height: 200px; }
+  .err { color: var(--accent); font: 12.5px var(--sans); white-space: pre-wrap; margin: 6px 0; }
+  pre.result { font-size: 11.5px; background: #f3eee2; padding: 8px; border-radius: 6px;
+               white-space: pre-wrap; max-height: 320px; overflow: auto; }
+  details { font: 12px var(--sans); color: var(--ink-2); margin-top: 10px; }
+  details code { background: #f3eee2; padding: 0 3px; border-radius: 3px; }
+  details li { margin: 3px 0; }
+  .badge { font: bold 11px var(--sans); color: var(--paper); background: var(--ok);
+           border-radius: 4px; padding: 2px 7px; vertical-align: middle; }
+  .badge.static { background: var(--ink-2); }
+</style>
+</head>
+<body>
+<h1>Forces 6.5 widget playground</h1>
+<div class="sub">Pick a kind, pick a starting example, then EDIT THE JSON and hit Render.
+Static kinds redraw; interactive kinds remount so you can drag, type, and then Mark it to
+see exactly what the engine would receive from <code>getAnswer()</code> and <code>score()</code>.</div>
+
+<div class="cols">
+  <div class="left">
+    <select id="kind"></select>
+    <select id="example"></select>
+    <span id="mode" class="badge static">static</span><br>
+    <textarea id="cfg" spellcheck="false"></textarea><br>
+    <button id="render">Render ▶</button>
+    <button id="markBtn" style="display:none">Mark it</button>
+    <div id="err" class="err"></div>
+    <pre id="result" class="result" style="display:none"></pre>
+
+    <details>
+      <summary>Param cheat-sheet (the customisable surface)</summary>
+      <ul>
+        <li><b>Common</b>: <code>axes:{xmax,xstep,ymax,ystep,minorDiv,xlabel,ylabel}</code> (units go in the label strings; minorDiv = little squares per big box); <code>mark:{...}</code> shows/hides annotations everywhere. Axes overrides are PARTIAL: give only the fields you want changed (e.g. <code>{"axes":{"ymax":20}}</code>) and the rest keep the kind's defaults. This works on presets and scenarios too, and on the vector grids.</li>
+        <li><b>Journey phases</b> (motion_graph, area_under_vt): <code>phases:[{dur,v0,v1,shape}]</code>, shape = <code>linear | hold | curve_up | curve_down | asymptote | over_top | under_bottom</code>.</li>
+        <li><b>motion_graph</b>: <code>kind</code> = distance_time | displacement_time | speed_time | velocity_time | acceleration_time; <code>scenario</code> presets walk_to_shops / bus_journey; <code>variant:"curved_constant"</code> distractor.</li>
+        <li><b>area_under_vt</b>: <code>display</code> = squares | regions | none; <code>from,to</code>; mark: squareCaption, regionLabels, areaValues.</li>
+        <li><b>gradient_tool</b>: <code>curve:"line"|"curve"</code> or <code>fspec:{type:"power"|"linear"|"asymptote",...}</code> + domain + axes; <code>tangentAt</code>, <code>readPoints</code>, <code>chordFrom</code>, <code>variant:"chord"</code>; mark: triangle, deltas, working, label, dropLines.</li>
+        <li><b>braking_vt</b>: <code>condition</code> or speed/reaction_time/decel; <code>compare:[{condition,label,dash}]</code> + keyLabel; variants rising_reaction | sloped_reaction | curved_brake; mark: areas, values, caption, dropLines, key.</li>
+        <li><b>stopping_distance_speed</b>: reaction_time, decel, vmax, <code>show:[...]</code>, variants thinking_quadratic | braking_linear.</li>
+        <li><b>free_body_diagram</b>: <code>object</code> = box | ball | trolley | cart | car | car_trailer | boat | person; <code>facing:"left"|"right"</code> turns directional sprites around; <code>preset</code> or <code>forces:[{name,dir,mag,showMag}]</code> (dir = up/down/left/right or degrees).</li>
+        <li><b>ramp_fbd</b>: angle, object, friction, resolve, variants weight_along_slope | normal_vertical.</li>
+        <li><b>vector_addition</b>: <code>vectors:[{mag,angle}]</code>, quantity, unit, method scale|maths, unitsPerBox, <code>variant:"distance_scalar"</code>; mark: resultant, scaleCaption, protractor, vectorLabels, working.</li>
+        <li><b>vector_resolve</b>: mag, angle, method calculation|triples|scale, <code>variant:"sin_cos_swapped"</code>; mark: components, working, angle, rightAngle.</li>
+        <li><b>spring_extension</b>: arrangement single|series|parallel, masses, naturalLen, extPerMass, <code>variant:"total_as_extension"</code>.</li>
+        <li><b>collision_illustration</b>: type sticky|bouncy|explosion, m1,m2,u1,u2,v2, <code>object1/object2</code> (sprites), <code>facing1/facing2</code> (default: bodies face along their motion; at rest they face the other body), showValues.</li>
+        <li><b>Interactive vector_addition</b> = the full staged drawing flow (choose scale → drag the green tip to draw each line → ruler → convert → protractor → reference). <code>vector_addition_quick</code> is the plain numeric form.</li>
+        <li><b>Interactive configs</b> also take: marks, tolerance, toleranceSquares, slopeTolerance, minRun, angleTolerance, legTolerance, measureTolerance, scaleChoices, targetT/tangentAt.</li>
+      </ul>
+    </details>
+  </div>
+  <div class="right">
+    <div id="stage" class="stage"></div>
+  </div>
+</div>
+
+<script src="widgets_core.js"></script>
+<script src="forces-diagrams.js"></script>
+<script>
+(function () {
+  var EX = {
+    motion_graph: {
+      "bus journey v-t (all knobs shown)": { kind: "velocity_time",
+        phases: [{ dur: 10, v0: 0, v1: 12 }, { dur: 20, v0: 12, v1: 12 }, { dur: 10, v0: 12, v1: 0 }],
+        axes: { xmax: 40, xstep: 5, ymax: 14, ystep: 2, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" } },
+      "walk to the shops d-t (all knobs shown)": { kind: "distance_time",
+        phases: [{ dur: 60, v0: 1, v1: 1 }, { dur: 60, v0: 0, v1: 0 }, { dur: 40, v0: -1.5, v1: -1.5 }],
+        axes: { xmax: 160, xstep: 20, ymax: 140, ystep: 20, minorDiv: 4, xlabel: "time / s", ylabel: "distance / m" } },
+      "scenario preset + PARTIAL axes tweak": { kind: "velocity_time", scenario: "bus_journey",
+        axes: { ymax: 20, minorDiv: 5 } },
+      "asymptote (terminal velocity)": { kind: "velocity_time",
+        phases: [{ dur: 8, v0: 0, v1: 10, shape: "asymptote" }, { dur: 4, v0: 10, v1: 10 }],
+        axes: { xmax: 12, xstep: 2, ymax: 12, ystep: 2, minorDiv: 5, xlabel: "time / s", ylabel: "velocity / m/s" } },
+      "over the top": { kind: "velocity_time",
+        phases: [{ dur: 6, v0: 2, v1: 8, shape: "over_top" }],
+        axes: { xmax: 6, xstep: 1, ymax: 12, ystep: 2, minorDiv: 5, xlabel: "time / s", ylabel: "velocity / m/s" } },
+      "DISTRACTOR curved constant": { kind: "distance_time", scenario: "walk_to_shops", variant: "curved_constant" }
+    },
+    area_under_vt: {
+      "counted squares (all knobs shown)": {
+        phases: [{ dur: 6, v0: 12, v1: 0, shape: "curve_down" }],
+        axes: { xmax: 6, xstep: 2, ymax: 12, ystep: 4, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" },
+        display: "squares", from: 0, to: 6, mark: { squareCaption: true } },
+      "regions A/B/C + values": { phases: [{ dur: 10, v0: 0, v1: 12 }, { dur: 20, v0: 12, v1: 12 }, { dur: 10, v0: 12, v1: 0 }],
+        axes: { xmax: 40, xstep: 5, ymax: 14, ystep: 2, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" },
+        display: "regions", mark: { areaValues: true } },
+      "nothing marked": { phases: [{ dur: 4, v0: 0, v1: 8 }, { dur: 6, v0: 8, v1: 8 }],
+        axes: { xmax: 10, xstep: 2, ymax: 10, ystep: 2, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" },
+        display: "none" },
+      "author curve, squares": { phases: [{ dur: 6, v0: 12, v1: 0, shape: "curve_down" }],
+        axes: { xmax: 6, xstep: 2, ymax: 12, ystep: 4, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" },
+        display: "squares" }
+    },
+    gradient_tool: {
+      "tangent on d=0.5t² (all knobs shown)": {
+        fspec: { type: "power", a: 0.5, p: 2 }, domain: [0, 10],
+        axes: { xmax: 10, xstep: 1, ymax: 50, ystep: 10, minorDiv: 5, xlabel: "time / s", ylabel: "distance / m" },
+        tangentAt: 6, slopeUnits: "m/s",
+        mark: { triangle: true, deltas: true, working: true, label: true, dropLines: true } },
+      "straight line (all knobs shown)": {
+        fspec: { type: "linear", m: 1.5, c: 0 }, domain: [0, 8],
+        axes: { xmax: 8, xstep: 2, ymax: 12, ystep: 2, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" },
+        tangentAt: 4, slopeUnits: "m/s²" },
+      "DISTRACTOR chord": { curve: "curve", variant: "chord" },
+      "author asymptote curve": { fspec: { type: "asymptote", A: 10, k: 0.5 }, domain: [0, 8],
+        axes: { xmax: 8, xstep: 1, ymax: 10, ystep: 2, minorDiv: 5, xlabel: "time / s", ylabel: "velocity / m/s" },
+        tangentAt: 2, slopeUnits: "m/s²" },
+      "unmarked stimulus": { curve: "curve", mark: { working: false, deltas: false, dropLines: false } }
+    },
+    braking_vt: {
+      "base (all knobs shown)": { speed: 20, reaction_time: 1, decel: 5,
+        axes: { xmax: 5, xstep: 1, ymax: 25, ystep: 5, minorDiv: 5, xlabel: "time / s", ylabel: "velocity / m/s" },
+        mark: { areas: true, values: true, caption: true, dropLines: true } },
+      "preset + PARTIAL axes tweak": { condition: "base", axes: { ymax: 30, minorDiv: 4 } },
+      "dry vs wet with key": { condition: "base", keyLabel: "dry road",
+        compare: [{ condition: "wet_road", label: "wet road" }],
+        mark: { areas: false, values: false, caption: false, dropLines: false } },
+      "tired driver": { condition: "tired_driver" },
+      "DISTRACTOR rising reaction": { variant: "rising_reaction" }
+    },
+    stopping_distance_speed: {
+      "standard (all knobs shown)": { reaction_time: 0.5, decel: 5, vmax: 40,
+        show: ["thinking", "braking", "total"],
+        axes: { xmax: 40, xstep: 10, ymax: 200, ystep: 25, minorDiv: 5, xlabel: "speed / m/s", ylabel: "distance / m" } },
+      "DISTRACTOR thinking quadratic": { variant: "thinking_quadratic" }
+    },
+    free_body_diagram: {
+      "car accelerating (sprite)": { preset: "car_accelerating", object: "car" },
+      "car driving LEFT (facing param)": { object: "car", facing: "left", forces: [
+        { name: "weight", dir: "down", mag: 12 }, { name: "normal contact force", dir: "up", mag: 12 },
+        { name: "driving force", dir: "left", mag: 10 }, { name: "resistive forces", dir: "right", mag: 5 } ] },
+      "boat with upthrust": { object: "boat", forces: [
+        { name: "weight", dir: "down", mag: 10 }, { name: "upthrust", dir: "up", mag: 10 },
+        { name: "thrust", dir: "right", mag: 6 }, { name: "water resistance", dir: "left", mag: 6 } ] },
+      "person standing": { object: "person", forces: [
+        { name: "weight", dir: "down", mag: 8 }, { name: "normal contact force", dir: "up", mag: 8 } ] },
+      "car with trailer": { object: "car_trailer", forces: [
+        { name: "weight", dir: "down", mag: 14 }, { name: "normal contact force", dir: "up", mag: 14 },
+        { name: "driving force", dir: "right", mag: 9 }, { name: "resistive forces", dir: "left", mag: 6 } ] },
+      "custom with magnitudes shown": { object: "box", forces: [
+        { name: "weight", dir: "down", mag: 20, showMag: true },
+        { name: "normal contact force", dir: "up", mag: 20, showMag: true },
+        { name: "pull", dir: 30, mag: 12, showMag: true } ] }
+    },
+    ramp_fbd: {
+      "block with friction": { angle: 30, friction: true },
+      "weight resolved": { angle: 30, resolve: true },
+      "DISTRACTOR weight along slope": { angle: 30, variant: "weight_along_slope" },
+      "DISTRACTOR normal vertical": { angle: 30, variant: "normal_vertical" }
+    },
+    vector_addition: {
+      "scale mode 3-4-5 (all knobs shown)": {
+        vectors: [{ mag: 30, angle: 0 }, { mag: 40, angle: 90 }],
+        quantity: "force", unit: "N", method: "scale", unitsPerBox: 10,
+        axes: { minorDiv: 5 },
+        mark: { resultant: true, scaleCaption: true, protractor: true, vectorLabels: true } },
+      "maths mode": { method: "maths" },
+      "resultant hidden (stimulus)": { method: "scale", mark: { resultant: false, protractor: false } },
+      "DISTRACTOR scalar sum": { quantity: "displacement", variant: "distance_scalar" }
+    },
+    vector_resolve: {
+      "by calculation (all knobs shown)": { mag: 50, angle: 53.13, quantity: "force",
+        method: "calculation", unitsPerBox: 10,
+        mark: { components: true, working: true, angle: true, rightAngle: true } },
+      "by hand: 5-12-13 × 2": { mag: 26, angle: 22.62, method: "triples", unitsPerBox: 5 },
+      "by scale drawing": { method: "scale" },
+      "DISTRACTOR sin/cos swapped": { variant: "sin_cos_swapped" }
+    },
+    spring_extension: {
+      "single": { arrangement: "single", masses: 2 },
+      "series": { arrangement: "series", masses: 2 },
+      "parallel": { arrangement: "parallel", masses: 2 },
+      "DISTRACTOR total as extension": { arrangement: "single", masses: 2, variant: "total_as_extension" }
+    },
+    collision_illustration: {
+      "sticky cars": { type: "sticky", object1: "car", object2: "car", m1: 2, m2: 1, u1: 3 },
+      "head-on (auto-facing from velocities)": { type: "sticky", object1: "car", object2: "car", m1: 2, m2: 1, u1: 3, u2: -3 },
+      "bouncy equal masses": { type: "bouncy", m1: 1, m2: 1, u1: 4 },
+      "person steps off boat": { type: "explosion", object1: "boat", object2: "person", m1: 4, m2: 1, v2: 2 }
+    }
+  };
+  var EXI = {
+    area_under_vt: {
+      "count the squares": { preset: "braking_curve" },
+      "regions: distance only": { phases: [{ dur: 10, v0: 0, v1: 12 }, { dur: 20, v0: 12, v1: 12 }, { dur: 10, v0: 12, v1: 0 }],
+        axes: { xmax: 40, xstep: 5, ymax: 14, ystep: 2, minorDiv: 4, xlabel: "time / s", ylabel: "velocity / m/s" },
+        display: "regions" }
+    },
+    gradient_tool: {
+      "place the tangent (preset curve)": { curve: "curve" },
+      "author curve, tangent at t=2": { fspec: { type: "asymptote", A: 10, k: 0.5 }, domain: [0, 8],
+        axes: { xmax: 8, xstep: 1, ymax: 10, ystep: 2, minorDiv: 5, xlabel: "time / s", ylabel: "velocity / m/s" },
+        tangentAt: 2, slopeUnits: "m/s²" }
+    },
+    vector_addition: {
+      "staged drawing: 30 N + 40 N": { quantity: "force" },
+      "staged: displacements 60 m + 80 m": { quantity: "displacement",
+        vectors: [{ mag: 60, angle: 0 }, { mag: 80, angle: 90 }], scaleChoices: [10, 20, 40] }
+    },
+    vector_addition_quick: { "numeric read-off form": { quantity: "force" } },
+    vector_resolve: {
+      "triples hint": { method: "triples" },
+      "calculation": { method: "calculation", mag: 60, angle: 30 }
+    },
+    vector_scale_drawing: {
+      "30 N + 40 N (default)": { quantity: "force" },
+      "displacements 60 m + 80 m": { quantity: "displacement",
+        vectors: [{ mag: 60, angle: 0 }, { mag: 80, angle: 90 }], scaleChoices: [10, 20, 40] },
+      "three vectors": { vectors: [{ mag: 30, angle: 0 }, { mag: 40, angle: 90 }, { mag: 20, angle: 180 }] }
+    }
+  };
+
+  var kindSel = document.getElementById("kind");
+  var exSel = document.getElementById("example");
+  var cfgTa = document.getElementById("cfg");
+  var stage = document.getElementById("stage");
+  var errBox = document.getElementById("err");
+  var resBox = document.getElementById("result");
+  var markBtn = document.getElementById("markBtn");
+  var modeBadge = document.getElementById("mode");
+  var instance = null;
+
+  function addGroup(label, names, prefix) {
+    var og = document.createElement("optgroup");
+    og.label = label;
+    names.forEach(function (n) {
+      var o = document.createElement("option");
+      o.value = prefix + n; o.textContent = n;
+      og.appendChild(o);
+    });
+    kindSel.appendChild(og);
+  }
+  addGroup("Static (TOPIC_DIAGRAMS)", Object.keys(EX), "s:");
+  addGroup("Interactive (TOPIC_WIDGETS)", Object.keys(EXI), "i:");
+
+  function isInteractive() { return kindSel.value.slice(0, 2) === "i:"; }
+  function kindName() { return kindSel.value.slice(2); }
+  function examples() { return (isInteractive() ? EXI : EX)[kindName()] || {}; }
+
+  function fillExamples() {
+    exSel.textContent = "";
+    Object.keys(examples()).forEach(function (n) {
+      var o = document.createElement("option");
+      o.value = n; o.textContent = n;
+      exSel.appendChild(o);
+    });
+    loadExample();
+  }
+  function loadExample() {
+    var ex = examples()[exSel.value] || {};
+    cfgTa.value = JSON.stringify(ex, null, 2);
+    render();
+  }
+  function render() {
+    errBox.textContent = "";
+    resBox.style.display = "none";
+    if (instance && instance.destroy) { try { instance.destroy(); } catch (e) {} }
+    instance = null;
+    stage.textContent = "";
+    var cfg;
+    try { cfg = JSON.parse(cfgTa.value || "{}"); }
+    catch (e) { errBox.textContent = "JSON error: " + e.message; return; }
+    try {
+      if (isInteractive()) {
+        modeBadge.textContent = "interactive"; modeBadge.className = "badge";
+        markBtn.style.display = "";
+        instance = window.TOPIC_WIDGETS[kindName()](stage, cfg);
+      } else {
+        modeBadge.textContent = "static"; modeBadge.className = "badge static";
+        markBtn.style.display = "none";
+        stage.appendChild(window.TOPIC_DIAGRAMS[kindName()](cfg));
+      }
+    } catch (e) {
+      errBox.textContent = "Renderer error: " + e.message;
+    }
+  }
+  markBtn.addEventListener("click", function () {
+    if (!instance) return;
+    var cfg;
+    try { cfg = JSON.parse(cfgTa.value || "{}"); } catch (e) { cfg = {}; }
+    var ans = instance.getAnswer();
+    var res = instance.score(ans, cfg);
+    resBox.style.display = "";
+    resBox.textContent = "getAnswer() -> " + JSON.stringify(ans, null, 1) +
+      "\n\nscore() -> " + JSON.stringify(res, null, 1);
+  });
+  kindSel.addEventListener("change", fillExamples);
+  exSel.addEventListener("change", loadExample);
+  document.getElementById("render").addEventListener("click", render);
+  fillExamples();
+})();
+</script>
+</body>
+</html>
