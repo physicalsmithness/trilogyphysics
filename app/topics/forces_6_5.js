@@ -1161,6 +1161,217 @@
           { id: "d", text: "8.0 m/s", status: "wrong", misconception: "wrong_formula_rearrangement", failsAt: "rearranged a = dv/t incorrectly" }
         ]
       }
+,
+
+      /* Batch 8: newtons_laws (6.5.4.2). N1 (resultant zero), N1 apply, F=ma
+         (two single-formula calc_workings grade full), the "m/s^2 means square
+         it" trap (MCQ), inverse proportionality, N3 pairs, the N1/N3 confusion
+         (short), inertia & inertial mass (HT), RP19 (short claim-points), and one
+         enriched rocket chain W=mg -> resultant -> F=ma. See review/newtons_laws.md. */
+      {
+        id: "nl_n1_stationary", qtype: "mcq_single", tier: "both",
+        atom: "n1_resultant_zero", syllabus: "6.5.4.2.1.a",
+        prompt: "An apple rests on a table and is stationary. Why is the apple stationary?",
+        explanation: "If an object is stationary, the resultant force on it is zero (Newton's First Law): the weight down is balanced by the normal contact force up.",
+        distractors: [
+          { id: "a", text: "The resultant force on the apple is zero.", status: "correct" },
+          { id: "b", text: "The resultant force on the apple is downwards.", status: "wrong", misconception: "resultant_nonzero_at_constant_v" },
+          { id: "c", text: "The resultant force on the apple is upwards.", status: "wrong", misconception: "resultant_nonzero_at_constant_v" }
+        ]
+      },
+      {
+        id: "nl_n1_constant_velocity", qtype: "mcq_single", tier: "both",
+        atom: "n1_resultant_zero", syllabus: "6.5.4.2.1.a",
+        prompt: "A skydiver stops accelerating and falls at a constant velocity. What is the resultant force acting on the skydiver while falling at constant velocity?",
+        explanation: "Constant velocity means the forces are balanced, so the resultant force is 0 N (Newton's First Law).",
+        distractors: [
+          { id: "a", text: "0 N", status: "correct" },
+          { id: "b", text: "Equal to the weight, acting downwards", status: "wrong", misconception: "resultant_nonzero_at_constant_v" },
+          { id: "c", text: "Equal to the air resistance, acting upwards", status: "wrong", misconception: "resultant_nonzero_at_constant_v" },
+          { id: "d", text: "Greater than zero, in the direction of motion", status: "wrong", misconception: "resultant_nonzero_at_constant_v" }
+        ]
+      },
+      {
+        id: "nl_n1_apply", qtype: "mcq_single", tier: "both",
+        atom: "n1_apply", syllabus: "6.5.4.2.1.b",
+        prompt: "A sled is pulled along a flat path at a constant speed. What is the relationship between the horizontal forces (the pull of the rope, and friction plus air resistance)?",
+        explanation: "At constant speed the resultant force is zero, so the forward pull equals the backward resistive forces: friction + air resistance = pull of the rope.",
+        distractors: [
+          { id: "a", text: "Friction + air resistance = pull of the rope.", status: "correct" },
+          { id: "b", text: "The pull of the rope is greater than friction + air resistance.", status: "wrong", misconception: "resultant_nonzero_at_constant_v" },
+          { id: "c", text: "Friction + air resistance is greater than the pull of the rope.", status: "wrong", misconception: "resultant_nonzero_at_constant_v" },
+          { id: "d", text: "There are no horizontal forces on the sled.", status: "wrong" }
+        ]
+      },
+      {
+        id: "nl_n2_recall", qtype: "mcq_single", tier: "both",
+        atom: "n2_calc", syllabus: "6.5.4.2.2.b", equation_sheet: "must_recall",
+        prompt: "Which equation links resultant force (F), mass (m) and acceleration (a)?",
+        explanation: "Newton's Second Law: resultant force = mass x acceleration, F = ma.",
+        distractors: [
+          { id: "a", text: "F = m a", status: "correct" },
+          { id: "b", text: "F = m / a", status: "wrong", misconception: "wrong_formula_rearrangement" },
+          { id: "c", text: "a = m F", status: "wrong", misconception: "wrong_formula_rearrangement" },
+          { id: "d", text: "F = m + a", status: "wrong" }
+        ]
+      },
+      {
+        id: "nl_n2_which_law", qtype: "mcq_single", tier: "both",
+        atom: "n2_proportionality", syllabus: "6.5.4.2.2.a",
+        prompt: "Which of Newton's laws predicts that the acceleration of an object is proportional to the resultant force on it?",
+        explanation: "Newton's Second Law relates acceleration to resultant force (a proportional to F for fixed mass).",
+        distractors: [
+          { id: "a", text: "Newton's Second Law", status: "correct" },
+          { id: "b", text: "Newton's First Law", status: "wrong" },
+          { id: "c", text: "Newton's Third Law", status: "wrong", misconception: "n3_confused_with_n1" }
+        ]
+      },
+      {
+        id: "nl_n2_force_calc", qtype: "calc_workings", tier: "both",
+        atom: "n2_calc", syllabus: "6.5.4.2.2.b", equation_sheet: "must_recall",
+        prompt: "A woman of mass 62 kg accelerates at 11 m/s^2 during a pull-up. Calculate the resultant force on the woman. Use the equation: force = mass x acceleration.",
+        explanation: "F = ma = 62 x 11 = 682 N.",
+        calc: {
+          knowns: { m: 62, a: 11 }, unknown: "F", expectedFinalValue: 682,
+          expectedUnit: ["N", "newton", "newtons"], equationCanonicalForms: ["F=ma", "F=m*a"],
+          tolerance: 1, requireUnit: true, marks: 4
+        }
+      },
+      {
+        id: "nl_n2_mass_calc", qtype: "calc_workings", tier: "both",
+        atom: "n2_calc", syllabus: "6.5.4.2.2.b", equation_sheet: "must_recall",
+        prompt: "A netball player accelerates at 25 m/s^2 when a resultant force of 1800 N acts on her. Calculate the mass of the player.",
+        explanation: "Rearrange F = ma to m = F / a = 1800 / 25 = 72 kg.",
+        calc: {
+          knowns: { F: 1800, a: 25 }, unknown: "m", expectedFinalValue: 72,
+          expectedUnit: ["kg", "kilogram", "kilograms"], equationCanonicalForms: ["m=F/a", "F=ma", "F=m*a"],
+          tolerance: 0.5, requireUnit: true, marks: 4
+        }
+      },
+      {
+        id: "nl_n2_squared_trap", qtype: "mcq_single", tier: "both",
+        atom: "n2_calc", syllabus: "6.5.4.2.2.b", equation_sheet: "must_recall",
+        prompt: "A person of mass 75 kg has a deceleration of 60 m/s^2 in a crash. Calculate the resultant force on the person. Use: resultant force = mass x deceleration.",
+        explanation: "F = ma = 75 x 60 = 4500 N. The 'squared' in m/s^2 is part of the unit, not an instruction to square the number.",
+        distractors: [
+          { id: "a", text: "4500 N", status: "correct" },
+          { id: "b", text: "270000 N", status: "wrong", misconception: "n2_acceleration_squared", failsAt: "squared the 60 (used 75 x 60^2) - misread m/s^2" },
+          { id: "c", text: "1.25 N", status: "wrong", misconception: "wrong_formula_rearrangement", failsAt: "divided mass by deceleration" },
+          { id: "d", text: "135 N", status: "wrong", misconception: "wrong_formula_rearrangement", failsAt: "added instead of multiplied" }
+        ]
+      },
+      {
+        id: "nl_n2_inverse", qtype: "mcq_single", tier: "both",
+        atom: "n2_proportionality", syllabus: "6.5.4.2.2.b",
+        prompt: "For a constant resultant force, how is the acceleration of an object related to its mass?",
+        explanation: "From F = ma with F fixed, a = F/m, so acceleration is inversely proportional to mass: a larger mass gives a smaller acceleration.",
+        distractors: [
+          { id: "a", text: "Inversely proportional (larger mass gives smaller acceleration).", status: "correct" },
+          { id: "b", text: "Directly proportional (larger mass gives larger acceleration).", status: "wrong", misconception: "n2_inverse_stated_as_decreases" },
+          { id: "c", text: "They are equal.", status: "wrong" },
+          { id: "d", text: "Mass and acceleration are not related.", status: "wrong" }
+        ]
+      },
+      {
+        id: "nl_n3_pair", qtype: "mcq_single", tier: "both",
+        atom: "n3_equal_opposite", syllabus: "6.5.4.2.3.a",
+        prompt: "A rope exerts a force on a sled. What is the Newton's Third Law pair to 'the force of the rope on the sled'?",
+        explanation: "Newton's Third Law pairs act on different objects: the pair is the force of the sled on the rope (equal in size, opposite in direction).",
+        distractors: [
+          { id: "a", text: "The force of the sled on the rope.", status: "correct" },
+          { id: "b", text: "The weight of the sled.", status: "wrong", misconception: "n3_confused_with_n1" },
+          { id: "c", text: "The friction on the sled.", status: "wrong", misconception: "n3_confused_with_n1" },
+          { id: "d", text: "The normal contact force on the sled.", status: "wrong", misconception: "n3_confused_with_n1" }
+        ]
+      },
+      {
+        id: "nl_n3_equal_opposite", qtype: "mcq_single", tier: "both",
+        atom: "n3_equal_opposite", syllabus: "6.5.4.2.3.a",
+        prompt: "A gymnast exerts a downward force on a bar. How does the upward force of the bar on the gymnast compare?",
+        explanation: "By Newton's Third Law the bar pushes back on the gymnast with a force equal in size and opposite in direction.",
+        distractors: [
+          { id: "a", text: "It is the same size, in the opposite direction.", status: "correct" },
+          { id: "b", text: "It is greater than the downward force.", status: "wrong", misconception: "n3_confused_with_n1" },
+          { id: "c", text: "It is smaller than the downward force.", status: "wrong", misconception: "n3_confused_with_n1" },
+          { id: "d", text: "It is zero.", status: "wrong" }
+        ]
+      },
+      {
+        id: "nl_n3_vs_n1", qtype: "short", tier: "higher",
+        atom: "n3_equal_opposite", syllabus: "6.5.4.2.3.b",
+        prompt: "Two cars collide. A student says: 'The cars push on each other with equal and opposite forces, so the resultant force on each car is zero.' Explain what is wrong with this reasoning.",
+        explanation: "Newton's Third Law pairs act on different objects (one force on each car), so they never combine into a resultant on a single car. The forces do not cancel because they act on different bodies.",
+        claims: [
+          { id: "a", text: "The two forces act on different objects (one on each car), not on the same one.", correct: true },
+          { id: "b", text: "Forces on different objects cannot be added to give a resultant on one object.", correct: true },
+          { id: "c", text: "So Newton's Third Law forces never cancel each other out.", correct: true },
+          { id: "d", text: "The student is right: equal and opposite forces always give a resultant of zero.", correct: false, misconception: "n3_confused_with_n1" }
+        ]
+      },
+      {
+        id: "nl_inertia", qtype: "mcq_single", tier: "higher",
+        atom: "inertia_concept", syllabus: "6.5.4.2.1.e",
+        prompt: "What is the name for the tendency of an object to stay at rest, or to continue moving at the same velocity?",
+        explanation: "This tendency to resist a change in velocity is called inertia.",
+        distractors: [
+          { id: "a", text: "Inertia", status: "correct" },
+          { id: "b", text: "Momentum", status: "wrong", misconception: "inertia_term_unknown" },
+          { id: "c", text: "Friction", status: "wrong", misconception: "inertia_term_unknown" },
+          { id: "d", text: "Weight", status: "wrong", misconception: "inertia_term_unknown" }
+        ]
+      },
+      {
+        id: "nl_inertial_mass", qtype: "mcq_single", tier: "higher",
+        atom: "inertial_mass", syllabus: "6.5.4.2.2.c",
+        prompt: "How is inertial mass defined?",
+        explanation: "Inertial mass is a measure of how difficult it is to change an object's velocity; it is defined as the ratio of force to acceleration (m = F/a).",
+        distractors: [
+          { id: "a", text: "The ratio of force to acceleration (force / acceleration).", status: "correct" },
+          { id: "b", text: "The ratio of acceleration to force (acceleration / force).", status: "wrong", misconception: "wrong_formula_rearrangement" },
+          { id: "c", text: "The product of force and acceleration.", status: "wrong", misconception: "wrong_formula_rearrangement" },
+          { id: "d", text: "The weight of the object divided by g.", status: "wrong" }
+        ]
+      },
+      {
+        id: "nl_rp19_method", qtype: "short", tier: "both",
+        atom: "rp19_force_mass_accel", syllabus: "6.5.4.2.2.f",
+        prompt: "Describe a method to investigate how the acceleration of a trolley depends on the resultant force applied to it. (Required practical 19.)",
+        explanation: "Keep the total mass constant; vary the resultant force (e.g. with hanging masses transferred from the trolley); measure the acceleration for each force (light gates or ticker tape); plot acceleration against force.",
+        claims: [
+          { id: "a", text: "Keep the total mass of the system constant throughout.", correct: true },
+          { id: "b", text: "Vary the resultant force (for example using hanging masses on a string).", correct: true },
+          { id: "c", text: "Measure the acceleration for each force using light gates (or ticker tape).", correct: true },
+          { id: "d", text: "Plot a graph of acceleration against resultant force.", correct: true },
+          { id: "e", text: "Change the mass of the trolley for each new measurement.", correct: false },
+          { id: "f", text: "Take a single measurement at one force only.", correct: false, misconception: "repeatability_reproducibility_confused" }
+        ]
+      },
+      {
+        id: "cc_rocket_resultant", qtype: "mcq_single", tier: "higher",
+        atom: "n2_calc", syllabus: "6.5.4.2.2.b",
+        difficulty: "d3", marks: 6, facility_pct: null, source: "in_style_of:aqa_trilogy_rocket_chain", equation_sheet: "must_recall",
+        prompt: "A rocket of mass 1200 kg sits on the ground. Its engine produces a constant upward thrust of 18000 N. The gravitational field strength is 9.8 N/kg. Calculate the acceleration of the rocket just after launch. Use W = mg, then find the resultant force, then use F = ma.",
+        explanation: "Stage 1: weight W = mg = 1200 x 9.8 = 11760 N. Stage 2: resultant force = thrust - weight = 18000 - 11760 = 6240 N (upward). Stage 3: a = F/m = 6240 / 1200 = 5.2 m/s^2.",
+        calc: {
+          markCategories: ["substitution","evaluation","other_skill","substitution","rearrangement","evaluation"],
+          stages: [
+            { equation: "W=mg", knowns: { m: 1200, g: 9.8 }, unknown: "W", expectedFinalValue: 11760, expectedUnit: ["N"],
+              markScheme: [ {mark:1,category:"substitution",text:"W = 1200 x 9.8"}, {mark:2,category:"evaluation",text:"W = 11760 (N)"} ] },
+            { equation: "resultant=thrust-weight", knowns: { thrust: 18000, W: 11760 }, unknown: "Fr", expectedFinalValue: 6240, expectedUnit: ["N"],
+              gate: { kind: "from_previous_part" },
+              markScheme: [ {mark:3,category:"other_skill",text:"resultant = 18000 - 11760 = 6240 (N)"} ] },
+            { equation: "F=ma", knowns: { F: 6240, m: 1200 }, unknown: "a", expectedFinalValue: 5.2, expectedUnit: ["m/s^2"],
+              gate: { kind: "from_previous_part" },
+              markScheme: [ {mark:4,category:"substitution",text:"6240 = 1200 x a"}, {mark:5,category:"rearrangement",text:"a = 6240 / 1200"}, {mark:6,category:"evaluation",text:"a = 5.2 (m/s^2)"} ] }
+          ]
+        },
+        distractors: [
+          { id: "a", text: "5.2 m/s^2", status: "correct" },
+          { id: "b", text: "15 m/s^2", status: "wrong", misconception: "chain_prep_stage_skipped", failsAt: "used the thrust as the resultant force, ignoring the weight (18000/1200)" },
+          { id: "c", text: "11760 m/s^2", status: "wrong", misconception: "chain_intermediate_as_final", failsAt: "gave the weight as the acceleration" },
+          { id: "d", text: "0.19 m/s^2", status: "wrong", misconception: "wrong_formula_rearrangement", failsAt: "stage3: used a = m/F instead of F/m" }
+        ]
+      }
     ]
   };
 

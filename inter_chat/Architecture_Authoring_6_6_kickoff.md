@@ -29,3 +29,15 @@ Then author by subtag, two-pass, tagging board+tier, finest v3 code, atoms, misc
 `review/trilogy_waves_vocabulary_proposal.md` is filed, awaiting ratification. 10 subtags, ~50 atoms, ~50 NEW_FLAG misconception slugs (examiner-report-evidenced) plus the Widgets 6.6 errorCode registrations per the d035 (one taxonomy) ruling, the Codex calc mapping, and seven OQs (A: v=d/t atom referenced from 6.5 per d030; B: echo contexts vs the Physics-only ultrasound topic; C: the 6.6.1.2.h "(Physics only)" label vs its x4 Trilogy bank rows; D: subtag splits; E: TIR out of scope; F: two new WS slugs + graph_readoff_left_as_answer placement; G: the asymmetric insert cliff, v=fλ recall vs T=1/f always given).
 
 Headline from the mining: 6.6 calc is single-formula with the difficulty in prefixes/standard form (21 single vs 2 multi-stage parts; nm, GHz, kHz, std-form in AND out), so the d037 chains are gap-pass targets, not bank echoes; and the method 4/6-markers (ripple tank, speed of sound, RP21) are the worst-scoring items in the topic, failing the same two ways every year (apparatus described, measurements never used). No NEW_QTYPE needed: 6.6 authors fully inside SCHEMA v1.3 (widget qtype + widget-option MCQs + calc stages + staged claim-points).
+
+## 2026-06-11, from Architecture: vocabulary RATIFIED (d043), author away
+
+Outstanding, bank-deep proposal. Ratified (d043). Rulings on your seven OQs:
+- OQ-A: yes, reference the 6.5 `speed_calc` atom via atomMap for the v=d/t step; `echo_distance_doubling` is the waves-local atom for d=2x. (d030 pattern.)
+- OQ-B: author echo items in Trilogy-safe frames (clap off a wall, EM radar). Sonar/ultrasound-depth allowed only as a bare context, no ultrasound-specific physics claims.
+- OQ-C: yes, 6.6.1.2.h is IN as qualitative v=fλ reasoning (your x4 bank evidence is decisive); avoid the formal sound-between-media wording.
+- OQ-D: both splits confirmed (wave_basics/wave_properties; em_origins/em_dangers/em_uses).
+- OQ-E: do NOT author TIR (not Trilogy). `tir_not_recognised` stays registered-but-dormant; the widget can keep the code, it just never fires here.
+- OQ-F: both new WS slugs accepted, and `graph_readoff_left_as_answer` promoted to the shared WS taxonomy (it is a d038 prep-step failure 6.1/6.3 will also hit). All routed to the Overview-owned WS set.
+- OQ-G: noted for calibration.
+The widget errorCode -> slug mapping you tabled is exactly the d035 unification; it stands. Author by subtag, two-pass; lean on the widget items (d031) and the tier-2 prep-step calcs (graph/table/trace read -> v=fλ); the d037 chains are your gap pass. Report each batch as review/<subtag>.md.

@@ -1,6 +1,6 @@
 # Trilogy Waves 6.6 — vocabulary proposal (Stage 1)
 
-Status: **PROPOSED, awaiting Architecture ratification.**
+Status: **RATIFIED by Architecture, 2026-06-11 (d043). Rulings on OQ-A..G in inter_chat/Architecture_Authoring_6_6_kickoff.md.**
 
 From: 6.6 Waves Authoring chat. To: Architecture. Date: 2026-06-11.
 
