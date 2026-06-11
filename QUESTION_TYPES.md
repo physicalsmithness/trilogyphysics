@@ -43,3 +43,15 @@ Builds on the qtype table above. New/changed for Forces:
 - **`level_of_response_6`** (staged claim-points): forces is dense with 6-markers, terminal-velocity force balance (often 85% score zero), stopping/braking evaluations, RP18/RP19 method, "explain the motion".
 
 Families specific to Forces: vector/scalar identification; weight vs mass; resultant by force balance (not F=ma when no mass/accel given); Hooke and force-extension graphs; motion descriptors and s=vt; d-t and v-t graph gradient/area; a=delta-v/t and v^2-u^2=2as; Newton's three laws; terminal velocity (qualitative); stopping distance (thinking + braking, speed^2 relationship); momentum p=mv and qualitative conservation (HT). The dominant calc error is `prefix_not_converted` (g->kg, cm->m, kN->N).
+
+---
+
+# Calculation complexity tiers (2026-06-11, d038)
+
+Three tiers of `calc_workings`, all the same qtype, distinguished by how the substituted values are obtained:
+
+1. **Single-step** (1-2 marks): substitute given numbers into one formula. Plug-and-chug.
+2. **Intermediate / prep-step** (~3 marks): ONE non-trivial step to obtain a quantity before the single formula, then substitute. The prep is not a second formula but: a graph read-off (read v off a v-t graph, gradient, area), a difference (Δθ = T2 - T1, Δv, the p.d. left after subtracting the others in a series loop), a resultant (sum/subtract collinear forces), or a unit conversion. These are common and not in the multi-stage catalogue (d037); authors cover them deliberately. The prep step is where marks are lost, so it must be gradable.
+3. **Multi-stage chain** (4-6 marks): two or three formulae chained with ECF, the d037 catalogue. Authored as `calc_workings` with `stages` (d029).
+
+Authoring an intermediate (tier 2): either a short leading `stage` that produces the prep value (e.g. stage 1 `delta-theta = T2 - T1` or "read v = ... off the graph") feeding the formula stage via `gate:from_previous_part`, OR a single-stage calc_workings whose known carries a non-trivial **number source** tag (Codex Layer 3: `graph_read` / `difference` / `resultant` / `prefix_conv`) so the engine and dashboard see whether the slip was in the prep or the formula. Prefer the leading-stage form when the prep is itself worth a mark. The prep-step misconceptions already exist (graph_scale_misread, gradient_described_not_named, resultant_added_not_subtracted, prefix_not_converted).

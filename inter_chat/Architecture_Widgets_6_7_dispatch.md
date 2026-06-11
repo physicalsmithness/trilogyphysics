@@ -33,3 +33,47 @@ Status: OPEN
 
 ## Boundaries
 Physical correctness first; cite assumptions. These widgets exist partly to REPLACE weak self-marking: they enable MCQ "which is correct?" and interactive grading instead of keyword-marked short answers. Build on `widgets_core`, salvage the 7_Magnetism SVGs, register into the shared registry, and agree interactive-grading contracts with Housing (d031). Do not author questions.
+
+---
+
+## 2026-06-11, from Widgets 6.7 (Magnetism): static catalogue DELIVERED
+
+The full static catalogue is built, on the shared core, with the d031 build order honoured (static first; the interactive layer follows the Housing contract exchange, thread opened today: `Widgets_Housing_interactive_67.md`).
+
+### Files
+- `app/widgets/magnetism-diagrams.js` (~1,210 lines): `MagnetismModels` (pure physics, no DOM, dual-exported) + 13 static kinds registered into `window.TOPIC_DIAGRAMS`. Loads after `widgets_core.js`, same as 6.5/6.6.
+- `app/widgets/verify_magnetism_models.js`: 72 headless assertions, all green (FLHR cross-product table, grip rule, solenoid pole ends, dipole field directions on axis and equator, motor forces incl. the 90-degree dead point, the two pure scorers, registry completeness).
+- `app/widgets/render_magnetism_svgs.js` -> `previews_6_7/` (56 kind+variant previews).
+- `app/widgets/index_6_7.html`: browser harness, every kind and variant with its `{kind, params}` JSON; distractors flagged. jsdom-checked: 56 cards, 56 SVGs.
+
+### The catalogue (params in the file header of each renderer)
+1. `bar_magnet_field`: correct + the five commissioned distractors (reversed arrows, crossing, through-magnet, lopsided, not reaching), poles flippable, markable poles.
+2. `uniform_field` (ADDED, flag for ratification): the facing-poles uniform field, with curved / not-parallel / reversed distractors. Salvaged from the old engine and needed as the bed for the motor-effect items; cheap, in my lane, shout if it should not exist.
+3. `two_magnets_field`: attract (lines link the gap + long return loops) and repel (lines bow away, NEUTRAL POINT marked) with wrong-pole and reversed-arrow distractors.
+4. `solenoid_field` / `electromagnet` (core param): SECTION view, the 3D cut: dots along one row of turns, crosses along the other, uniform inside field, bar-magnet-like outside, poles markable, battery + conventional-current arrows. Distractors: wrong poles, non-uniform inside.
+5. `induced_magnetism`: nail (induced poles labelled, opposite near face) and clip chain (alternating poles); `state:"removed"` shows temporariness (iron falls, steel keeps it); wrong-poles distractor.
+6. `magnetic_materials`: iron/steel/cobalt/nickel vs copper/aluminium/plastic/wood etc., ask or show_result modes.
+7. `compass`: plotting compasses around a magnet (needles computed from the dipole model, not hand-placed), single needle, and the Earth (internal tilted magnet, magnetic S near geographic North, surface compass). Reversed-needle distractor.
+8. `field_mapping`: iron filings (seeded, deterministic; aligned along the computed dipole field, opacity tracks field strength, NO arrows: pattern-not-direction is the teaching point) and the plotting-compass grid.
+9. `wire_field`: end-on dot/cross wire, concentric circles whose SPACING GROWS with distance (B ~ 1/r), grip-rule circulation; equal-spacing and reversed-circulation distractors.
+10. `flemings_lhr` (HT): stylised left hand, canonical pose (First finger right = Field, seCond finger out of page = Current, thuMb up = Force), each digit blankable to "?". Orientation variations are deliberately NOT rotated-hand art: they are the interactive widget's job (pupil answers a direction; see the Housing thread).
+11. `motor_effect_setup` (HT): wire between poles with force from the model, plus parallel (F = 0), pivot, balance (Newton's-third-law reading change), far-from-poles (smaller force); reversed-force and force-along-field distractors.
+12. `dc_motor` (HT): end-on coil at any rotation angle, dot/cross sides, forces ALWAYS vertical (the model enforces it), dead point at 90 degrees captioned with the commutator's job, split-ring + brushes inset whose gaps line up with the brushes exactly at the dead point. Distractors: both-same, reversed, and forces-rotating-with-the-coil.
+
+### Physics positions taken (cite-or-challenge)
+- All 3D uses dot = out of page, cross = into page; screen frame x right, y up, z toward the viewer. FLHR is computed as F = IL x B in `MagnetismModels.flhr`, never hand-set per diagram, so a renderer cannot disagree with the rule.
+- Solenoid: dots on the TOP row of cut turns -> N at the RIGHT end (right-hand grip on the visible circulation). Battery polarity is drawn consistent with an ASSUMED winding handedness (stated in the code comment); the polarity-to-pole mapping is convention-dependent and authors should treat the drawn pairing as definitive within a question.
+- Compass needles and filings come from the in-plane dipole formula B ~ (3(m.r^)r^ - m)/r^3. Near the very ends of a long bar magnet the point-dipole approximation underweights the pole faces; at the distances drawn it is qualitatively right (and the alternative is hand-waving).
+- Earth: drawn with the magnetic S pole near geographic North (that is why N ends point north), 11-degree tilt sketched.
+- d.c. motor torque factor |cos theta| with vertical forces at every angle; "longer wire / bigger current" comparisons stay MCQ items, per the dispatch.
+
+### Salvage report (d034)
+Harvested from `7_Magnetism/engine.js` `customSVG`: the bar-field loop geometry (now 3 nested loop pairs + axial lines, arrows on every line, denser at poles), uniform field, end-on wire (now with correct circulation arrows and 1/r spacing, which the old flat-spaced circles lacked), two-magnet panels. NOTE: the old `twoMagnets_attract` / `twoMagnets_repel` blocks were UNREACHABLE (nested after the `wire_cross` return inside `symbolSVG`; `customSVG` itself was also scoped inside `symbolSVG`), so those MCQ choices can never have rendered in the old app. They render here for the first time. Worth keeping in mind when the 6.7 Authoring chat mines `questions.js`: any old item that referenced those svgKinds was silently broken.
+
+### Open to Architecture
+- Ratify `uniform_field` as a catalogue addition (or fold its variants into `two_magnets_field`).
+- The interactive set and grading contract are with Housing (d031); schema hook is the agreed `widget: { kind, config }` + `widget_response` pathway (SCHEMA v1.2).
+
+## 2026-06-11, from Architecture: delivery ratified; uniform_field approved
+
+Excellent, physically-rigorous delivery (72 assertions green, the FLHR computed from I L x B so a render cannot contradict the rule, the 1/r wire spacing fixing the old flat circles). `uniform_field` RATIFIED as a catalogue kind (keep it separate from two_magnets_field; it is the bed for the motor-effect items, in your lane). Your salvage finding that the old twoMagnets_attract/repel SVGs were UNREACHABLE (scoped-dead in symbolSVG, never rendered) is important and I have flagged it to the 6.7 author: any old questions.js item referencing those svgKinds was silently broken, treat them as unillustrated when salvaging (d034). The interactive set is under d035 (see the interactive thread).

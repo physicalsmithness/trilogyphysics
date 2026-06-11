@@ -27,6 +27,7 @@ function load(rel) {
 load("diagrams.js");
 load("engine.js");
 load("calc_workings.js");
+vm.runInThisContext(fs.readFileSync(path.join(__dirname,"..","data","misconceptions.js"),"utf8"));
 
 const T = window.TRILOGY_ENGINE_TEST;
 const D = window.TrilogyDiagrams;
@@ -38,28 +39,22 @@ function ok(name, cond) {
 }
 function eq(name, a, b) { ok(name + " (" + JSON.stringify(a) + " === " + JSON.stringify(b) + ")", a === b); }
 
-console.log("\nMCQ grader");
-const mcq = { qtype: "mcq_single", distractors: [
-  { id: "a", status: "correct" }, { id: "b", status: "wrong", misconception: "x" },
-  { id: "c", status: "wrong" } ] };
-eq("correct pick", T.gradeMcq(mcq, ["a"]), "correct");
-eq("wrong pick", T.gradeMcq(mcq, ["b"]), "wrong");
+console.log("\nMCQ grader (choices + answerIndex)");
+const mcq = { qtype: "mcq", choices: [{text:"a"},{text:"b"},{text:"c"}], answerIndex: 0 };
+eq("correct pick", T.gradeMcq(mcq, [0]), "correct");
+eq("wrong pick", T.gradeMcq(mcq, [1]), "wrong");
 eq("empty", T.gradeMcq(mcq, []), "wrong");
 
-const multi = { qtype: "mcq_multi", distractors: [
-  { id: "a", status: "correct" }, { id: "b", status: "correct" },
-  { id: "c", status: "wrong" } ] };
-eq("multi all correct", T.gradeMcq(multi, ["a", "b"]), "correct");
-eq("multi partial -> half", T.gradeMcq(multi, ["a"]), "half");
-eq("multi includes wrong", T.gradeMcq(multi, ["a", "c"]), "wrong");
+const multi = { qtype: "mcq_multi", choices: [{text:"a"},{text:"b"},{text:"c"}], answerIndices: [0,1] };
+eq("multi all correct", T.gradeMcq(multi, [0,1]), "correct");
+eq("multi partial -> half", T.gradeMcq(multi, [0]), "half");
+eq("multi includes wrong", T.gradeMcq(multi, [0,2]), "wrong");
 
-console.log("\nClaims (short) grader");
-const short = { qtype: "short", claims: [
-  { id: "a", correct: true }, { id: "b", correct: true },
-  { id: "c", correct: false, misconception: "confused_v_and_i" } ] };
-eq("all right", T.gradeClaims(short, ["a", "b"]), "correct");
-eq("some right none wrong -> half", T.gradeClaims(short, ["a"]), "half");
-eq("picked a wrong claim", T.gradeClaims(short, ["a", "c"]), "wrong");
+console.log("\nShort grader (markPoints keyword presence)");
+const short = { qtype: "short", markPoints: [ {any:["high voltage","step up"]}, {any:["low current","lower current"]} ] };
+eq("all points -> correct", T.gradeShort(short, "a high voltage gives a lower current").status, "correct");
+eq("one point -> half", T.gradeShort(short, "use a high voltage").status, "half");
+eq("no points -> wrong", T.gradeShort(short, "because physics").status, "wrong");
 
 console.log("\ncalc_workings grader (tolerance path)");
 const calc = { qtype: "calc_workings", calc: { answer: { value: 12, unit: "ohm", tolerance: 0.02 } } };
@@ -69,25 +64,31 @@ eq("near miss -> half", T.gradeCalcWorkings(calc, "12.4").status, "half");
 eq("far -> wrong", T.gradeCalcWorkings(calc, "6").status, "wrong");
 eq("non-numeric -> wrong", T.gradeCalcWorkings(calc, "abc").status, "wrong");
 
-console.log("\nServability + tier filter (d005)");
-T.setPrefsTier("both");
-ok("known mcq servable", T.isServable({ qtype: "mcq_single", distractors: [] }));
+console.log("\nServability + tier filter (SCHEMA v1.0 F|H|FH)");
+T.setPrefsTier("all");
+ok("mcq servable", T.isServable({ qtype: "mcq", choices: [] }));
+ok("mcq_multi servable", T.isServable({ qtype: "mcq_multi", choices: [] }));
 ok("unknown qtype not servable", !T.isServable({ qtype: "drag_drop" }));
-T.setPrefsTier("foundation");
-ok("higher item hidden at foundation", !T.isServable({ qtype: "mcq_single", tier: "higher" }));
-ok("both-tier item shown at foundation", T.isServable({ qtype: "mcq_single", tier: "both" }));
-ok("foundation item shown at foundation", T.isServable({ qtype: "mcq_single", tier: "foundation" }));
-T.setPrefsTier("both");
+T.setPrefsTier("F");
+ok("H item hidden at F", !T.isServable({ qtype: "mcq", tier: "H" }));
+ok("FH item shown at F", T.isServable({ qtype: "mcq", tier: "FH" }));
+ok("F item shown at F", T.isServable({ qtype: "mcq", tier: "F" }));
+ok("legacy 'higher' normalises to H (hidden at F)", !T.isServable({ qtype: "mcq", tier: "higher" }));
+T.setPrefsTier("all");
 
-console.log("\nEvent shape (d004 atom + fire/avoid)");
-const item = { id: "q1", topic: "6.2", atom: "series", qtype: "mcq_single",
-  distractors: [ { id: "a", status: "correct" },
-                 { id: "b", status: "wrong", misconception: "series_parallel_swapped" } ] };
-const ev = T.buildEvent(item, "b", "wrong", "series_parallel_swapped", "6.2");
+console.log("\nEvent shape (atoms[] + subtag + fire/avoid)");
+const item = { id: "q1", topic: "6.2", subtag: "series_parallel",
+  atoms: ["series_resistance_sum"], qtype: "mcq", tier: "H", syllabus_codes: ["6.2.1.4"],
+  choices: [ {text:"a"}, {text:"b", misconception_id:"swapped_series_parallel"} ], answerIndex: 0,
+  applicable_misconceptions: ["topology_indifferent_assumption"] };
+const ev = T.buildEvent(item, 1, "wrong", "swapped_series_parallel", "6.2");
 eq("event topic", ev.topic, "6.2");
-eq("event atom", ev.atom, "series");
-eq("event misconception", ev.misconception_id, "series_parallel_swapped");
-ok("slugs_offered captured", Array.isArray(ev.slugs_offered) && ev.slugs_offered.indexOf("series_parallel_swapped") !== -1);
+ok("event atoms[] carries the atom", ev.atoms.indexOf("series_resistance_sum") !== -1);
+eq("event subtag", ev.subtag, "series_parallel");
+eq("event tier normalised", ev.tier, "H");
+eq("event misconception", ev.misconception_id, "swapped_series_parallel");
+ok("slugs_offered = choice slugs + applicable",
+   ev.slugs_offered.indexOf("swapped_series_parallel") !== -1 && ev.slugs_offered.indexOf("topology_indifferent_assumption") !== -1);
 
 console.log("\nGreenness bucketing");
 eq("no events -> grey", T.greennessBucket([], 5), "grey");
@@ -110,6 +111,15 @@ ok("wrong method error codes", wrongm.errorTypes.indexOf("equation_wrong") !== -
 const rearr = CW.markCalcWorkings({ knowns:{V:6,I:0.5}, unknown:"R", expectedFinalValue:12, expectedUnit:["\u03a9"], equationCanonicalForms:["R=V/I"], requireUnit:true },
   { line1:"R = V / I", line2:"6 = R * 0.5", line3:"R = 12", line4Value:"12", line4Unit:"\u03a9" });
 ok("accepts algebraically-equivalent substitution", rearr.marksAwarded >= 3);
+
+console.log("\nCanonical misconception registry (data/misconceptions.js)");
+const REG = window.TRILOGY_MISCONCEPTIONS || [];
+ok("registry loaded (40+ slugs)", REG.length >= 40);
+const slugs = REG.map(function (m) { return m.slug; });
+ok("retired slug absent (wrong_power_form_for_topology)", slugs.indexOf("wrong_power_form_for_topology") === -1);
+ok("out-of-scope reciprocal slug absent (forgot_final_reciprocal)", slugs.indexOf("forgot_final_reciprocal") === -1);
+ok("NEW_FLAG present (diode_reverse_current_nonzero)", slugs.indexOf("diode_reverse_current_nonzero") !== -1);
+ok("every entry has slug+label+topic", REG.every(function (m) { return m.slug && m.label && m.topic; }));
 
 console.log("\nDiagram registry");
 ok("registry has circuit kind", D.kinds().indexOf("circuit") !== -1);

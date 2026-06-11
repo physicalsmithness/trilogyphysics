@@ -127,9 +127,18 @@
 <!-- Diagram registry (window.TOPIC_DIAGRAMS): circuit kind wired here; Widgets
      plug the rest in. -->
 <script src="diagrams.js"></script>
-<!-- Widgets/Diagrams catalogue (d019): registers iv_characteristic, ac_dc_trace,
-     resistance_*, transformer, transmission_line, mains_three_wire, live_earth_danger. -->
+<!-- Interactive widget core (window.TOPIC_WIDGETS factories + makeDraggable);
+     MUST load before the topic widget files (d031/d035, SCHEMA v1.2). -->
+<script src="widgets/widgets_core.js"></script>
+<!-- Widget catalogues, one per topic: static kinds -> TOPIC_DIAGRAMS, interactive
+     kinds -> TOPIC_WIDGETS, pure scorers -> *_MODELS. -->
 <script src="widgets/topic-diagrams.js"></script>
+<script src="widgets/forces-diagrams.js"></script>
+<script src="widgets/waves-diagrams.js"></script>
+<script src="widgets/magnetism-diagrams.js"></script>
+<!-- Canonical misconception registry (window.TRILOGY_MISCONCEPTIONS), the slug
+     set authors tag against; the engine reads labels from it at mount. -->
+<script src="../data/misconceptions.js"></script>
 <!-- calc_workings marks-the-method grader (window.TrilogyCalcWorkings), lifted
      verbatim from the Pre-IB engine. -->
 <script src="calc_workings.js"></script>

@@ -1,0 +1,663 @@
+/* =====================================================================
+   Trilogy Physics - Waves 6.6 widget catalogue
+   Waves 6.6 Widgets chat deliverable (Architecture dispatch d032; brief
+   inter_chat/Architecture_Widgets_6_6_dispatch.md).
+
+   Built ON the shared core (app/widgets/widgets_core.js, d026): no
+   private copies of graph/axis/arrow primitives live here.
+
+   Contract:
+     STATIC      window.TOPIC_DIAGRAMS[kind](params) -> SVGElement
+     INTERACTIVE window.TOPIC_WIDGETS[kind](host, config) -> instance
+                 instance = { getAnswer(), score(answer, config),
+                              destroy() }   (Fields-driller pattern;
+                 grading contract proposed to Housing in
+                 inter_chat/Widgets_Housing_interactive_66.md)
+
+   d031 build order: STATIC RENDER FIRST, interactive/markable layer
+   second. For Waves many items ARE the widget (mark a wavelength, drag
+   wavefronts across a boundary, slide a prism into a beam), so the
+   interactive layer emits the pupil's response (the mark placed, the
+   angle read, the position dragged to) in a defined shape, and Housing's
+   engine grades it. Pure physics lives in WavesModels (no DOM),
+   dual-exported so Node can assert on it headless
+   (verify_waves_models.js).
+
+   Physical-correctness notes are inline at each model function; the
+   hand-back in the dispatch thread cites the assumed behaviour.
+   ===================================================================== */
+(function (root) {
+  "use strict";
+
+  var CORE = (typeof window !== "undefined" && window.WIDGETS_CORE) ||
+             (typeof require !== "undefined" ? require("./widgets_core.js") : null);
+  if (!CORE) throw new Error("widgets_core.js must load before waves-diagrams.js");
+  var el = CORE.el, txt = CORE.txt, C = CORE.C, M = CORE.Maths, fmt = CORE.fmt;
+  var makeSVG = CORE.makeSVG, arrowHead = CORE.arrowHead;
+  var TAU = Math.PI * 2;
+
+  /* small shared DOM helpers (mirrors forces-diagrams.js so the two
+     topic files read the same way; only additive, no core change). */
+  function line(x1, y1, x2, y2, opts) {
+    opts = opts || {};
+    return el("line", { x1: x1, y1: y1, x2: x2, y2: y2,
+      stroke: opts.color || C.ink, "stroke-width": opts.width || 1.4,
+      "stroke-linecap": opts.cap || "butt",
+      "stroke-dasharray": opts.dash || "none" });
+  }
+  function circle(cx, cy, r, opts) {
+    opts = opts || {};
+    return el("circle", { cx: cx, cy: cy, r: r,
+      fill: opts.fill || "none", stroke: opts.stroke || C.ink,
+      "stroke-width": (opts.width == null ? 1.4 : opts.width),
+      "stroke-dasharray": opts.dash || "none" });
+  }
+  function near(a, b, tol) { return Math.abs(a - b) <= tol; }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  /* ============================== MODELS ================================= */
+  /* WavesModels: the single source of physical truth for every Waves
+     widget. No DOM. Every renderer and every interactive scorer reads
+     from here, so the static picture and the graded answer can never
+     disagree by construction (the 6.5 "one journey model" discipline).  */
+  var WavesModels = {};
+
+  /* ---- transverse wave: y(x) = A sin(2 pi x / lambda + phase) ----------
+     Physics: a transverse wave displaces the medium perpendicular to the
+     direction of energy transfer. amplitude A = rest line -> crest (NOT
+     crest -> trough, which is 2A: the canonical distractor). wavelength
+     lambda = crest -> next crest = trough -> next trough = any one full
+     cycle. cycles = how many full wavelengths are drawn.                 */
+  WavesModels.wave = function (p) {
+    p = p || {};
+    var lambda = (p.wavelength != null) ? p.wavelength : 4;   /* arb units */
+    var A = (p.amplitude != null) ? p.amplitude : 1;
+    var cycles = (p.cycles != null) ? p.cycles : 2;
+    var phase = (p.phase != null) ? p.phase : 0;              /* radians   */
+    var xmax = lambda * cycles;
+    function y(x) { return A * Math.sin(TAU * x / lambda + phase); }
+    /* crest x where sin = +1: TAU x/lambda + phase = pi/2 + 2 pi k        */
+    var crests = [], troughs = [], k, xc;
+    for (k = -1; k < cycles + 2; k++) {
+      xc = lambda * (0.25 - phase / TAU + k);
+      if (xc >= -1e-9 && xc <= xmax + 1e-9) crests.push(xc);
+      xc = lambda * (0.75 - phase / TAU + k);
+      if (xc >= -1e-9 && xc <= xmax + 1e-9) troughs.push(xc);
+    }
+    crests.sort(function (a, b) { return a - b; });
+    troughs.sort(function (a, b) { return a - b; });
+    return {
+      y: y, wavelength: lambda, amplitude: A, cycles: cycles,
+      phase: phase, xmax: xmax, crests: crests, troughs: troughs,
+      /* the markable features, each as a {kind, span, orientation}:
+         span is the correct measured length; orientation tells the
+         interactive scorer whether the pupil's two marks should be
+         horizontal (along x) or vertical (along y).                      */
+      features: {
+        wavelength:     { length: lambda,      orientation: "horizontal" },
+        half_wavelength:{ length: lambda / 2,   orientation: "horizontal" },
+        amplitude:      { length: A,            orientation: "vertical"   }
+      }
+    };
+  };
+
+  /* the wave equation, for scenario/markable consistency: v = f lambda    */
+  WavesModels.waveSpeed = function (f, lambda) { return f * lambda; };
+  WavesModels.frequency = function (v, lambda) { return v / lambda; };
+  WavesModels.wavelengthFrom = function (v, f) { return v / f; };
+  /* period T = 1/f; "waves past a point" counting: f = count / time       */
+  WavesModels.frequencyFromCount = function (count, time) { return count / time; };
+
+  /* ---- longitudinal wave: compressions and rarefactions ----------------
+     Physics: particles oscillate ALONG the direction of energy transfer.
+     Local particle displacement s(x) = A sin(kx); particle DENSITY is
+     highest where the gradient of displacement is most negative
+     (particles crowd) -> compressions, lowest at rarefactions. We model
+     density as rho(x) = 1 - cos(2 pi x / lambda + phase) (max where the
+     cosine is -1). wavelength = compression -> next compression
+     (= rarefaction -> next rarefaction); compression -> nearest
+     rarefaction is HALF a wavelength (the C-to-R distractor).            */
+  WavesModels.longitudinal = function (p) {
+    p = p || {};
+    var lambda = (p.wavelength != null) ? p.wavelength : 4;
+    var cycles = (p.cycles != null) ? p.cycles : 3;
+    var phase = (p.phase != null) ? p.phase : 0;
+    var xmax = lambda * cycles;
+    function density(x) { return 1 - Math.cos(TAU * x / lambda + phase); }
+    var comp = [], rar = [], k, xc;
+    for (k = -1; k < cycles + 2; k++) {
+      /* compression where cos = -1: arg = pi + 2 pi k                     */
+      xc = lambda * (0.5 - phase / TAU + k);
+      if (xc >= -1e-9 && xc <= xmax + 1e-9) comp.push(xc);
+      /* rarefaction where cos = +1: arg = 2 pi k                          */
+      xc = lambda * (0 - phase / TAU + k);
+      if (xc >= -1e-9 && xc <= xmax + 1e-9) rar.push(xc);
+    }
+    comp.sort(function (a, b) { return a - b; });
+    rar.sort(function (a, b) { return a - b; });
+    return {
+      density: density, wavelength: lambda, cycles: cycles, xmax: xmax,
+      compressions: comp, rarefactions: rar,
+      features: {
+        wavelength:      { length: lambda,    orientation: "horizontal" },
+        half_wavelength: { length: lambda / 2, orientation: "horizontal" }
+      }
+    };
+  };
+
+  /* ---- wavefronts (plan view) ------------------------------------------
+     Physics: a wavefront joins points of the SAME phase (e.g. all crests);
+     the perpendicular distance between adjacent wavefronts is one
+     wavelength. Plane waves -> parallel straight fronts; a point/curved
+     source -> concentric circular fronts whose radii increase by lambda.  */
+  WavesModels.wavefronts = function (p) {
+    p = p || {};
+    return {
+      wavelength: (p.spacing != null) ? p.spacing : (p.wavelength != null ? p.wavelength : 1),
+      count: (p.count != null) ? p.count : 6,
+      curved: !!p.curved
+    };
+  };
+
+  /* ---- refraction: Snell's law -----------------------------------------
+     n1 sin(theta1) = n2 sin(theta2), angles measured FROM THE NORMAL.
+     Entering a denser/slower medium (n2 > n1) bends the ray TOWARD the
+     normal (theta2 < theta1) and the wavefronts get CLOSER together
+     (lambda2 = lambda1 * v2/v1 = lambda1 * n1/n2, since v = c/n and
+     frequency is unchanged across a boundary). Returns null for total
+     internal reflection (no real refracted angle).                       */
+  WavesModels.refractAngle = function (theta1_deg, n1, n2) {
+    var s2 = (n1 / n2) * Math.sin(theta1_deg * Math.PI / 180);
+    if (s2 > 1 + 1e-12 || s2 < -1 - 1e-12) return null;      /* TIR        */
+    return Math.asin(clamp(s2, -1, 1)) * 180 / Math.PI;
+  };
+  WavesModels.criticalAngle = function (n1, n2) {
+    if (n1 <= n2) return null;                                /* only dense->less dense */
+    return Math.asin(n2 / n1) * 180 / Math.PI;
+  };
+  /* wavefront spacing ratio across a boundary (lambda2 / lambda1)         */
+  WavesModels.wavefrontSpacingRatio = function (n1, n2) { return n1 / n2; };
+  /* bends toward normal?  true when slowing down (n2 > n1)                */
+  WavesModels.bendsTowardNormal = function (n1, n2) { return n2 > n1; };
+
+  /* ---- speed of sound / echo methods -----------------------------------
+     Direct timing over a measured distance: v = d / t.
+     Echo (sonar / echolocation / clap-off-a-wall): the pulse travels to
+     the reflector and back, so v = 2 d / t  <=>  d = v t / 2.            */
+  WavesModels.speedDirect = function (d, t) { return d / t; };
+  WavesModels.echoDistance = function (v, t) { return v * t / 2; };
+  WavesModels.echoTime = function (v, d) { return 2 * d / v; };
+  WavesModels.speedFromEcho = function (d, t) { return 2 * d / t; };
+
+  /* ---- electromagnetic spectrum ----------------------------------------
+     Seven regions. Canonical order by INCREASING frequency / DECREASING
+     wavelength (radio has the longest wavelength + lowest frequency;
+     gamma the shortest wavelength + highest frequency). All travel at c
+     in a vacuum. wlText/freqText are order-of-magnitude anchors for
+     labels only (not exam-required values). origin = where the radiation
+     is produced; uses = the spec's example applications.                 */
+  WavesModels.EM = {
+    order: ["radio", "microwave", "infrared", "visible", "ultraviolet", "xray", "gamma"],
+    region: {
+      radio:       { label: "Radio",        wlText: "1 km - 10 cm",  origin: "oscillations of charge in an aerial / electrical circuit",
+                     uses: ["television and radio broadcasting"] },
+      microwave:   { label: "Microwave",    wlText: "10 cm - 1 mm",  origin: "electron oscillations, e.g. in a magnetron",
+                     uses: ["satellite communications", "cooking food"] },
+      infrared:    { label: "Infrared",     wlText: "1 mm - 700 nm", origin: "warm/hot objects (thermal vibration of particles)",
+                     uses: ["electrical heaters", "cooking food", "infrared cameras"] },
+      visible:     { label: "Visible",      wlText: "700 - 400 nm",  origin: "very hot objects and electron energy-level transitions",
+                     uses: ["fibre-optic communications"] },
+      ultraviolet: { label: "Ultraviolet",  wlText: "400 - 10 nm",   origin: "very hot objects and some electron transitions",
+                     uses: ["energy-efficient lamps", "sun tanning"] },
+      xray:        { label: "X-ray",        wlText: "10 nm - 0.01 nm", origin: "fast electrons stopped by a metal target",
+                     uses: ["medical imaging of bones", "security scanners"] },
+      gamma:       { label: "Gamma",        wlText: "< 0.01 nm",     origin: "changes in the nucleus of an atom (radioactive decay)",
+                     uses: ["sterilising food and medical equipment", "killing cancer cells"] }
+    },
+    /* index in the canonical order; lower index = longer wavelength,
+       lower frequency. Used by the marking widget to grade "which end is
+       high frequency".                                                    */
+    indexOf: function (name) { return WavesModels.EM.order.indexOf(name); }
+  };
+  WavesModels.emHigherFrequency = function (a, b) {
+    return WavesModels.EM.indexOf(a) > WavesModels.EM.indexOf(b) ? a : b;
+  };
+  WavesModels.emLongerWavelength = function (a, b) {
+    return WavesModels.EM.indexOf(a) < WavesModels.EM.indexOf(b) ? a : b;
+  };
+
+
+  /* ===================== STATIC RENDERERS: anatomy ====================== */
+  /* A side-on plotting frame for transverse pictures: x runs left->right,
+     y is vertical displacement with the rest line centred. Not CORE.grid
+     (no exam gridlines wanted for anatomy); a private light mapping.     */
+  function sideFrame(cfg) {
+    var w = cfg.w || 460, h = cfg.h || 220;
+    var m = { l: cfg.ml || 30, r: cfg.mr || 30, t: cfg.mt || 26, b: cfg.mb || 26 };
+    var svg = makeSVG(w, h, cfg.label);
+    var X0 = m.l, X1 = w - m.r, Yc = (m.t + (h - m.b)) / 2;
+    var halfH = (h - m.t - m.b) / 2;
+    var xmin = 0, xmax = cfg.xmax;
+    var yspan = cfg.yspan || 1;                  /* data y at +-yspan -> edges */
+    function px(x) { return X0 + (x - xmin) / (xmax - xmin) * (X1 - X0); }
+    function py(y) { return Yc - (y / yspan) * halfH; }
+    return { svg: svg, px: px, py: py, X0: X0, X1: X1, Yc: Yc, halfH: halfH,
+             w: w, h: h, add: function (n) { svg.appendChild(n); return this; } };
+  }
+
+  /* double-headed measurement arrow with a label, in PIXEL space         */
+  function measureArrow(x1, y1, x2, y2, label, opts) {
+    opts = opts || {};
+    var g = el("g");
+    var col = opts.color || C.accent;
+    var ang = Math.atan2(y2 - y1, x2 - x1);
+    g.appendChild(line(x1, y1, x2, y2, { color: col, width: opts.width || 1.6 }));
+    g.appendChild(arrowHead(x1, y1, ang + Math.PI, 6, col));
+    g.appendChild(arrowHead(x2, y2, ang, 6, col));
+    if (label) {
+      var mx = (x1 + x2) / 2 + (opts.ldx || 0), my = (y1 + y2) / 2 + (opts.ldy || -5);
+      g.appendChild(txt(mx, my, label, { fill: col, "font-size": opts.fontSize || 12.5,
+        "text-anchor": opts.anchor || "middle", "font-style": "italic" }));
+    }
+    return g;
+  }
+  /* short tick marks (end caps) for an extent line                        */
+  function endCaps(x1, y1, x2, y2, capLen, col) {
+    var g = el("g"), c = capLen || 6;
+    var ang = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2;
+    var dx = Math.cos(ang) * c, dy = Math.sin(ang) * c;
+    g.appendChild(line(x1 - dx, y1 - dy, x1 + dx, y1 + dy, { color: col || C.ink2, width: 1 }));
+    g.appendChild(line(x2 - dx, y2 - dy, x2 + dx, y2 + dy, { color: col || C.ink2, width: 1 }));
+    return g;
+  }
+
+  /* ---------------------------- wave_train ------------------------------
+     params: { wavelength, amplitude, cycles, orientation:"horizontal",
+               mark:{ wavelength, half_wavelength, amplitude, arrows,
+                      restLine }, distractor:"amplitude_double" |
+               "amplitude_diagonal" | "wavelength_half" |
+               "wavelength_peak_to_trough", label }
+     mark.* default false (clean anatomy unless an item asks to annotate);
+     a single named distractor renders a DELIBERATELY-WRONG annotation in
+     a warning colour, for MCQ-over-the-picture items (the 6.5 named-wrong
+     pattern). The interactive widget below grades pupil-placed marks.    */
+  function wave_train(params) {
+    params = params || {};
+    var mdl = WavesModels.wave(params);
+    var mark = params.mark || {};
+    var orient = params.orientation || "horizontal";
+    var fr = sideFrame({ w: params.w || 480, h: params.h || 230, xmax: mdl.xmax,
+      yspan: 1.25, label: params.label || "transverse wave" });
+    var ampPx = fr.halfH / 1.25;             /* pixels per unit amplitude (A=1) */
+
+    /* rest line (axis of the medium at rest) */
+    if (mark.restLine !== false)
+      fr.add(line(fr.X0, fr.Yc, fr.X1, fr.Yc, { color: C.line, width: 1.1, dash: "5 4" }));
+
+    /* the wave itself */
+    var d = "", i, N = 360, x, yy, first = true;
+    for (i = 0; i <= N; i++) {
+      x = mdl.xmax * i / N; yy = mdl.y(x) / Math.max(1, mdl.amplitude);
+      d += (first ? "M" : "L") + fr.px(x).toFixed(2) + "," + fr.py(yy).toFixed(2) + " ";
+      first = false;
+    }
+    fr.add(el("path", { d: d.trim(), fill: "none", stroke: C.accent,
+      "stroke-width": 2.6, "stroke-linecap": "round", "stroke-linejoin": "round" }));
+
+    /* crest / trough direction arrows (oscillation is perpendicular) */
+    if (mark.arrows) {
+      var aLen = ampPx * 0.55, cx;
+      if (mdl.crests[0] != null) {
+        cx = mdl.crests[0];
+        fr.add(CORE.forceArrow(fr.px(cx), fr.Yc - ampPx * 0.18, fr.px(cx), fr.Yc - ampPx - aLen * 0.0,
+          { color: C.ink2, width: 2, label: "" }));
+      }
+      if (mdl.troughs[0] != null) {
+        cx = mdl.troughs[0];
+        fr.add(CORE.forceArrow(fr.px(cx), fr.Yc + ampPx * 0.18, fr.px(cx), fr.Yc + ampPx,
+          { color: C.ink2, width: 2 }));
+      }
+    }
+
+    /* correct annotations (opt-in) */
+    if (mark.wavelength && mdl.crests.length >= 2) {
+      var a = mdl.crests[0], b = mdl.crests[1], yL = fr.py(1) - 14;
+      fr.add(endCaps(fr.px(a), yL, fr.px(b), yL, 6, C.ink2));
+      fr.add(measureArrow(fr.px(a), yL, fr.px(b), yL, "lambda", { ldy: -6 }));
+    }
+    if (mark.half_wavelength && mdl.crests[0] != null && mdl.troughs[0] != null) {
+      var c0 = Math.min(mdl.crests[0], mdl.troughs[0]);
+      var t0 = (mdl.troughs[0] > mdl.crests[0]) ? mdl.troughs[0] : (mdl.troughs[1] != null ? mdl.troughs[1] : mdl.troughs[0]);
+      var yH = fr.Yc + fr.halfH * 0.62;
+      fr.add(measureArrow(fr.px(mdl.crests[0]), yH, fr.px(t0), yH, "lambda/2", { ldy: 14, color: C.ink2 }));
+    }
+    if (mark.amplitude && mdl.crests[0] != null) {
+      var xc = mdl.crests[0];
+      fr.add(measureArrow(fr.px(xc) - 0, fr.Yc, fr.px(xc), fr.py(1), "A",
+        { color: C.ok, anchor: "start", ldx: 8, ldy: 4 }));
+    }
+
+    /* deliberately-wrong named annotation (for distractor pictures) */
+    var dz = params.distractor;
+    if (dz) {
+      var warn = C.accent;
+      if (dz === "amplitude_double" && mdl.crests[0] != null) {
+        var xa = mdl.crests[0];
+        fr.add(measureArrow(fr.px(xa), fr.py(1), fr.px(xa), fr.py(-1), "A?",
+          { color: warn, anchor: "start", ldx: 8 }));
+      } else if (dz === "amplitude_diagonal" && mdl.crests[0] != null && mdl.troughs[0] != null) {
+        fr.add(measureArrow(fr.px(mdl.crests[0]), fr.py(1), fr.px(mdl.troughs[0]), fr.py(-1),
+          "A?", { color: warn }));
+      } else if (dz === "wavelength_half" && mdl.crests[0] != null && mdl.troughs[0] != null) {
+        var yLh = fr.py(1) - 14;
+        fr.add(measureArrow(fr.px(mdl.crests[0]), yLh, fr.px(mdl.troughs[0]), yLh, "lambda?",
+          { color: warn, ldy: -6 }));
+      } else if (dz === "wavelength_peak_to_trough" && mdl.crests[0] != null && mdl.troughs[0] != null) {
+        fr.add(measureArrow(fr.px(mdl.crests[0]), fr.py(1), fr.px(mdl.troughs[0]), fr.py(-1),
+          "lambda?", { color: warn }));
+      }
+    }
+
+    /* vertical orientation: rotate the whole picture 90 degrees */
+    if (orient === "vertical") {
+      var gWrap = el("g", { transform: "rotate(90 " + (fr.w / 2) + " " + (fr.h / 2) + ")" });
+      while (fr.svg.childNodes.length > 1) gWrap.appendChild(fr.svg.childNodes[1]);
+      fr.svg.appendChild(gWrap);
+    }
+    return fr.svg;
+  }
+
+  /* ----------------------------- wavefronts -----------------------------
+     Plan view. Plane waves -> parallel fronts one wavelength apart; a
+     point source -> concentric arcs whose radii step by one wavelength.
+     params: { spacing|wavelength, count, curved, direction:"right",
+               mark:{ wavelength }, source:false, label }                 */
+  function wavefronts(params) {
+    params = params || {};
+    var info = WavesModels.wavefronts(params);
+    var w = params.w || 360, h = params.h || 240;
+    var svg = makeSVG(w, h, params.label || "wavefronts (plan view)");
+    var m = 26;
+    var curved = info.curved;
+    var n = info.count;
+
+    if (!curved) {
+      /* parallel vertical fronts moving in the direction of the ray */
+      var spanX = (w - 2 * m);
+      var dpx = spanX / (n + 0.5);
+      var i, x;
+      for (i = 0; i < n; i++) {
+        x = m + dpx * (i + 0.5);
+        svg.appendChild(line(x, m, x, h - m, { color: C.ink, width: 2 }));
+      }
+      /* direction-of-travel ray arrow */
+      svg.appendChild(CORE.forceArrow(m + dpx * 0.3, h / 2, w - m * 0.6, h / 2,
+        { color: C.muted, width: 1.6, label: "" }));
+      if (params.mark && params.mark.wavelength && n >= 2) {
+        var xa = m + dpx * 0.5, xb = m + dpx * 1.5, yL = h - m + 0;
+        svg.appendChild(measureArrow(xa, m - 8, xb, m - 8, "lambda", { ldy: -5 }));
+      }
+    } else {
+      /* concentric circular fronts from a source at left-centre */
+      var sx = m + 6, sy = h / 2, j, r;
+      var dr = (w - 2 * m) / (n + 0.5);
+      svg.appendChild(circle(sx, sy, 3, { fill: C.accent, stroke: C.accent }));
+      for (j = 1; j <= n; j++) {
+        r = dr * j;
+        /* draw a forward arc (semicircle facing right) */
+        svg.appendChild(el("path", {
+          d: "M" + sx + "," + (sy - r) + " A" + r + "," + r + " 0 0 1 " + sx + "," + (sy + r),
+          fill: "none", stroke: C.ink, "stroke-width": 2 }));
+      }
+      if (params.mark && params.mark.wavelength && n >= 2) {
+        svg.appendChild(measureArrow(sx + dr * 1, sy, sx + dr * 2, sy, "lambda", { ldy: -6 }));
+      }
+    }
+    return svg;
+  }
+
+  /* -------------------------- longitudinal_wave -------------------------
+     Particle/coil density picture. Particles drawn as vertical lines;
+     base positions are displaced by s(x) = shift*sin(kx+phase) so that
+     d(x_drawn)/dx_base = 1 + shift*k*cos(kx) is minimum (lines crowd ->
+     COMPRESSION) where cos = -1, i.e. at x = lambda/2, 3lambda/2, ...,
+     consistent with WavesModels.longitudinal compressions. Rarefactions
+     where lines spread. wavelength = C-to-C (= R-to-R); C-to-R is HALF
+     (the named distractor).
+     params: { wavelength, cycles, phase, blanks:false (label boxes at a
+               C and an R), mark:{ wavelength, half_wavelength, labelCR },
+               distractor:"wavelength_C_to_R", label }                    */
+  function longitudinal_wave(params) {
+    params = params || {};
+    var info = WavesModels.longitudinal(params);
+    var lambda = info.wavelength, k = TAU / lambda, phase = params.phase || 0;
+    var w = params.w || 480, h = params.h || 200;
+    var svg = makeSVG(w, h, params.label || "longitudinal wave");
+    var m = 28, X0 = m, X1 = w - m, yTop = m, yBot = h - m - 18;
+    var shift = 0.7 / k;                       /* shift*k = 0.7 < 1, no crossing */
+    var px = function (x) { return X0 + (x / info.xmax) * (X1 - X0); };
+    /* draw base particle lines */
+    var step = lambda / 14, x;
+    for (x = 0; x <= info.xmax + 1e-9; x += step) {
+      var xd = x + shift * Math.sin(k * x + phase);
+      if (xd < -1e-6 || xd > info.xmax + 1e-6) continue;
+      svg.appendChild(line(px(xd), yTop, px(xd), yBot, { color: C.ink, width: 1.4 }));
+    }
+    /* C / R labels under the first compression and rarefaction */
+    var cX = info.compressions[0], rX = info.rarefactions.filter(function (v) { return v > 0.01; })[0];
+    var yLab = yBot + 14;
+    if (params.mark && params.mark.labelCR) {
+      if (cX != null) svg.appendChild(txt(px(cX), yLab, "C", { "text-anchor": "middle", fill: C.accent, "font-weight": "bold", "font-size": 13 }));
+      if (rX != null) svg.appendChild(txt(px(rX), yLab, "R", { "text-anchor": "middle", fill: C.ok, "font-weight": "bold", "font-size": 13 }));
+    }
+    if (params.blanks) {
+      /* empty label boxes (pupil writes C / R) */
+      [cX, rX].forEach(function (xx) {
+        if (xx == null) return;
+        svg.appendChild(el("rect", { x: px(xx) - 9, y: yLab - 12, width: 18, height: 16, rx: 3,
+          fill: C.paper, stroke: C.ink2, "stroke-width": 1, "stroke-dasharray": "3 2" }));
+      });
+    }
+    /* wavelength marked compression-to-compression */
+    if (params.mark && params.mark.wavelength && info.compressions.length >= 2) {
+      var ya = yTop - 8;
+      svg.appendChild(measureArrow(px(info.compressions[0]), ya, px(info.compressions[1]), ya, "lambda", { ldy: -5 }));
+    }
+    if (params.mark && params.mark.half_wavelength && cX != null && rX != null) {
+      var yh = yTop - 8;
+      svg.appendChild(measureArrow(px(Math.min(cX, rX)), yh, px(Math.max(cX, rX)), yh, "lambda/2", { ldy: -5, color: C.ink2 }));
+    }
+    /* distractor: wavelength marked C-to-R (half) */
+    if (params.distractor === "wavelength_C_to_R" && cX != null && rX != null) {
+      var yd = yTop - 8;
+      svg.appendChild(measureArrow(px(cX), yd, px(rX), yd, "lambda?", { ldy: -5, color: C.accent }));
+    }
+    return svg;
+  }
+
+  /* ================= PURE SCORER: wave-feature marking ==================
+     Re-scorable headless (no DOM), so Housing can grade stored attempts.
+     answer: { feature, p1:[x,y], p2:[x,y] } in DATA units (x along the
+     wave, y = displacement for transverse; for longitudinal/wavefronts y
+     is unused and any small value is fine).
+     cfg:    the wave params PLUS { kind:"transverse"|"longitudinal"|
+             "wavefronts", target, tolerance, marks }.
+     marks (default 2): METHOD mark (right feature, right orientation,
+     endpoints on the correct wave landmarks) + VALUE mark (length within
+     tolerance). errorCodes feed the d004 dashboard.                       */
+  WavesModels.scoreWaveMark = function (answer, cfg) {
+    cfg = cfg || {};
+    var marksPossible = (typeof cfg.marks === "number") ? cfg.marks : 2;
+    var target = (answer && answer.feature) || cfg.target || "wavelength";
+    var mdl, A = 1, lambda;
+    if (cfg.kind === "longitudinal") { mdl = WavesModels.longitudinal(cfg); lambda = mdl.wavelength; }
+    else if (cfg.kind === "wavefronts") {
+      lambda = (cfg.spacing != null) ? cfg.spacing : (cfg.wavelength != null ? cfg.wavelength : 1);
+      mdl = { features: { wavelength: { length: lambda, orientation: "horizontal" },
+                          half_wavelength: { length: lambda / 2, orientation: "horizontal" } } };
+    } else { mdl = WavesModels.wave(cfg); lambda = mdl.wavelength; A = mdl.amplitude; }
+    var feat = mdl.features[target];
+    if (!feat) return { marksAwarded: 0, marksPossible: marksPossible, status: "none",
+      hits: [], misses: ["unknown feature: " + target], errorCodes: ["feature_unknown"] };
+
+    var p1 = (answer && answer.p1) || [0, 0], p2 = (answer && answer.p2) || [0, 0];
+    var dx = Math.abs(p2[0] - p1[0]), dy = Math.abs(p2[1] - p1[1]);
+    var orient = feat.orientation;
+    var lenTol = (cfg.tolerance != null) ? cfg.tolerance : Math.max(feat.length * 0.12, lambda * 0.06);
+    /* orientation tolerances in data units */
+    var hTol = lambda * 0.10;           /* horizontal feature: |dy| small  */
+    var vTol = (A || 1) * 0.18;         /* vertical feature:   |dx| small  */
+
+    var hits = [], misses = [], codes = [], marks = 0;
+    var measured = (orient === "horizontal") ? dx : dy;
+    var orientationOk = (orient === "horizontal") ? (dy <= hTol) : (dx <= vTol);
+    var lengthOk = near(measured, feat.length, lenTol);
+
+    /* ---- diagnostics: catch the named distractor placements ---- */
+    if (orient === "horizontal") {
+      if (!orientationOk) codes.push("feature_orientation_wrong");   /* drew a diagonal/vertical */
+      if (target === "wavelength" && near(measured, lambda / 2, lenTol)) codes.push("wavelength_half");
+      if (target === "half_wavelength" && near(measured, lambda, lenTol)) codes.push("half_marked_as_full");
+      /* a diagonal crest->trough reads ~lambda/2 in x AND ~2A in y */
+      if (target === "wavelength" && !orientationOk && near(dx, lambda / 2, lenTol)) codes.push("wavelength_peak_to_trough");
+      if (cfg.kind === "longitudinal" && target === "wavelength" && near(measured, lambda / 2, lenTol)) codes.push("wavelength_C_to_R");
+    } else {  /* amplitude */
+      if (near(dy, 2 * A, Math.max(2 * A * 0.12, lenTol)) ) { codes.push("amplitude_peak_to_trough"); }
+      if (dx > vTol && dy > vTol) codes.push("amplitude_diagonal");
+      if (dx > vTol) codes.push("feature_orientation_wrong");
+    }
+
+    /* method mark */
+    if (orientationOk && (orient === "horizontal" ? true : true)) {
+      if (orient === "horizontal" || (dx <= vTol)) { marks++; hits.push("placement: correct orientation for " + target); }
+    }
+    if (!(orientationOk)) misses.push("placement: " + target + " should be measured " + orient + "ly");
+    /* value mark */
+    if (lengthOk) { marks++; hits.push(target + " length " + fmt(measured) + " (accepted " + fmt(feat.length) + " +- " + fmt(lenTol) + ")"); }
+    else { misses.push(target + ": expected about " + fmt(feat.length) + ", got " + fmt(measured)); if (codes.indexOf("amplitude_peak_to_trough") < 0) codes.push(orient === "horizontal" ? "wavelength_value_wrong" : "amplitude_value_wrong"); }
+
+    /* never award the value mark off a wrong-orientation read even if the
+       number coincides (e.g. amplitude read peak-to-trough that happens to
+       match a tolerance) */
+    if (!orientationOk && marks > 1) marks = 1;
+    /* de-dupe codes */
+    codes = codes.filter(function (v, i) { return codes.indexOf(v) === i; });
+    return { marksAwarded: marks, marksPossible: marksPossible,
+      status: marks >= marksPossible ? "full" : (marks > 0 ? "partial" : "none"),
+      hits: hits, misses: misses, errorCodes: codes };
+  };
+
+  /* ===================== INTERACTIVE WIDGETS ============================ */
+  /* Contract (proposed to Housing in Widgets_Housing_interactive_66.md,
+     identical shape to the 6.5 thread):
+       window.TOPIC_WIDGETS[kind](host, config) -> instance
+       instance.getAnswer() -> structured pupil response (shape per kind)
+       instance.score(answer, config) ->
+         { marksAwarded, marksPossible, status, hits, misses, errorCodes }
+       instance.destroy()                                                  */
+  function makePanel(host) {
+    var panel = document.createElement("div");
+    panel.className = "tw-panel";
+    panel.style.cssText = "margin-top:8px;padding:8px 10px;border:1px solid rgba(26,26,23,.18);border-radius:6px;font:13px var(--sans, system-ui)";
+    host.appendChild(panel);
+    return panel;
+  }
+  function featureSelect(panel, features, fixed) {
+    var row = document.createElement("label");
+    row.style.cssText = "display:flex;align-items:center;gap:8px;margin:2px 0 8px";
+    var span = document.createElement("span"); span.textContent = "I am marking:";
+    var sel = document.createElement("select");
+    features.forEach(function (f) {
+      var o = document.createElement("option"); o.value = f;
+      o.textContent = f.replace(/_/g, " "); sel.appendChild(o);
+    });
+    if (fixed) { sel.value = fixed; sel.disabled = true; }
+    sel.style.cssText = "font:inherit;padding:3px 6px";
+    row.appendChild(span); row.appendChild(sel); panel.appendChild(row);
+    return sel;
+  }
+
+  /* -- interactive wave marking: drag a two-handle measurement line ------
+     Used for wave_train (transverse), longitudinal_wave and wavefronts:
+     the pupil drags two snapped handles to span the feature, picks which
+     feature from a selector (or the author fixes it), and is scored by
+     WavesModels.scoreWaveMark.                                            */
+  function buildMarkWidget(host, config, kind) {
+    config = config || {};
+    host.innerHTML = "";
+    var featList = (kind === "transverse") ? ["wavelength", "half_wavelength", "amplitude"]
+                 : ["wavelength", "half_wavelength"];
+    /* rebuild the picture WITH coordinate maps so handles live in data space */
+    var maps;
+    if (kind === "transverse") {
+      var mdl = WavesModels.wave(config);
+      var fr = sideFrame({ w: config.w || 480, h: config.h || 230, xmax: mdl.xmax, yspan: 1.25,
+        label: "mark the feature" });
+      fr.add(line(fr.X0, fr.Yc, fr.X1, fr.Yc, { color: C.line, width: 1.1, dash: "5 4" }));
+      var d = "", i, N = 360, x, yy, first = true;
+      for (i = 0; i <= N; i++) { x = mdl.xmax * i / N; yy = mdl.y(x) / Math.max(1, mdl.amplitude);
+        d += (first ? "M" : "L") + fr.px(x).toFixed(2) + "," + fr.py(yy).toFixed(2) + " "; first = false; }
+      fr.add(el("path", { d: d.trim(), fill: "none", stroke: C.accent, "stroke-width": 2.6,
+        "stroke-linecap": "round", "stroke-linejoin": "round" }));
+      maps = { svg: fr.svg, px: fr.px, py: fr.py, x2data: function (X) { return (X - fr.X0) / (fr.X1 - fr.X0) * mdl.xmax; },
+        y2data: function (Y) { return (fr.Yc - Y) / fr.halfH * 1.25; }, xmax: mdl.xmax, yspan: 1.25 };
+    } else if (kind === "longitudinal") {
+      host.appendChild(longitudinal_wave(config));
+      var lm = WavesModels.longitudinal(config);
+      var w = config.w || 480, m = 28;
+      var X0 = m, X1 = w - m;
+      maps = { svg: host.firstChild, px: function (x) { return X0 + x / lm.xmax * (X1 - X0); },
+        py: function () { return (config.h || 200) / 2; },
+        x2data: function (X) { return (X - X0) / (X1 - X0) * lm.xmax; }, y2data: function () { return 0; },
+        xmax: lm.xmax, yspan: 1 };
+    } else { /* wavefronts */
+      host.appendChild(wavefronts(config));
+      var lamb = (config.spacing != null) ? config.spacing : (config.wavelength != null ? config.wavelength : 1);
+      var nfr = (config.count != null) ? config.count : 6;
+      var ww = config.w || 360, mm = 26, spanX = ww - 2 * mm, dpx = spanX / (nfr + 0.5);
+      maps = { svg: host.firstChild, px: function (x) { return mm + dpx * 0.5 + x / lamb * dpx; },
+        py: function () { return (config.h || 240) / 2; },
+        x2data: function (X) { return (X - (mm + dpx * 0.5)) / dpx * lamb; }, y2data: function () { return 0; },
+        xmax: lamb * nfr, yspan: 1 };
+    }
+    if (kind === "transverse") host.appendChild(maps.svg);
+
+    /* draggable measurement line over the picture */
+    var sb = maps.xmax / 10;
+    var p1 = [maps.xmax * 0.25, 0], p2 = [maps.xmax * 0.55, 0];
+    var lineEl = el("line", { stroke: C.ok, "stroke-width": 2.4, "stroke-linecap": "round" });
+    var h1 = el("circle", { r: 8, fill: C.ok, "fill-opacity": 0.55, stroke: C.ok, "stroke-width": 1.5 });
+    var h2 = el("circle", { r: 8, fill: C.ok, "fill-opacity": 0.55, stroke: C.ok, "stroke-width": 1.5 });
+    maps.svg.appendChild(lineEl); maps.svg.appendChild(h1); maps.svg.appendChild(h2);
+    function redraw() {
+      lineEl.setAttribute("x1", maps.px(p1[0])); lineEl.setAttribute("y1", maps.py(p1[1]));
+      lineEl.setAttribute("x2", maps.px(p2[0])); lineEl.setAttribute("y2", maps.py(p2[1]));
+      h1.setAttribute("cx", maps.px(p1[0])); h1.setAttribute("cy", maps.py(p1[1]));
+      h2.setAttribute("cx", maps.px(p2[0])); h2.setAttribute("cy", maps.py(p2[1]));
+    }
+    redraw();
+    CORE.makeDraggable(maps.svg, h1, function (pt) { p1 = [clamp(maps.x2data(pt.x), 0, maps.xmax), maps.y2data(pt.y)]; redraw(); });
+    CORE.makeDraggable(maps.svg, h2, function (pt) { p2 = [clamp(maps.x2data(pt.x), 0, maps.xmax), maps.y2data(pt.y)]; redraw(); });
+
+    var panel = makePanel(host);
+    var sel = featureSelect(panel, featList, config.target);
+    var note = document.createElement("div");
+    note.style.cssText = "color:var(--muted,#8c857
+9);font-size:12px";
+    note.textContent = "Drag the two green handles to span the feature.";
+    panel.appendChild(note);
+
+    var scoreKind = (kind === "transverse") ? "transverse" : kind;
+    return {
+      getAnswer: function () { return { feature: sel.value, p1: p1.slice(), p2: p2.slice() }; },
+      score: function (answer, cfg2) {
+        cfg2 = cfg2 || config; var c = {}; for (var kk in cfg2) c[kk] = cfg2[kk];
+        c.kind = scoreKind; if (!c.target) c.target = (answer && answer.feature);
+        return WavesModels.scoreWaveMark(answer, c);
+      },
+      destroy: function () { host.innerHTML = ""; }
+    };
+  }
+  function widget_wave_train(host, config) { return buildMarkWidget(host, config, "transverse"); }
+  function widget_longitudinal_wave(host, config) { return buildMarkWidget(host, config, "longitudinal"); }
+  function widget_wavefronts(host, config) { return buildMarkWidget(host, config, "wavefronts"); }

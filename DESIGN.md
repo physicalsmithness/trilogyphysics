@@ -44,4 +44,20 @@ window.TrilogyEngine.unmount();
 `{ id, qtype, tier, atom, syllabus, prompt, explanation?, diagram?, distractors?|claims?|calc? }`, qtype in {mcq_single, mcq_multi, short, calc_workings}, tier in {foundation, higher, both}. `short` is claim-point selection (gradeable, not free-text) pending q-explanation-grader. calc final value is value+tolerance, or ECM's rounding classifier when `calc.rc_item.answer.formula` is supplied.
 
 ### Tests
-`test/smoke.js` (29, node-only) and `test/integration.js` (15, jsdom full-mount). Run: `node test/smoke.js`; the jsdom test needs `npm i jsdom`.
+`test/smoke.js` (29, node-only) and `test/integration.js` (15, jsdom full-mount). Run: `node test/s
+## Engine reconciled to SCHEMA v1.0 (d040)
+
+The engine consumes items exactly as `SCHEMA.md` v1.0 defines them. Concretely:
+- qtypes: `mcq` / `mcq_multi` from `choices[]` + `answerIndex` / `answerIndices`, per-distractor `misconception_id`; a choice may be `{text}`, `{diagram:{kind,params}}`, or `{widget:{kind,config}}` (d036). `mcq_single` is accepted as an alias.
+- `short`: free text marked by `markPoints:[{any:[synonyms]}]` keyword presence, with the auto-mark warning and full text preserved for the teacher (the lock's choice; supersedes the earlier claim-point interim).
+- `calc_workings`: the verbatim Pre-IB four-line grader; `knowns:{SYM:{value,...}}` flattened before marking.
+- `tier`: F | H | FH on items; the dashboard filter is all / F / H (legacy foundation/higher/both still normalise).
+- events carry `atoms[]` + `subtag`; the per-atom mosaic groups by subtag; fire/avoid reads `applicable_misconceptions` plus per-choice slugs.
+The 6.2 TOPIC_CONFIG carries the ratified 10 subtags, 37 atoms, and a misconception label subset (the canonical slug/label/description registry is owed in `data/misconceptions`, owned with Authoring). Tests: 70 assertions (`test/smoke.js` 40, `test/integration.js` 30), every qtype rendered and graded through the DOM.
+
+## Interactive widget pathway + per-option diagrams (d042, d036)
+
+- **`qtype:"widget"`** (SCHEMA v1.2): an item carries `widget:{kind,config}`. The engine mounts `window.TOPIC_WIDGETS[kind](host, config)` (a second registry beside TOPIC_DIAGRAMS, owned by the Widgets chats), renders a Submit, then calls `instance.getAnswer()` and `instance.score(answer, config)`; the returned `status` (full/partial/none) maps to correct/half/wrong and `marksAwarded/marksPossible/status/error_codes` go on the attempt event. `instance.destroy()` runs on leaving the item. Pure `*_MODELS` scorers allow headless re-scoring.
+- **Unified misconception taxonomy:** widget `error_codes`, calc_workings `error_types`, and MCQ `misconception_id` are all counted as fires by `computeMisconceptionTable`, so the d004 fire/avoid dashboard is one taxonomy across all three (d035).
+- **Per-option diagrams/widgets in MCQ (d036):** an MCQ choice may be `{text}`, `{diagram:{kind,params}}`, or `{widget:{kind,config}}`; `renderMcq` draws the non-text forms through the registry, keyed by index, per-option `misconception_id` preserved. This is the "which graph is the ohmic resistor?" four-way discrimination shape.
+- Script wiring: `widgets_core.js` loads before the topic widget files (`topic-diagrams.js`, `forces-diagrams.js`, `waves-diagrams.js`, `magnetism-diagrams.js`), which register 15 interactive kinds, 46 static diagram kinds, and the pure models.

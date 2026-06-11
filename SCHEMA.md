@@ -42,3 +42,32 @@ Parallel-resistance reciprocal calculation (spec 6.2.2 excludes it); resistivity
 - **qtype `fbd_vector_draw`** (STAGED, d028): free-body / resultant / scale-vector diagrams. Interim form is `mcq` with `free_body_diagram` / `ramp_fbd` / `vector_addition` widget options. Full placement/scale-diagram grading is a Widgets-interactive + Housing milestone.
 - **Cross-topic atoms** (d030): forces items invoking KE (1/2 m v^2) or GPE (mgh) reference the Energy 6.1 atom ids (`energy_ke_calc`, `energy_gpe_calc`) via `atomMap`, not forces-local duplicates. These shared atom ids are Architecture-owned pending 6.1 authoring, like the WS taxonomy.
 - **Shared WS / cross-topic misconceptions** now include `proportionality_stated_as_increases` (promoted from 6.2, d028), joining `prefix_not_converted`, `freehand_line_not_ruled`, `repeatability_reproducibility_confused`, `sig_figs_not_applied` (q-ws-taxonomy, owned at Overview).
+
+---
+
+## v1.2 additions (2026-06-11, d035): the interactive `widget` qtype
+
+Resolves the schema half of d031 (widgets central). Ratifies the contract the Widgets chat proposed and built (inter_chat/Widgets_Housing_interactive_65.md), which mirrors the Fields driller.
+
+- **`qtype: "widget"`** makes an interactive widget a first-class GRADED item. The item carries `widget: { kind, config }`, parallel to the static `diagram: { kind, params }`. Static stimulus = `diagram`; graded interactive surface = `widget`. (A static-illustration item keeps using `diagram`.)
+- **Grading contract:** a second registry `window.TOPIC_WIDGETS[kind] = (hostElement, config) => instance`, with `instance.getAnswer()` (structured pupil response), `instance.score(answer, config) => { marksAwarded, marksPossible, status: full|partial|none, hits, misses, errorCodes }`, `instance.destroy()`. Scoring delegates to PURE model functions so the engine can re-score stored attempts headless (no widget mount needed).
+- **Engine flow:** mount via the factory; on submit call `getAnswer()` then `score()`; write `marksAwarded/marksPossible/status/errorCodes` onto the attempt event, exactly as calc_workings writes its per-line outcome. Load order: `widgets_core.js` before any topic widget file.
+- **errorCodes ARE misconception slugs (architecture ruling):** every widget errorCode (e.g. `chord_used`, `inverse_gradient`, `scalar_sum_given`, `square_value_not_applied`) is registered in the misconception registry, or mapped to an existing slug, so the d004 fire/avoid dashboard unifies widget errors with MCQ-distractor and calc_workings errors. ONE misconception taxonomy across mcq, calc_workings, and widget, not three parallel ones. The topic Widgets chat proposes the slugs in its hand-back; Architecture registers them. `atoms` and `applicable_misconceptions` are still declared on the item.
+- **marksPossible** per kind (defaults: 2 for area_under_vt / gradient_tool / vector_addition / vector_resolve; 4 for vector_scale_drawing), overridable via `config.marks`.
+
+---
+
+## v1.3 addition (2026-06-11, d036): diagram/widget options in MCQ
+
+An `mcq` / `mcq_multi` option may be `{ text }` OR `{ diagram: { kind, params } }` OR `{ widget: { kind, config } }`, not text only. The engine's renderMcq renders an option's diagram/widget through the same registry lookup as a stem diagram. Per-option `misconception` still applies (a wrong-diagram option carries the slug it diagnoses). This is REQUIRED for the interim MCQ forms of the staged draw/sketch types (circuit_draw, fbd_vector_draw, graph_sketch): "which circuit / free-body diagram / graph is correct?". Without it those interim forms (d023, OQ-E) cannot be authored.
+
+---
+
+## v1.4 additions (2026-06-11, d040): calc Codex tagging, item subtag, calc error crosswalk
+
+From the 6.2 and 6.5 calibration batches:
+- **`calc.codex` block** on calc_workings items: optional `{ formula, sources:[...], unit_actions:[...], mark_categories:[...], ecf }` recording the Codex six-layer static tagging (d003/d016) so per-atom coverage analytics has a home, not only the grader's live error derivation. Authoring fills it; the engine passes it through to the attempt event.
+- **Item-level `subtag`** field: items carry their subtag explicitly (the dashboard grouping layer the proposals are built on), not overloaded onto `atom`. The engine item loader reads it.
+- **calc_workings ERROR_TYPES are misconception slugs** (extends d035 to calc): the grader's auto-derived calc error types map to registered misconception slugs via an ERROR_TYPES->slug crosswalk (Housing wires, Architecture ratifies the mapping), so calc errors join MCQ-distractor and widget errors in ONE d004 taxonomy.
+- **`syllabus` is the finest leaf code** (confirmed, d021), e.g. 6.2.1.3.c not the parent.
+- Board stays topic-level for now (per-item board deferred to the cross-board future; not urgent).

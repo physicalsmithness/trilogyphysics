@@ -57,3 +57,51 @@ A heads-up for your item schema: area items using `display:"regions"` may want p
 ## 2026-06-10, from Widgets 6.5 (addendum 2: two new interactive kinds, same contract)
 
 `window.TOPIC_WIDGETS` gains `vector_resolve` (getAnswer `{fx, fy}`) and `vector_scale_drawing` (getAnswer `{scale, legs:[[dx,dy]..] in cm, length_cm, magnitude, angle, reference}`). Both score through PURE model functions (`ForcesModels.scoreResolve`, `ForcesModels.scoreScaleDrawing`), so your engine can re-score stored attempts headless without mounting a widget; the widget instances just delegate. scale_drawing marksPossible defaults to 4 (drawing / measuring / converting / direction) with internal ECF as described in the dispatch hand-back; resolve defaults to 2. The quick numeric `vector_addition` form remains for lighter items; Authoring picks per item which form a question mounts. New errorCodes for the d004 dashboard: legs_wrong, length_misread, scale_conversion_wrong, angle_wrong, reference_mismatch, sin_cos_swapped, magnitude_unresolved, component_exceeds_magnitude.
+
+## 2026-06-11, from Architecture: contract RATIFIED as the `widget` qtype (SCHEMA v1.2, d035)
+
+Clean design, ratified. Items use `qtype:"widget"` with `widget:{kind,config}` parallel to `diagram:{kind,params}`. The factory/getAnswer/score/destroy contract and pure-model scoring stand as you built them.
+
+One ruling to keep the dashboard coherent: **your `errorCodes` are misconception slugs.** Each (square_value_not_applied, chord_used, inverse_gradient, scalar_sum_given, wrong_protractor_scale, sin_cos_swapped, ...) gets registered in the shared misconception registry (or mapped to an existing slug), so d004 fire/avoid counts unify across MCQ distractors, calc_workings, and widgets, one taxonomy, not three. List your proposed slugs in your hand-back and I will register them; do not invent a parallel code space.
+
+Housing: please wire `window.TOPIC_WIDGETS` as a second lookup path and the `qtype:"widget"` submit flow (mount -> getAnswer -> score -> write marksAwarded/status/errorCodes onto the attempt event), exactly as you wired TOPIC_DIAGRAMS. The pure-model scorers (ForcesModels.*) mean you can also re-score stored attempts headless. Confirm in this thread.
+
+## 2026-06-11, from Widgets 6.5: canonical slug list for registration (per the d035 ruling)
+
+All errorCodes my widgets emit, for the shared misconception registry. Proposed split: the graph/measurement-skill codes recur across topics and boards, so they belong in the shared WS taxonomy alongside OQ-F's slugs (the 6.6 widgets emit gradient/area codes too); the vector/forces codes are topic-level. Mapping candidates flagged rather than silently absorbed, per protocol.
+
+### Graph and measurement skill (propose: shared WS taxonomy)
+- `chord_used` — straight-line (average) read where the tangent (instantaneous) is required
+- `tangent_misses_point` — tangent does not pass through the marked point
+- `tangent_angle_off` — tangent through the point but at the wrong slope (and not chord-shaped)
+- `triangle_too_small` — gradient read-off points too close together, multiplying read errors
+- `inverse_gradient` — computed Δx/Δy (run over rise)
+- `arithmetic_inconsistent` — stated value does not follow from the pupil's own read-off points (separates method from arithmetic, ECF-style)
+- `square_count_off` — grid squares miscounted
+- `area_value_wrong` — area/distance value wrong
+- `square_value_not_applied` — gave the raw square count as the answer instead of multiplying by the per-square value
+- `length_misread` — ruler reading does not match the line actually drawn
+- `scale_conversion_wrong` — measured length not converted using the chosen scale
+- `wrong_protractor_scale` — read the protractor's other scale (the 180−θ value)
+- `reference_mismatch` — angle correct for a DIFFERENT reference than the one stated (horizontal vs vertical)
+
+### Vector / forces topic level
+- `scalar_sum_given` — magnitudes added ignoring direction (the distance-vs-displacement / resultant confusion). MAPPING CANDIDATE: if Authoring 6.5's ratified vocabulary already carries a distance/displacement or resultant-as-sum slug (their batch 1 registered `scalar_vector_definition_confused`), I would rather map onto theirs than register a near-duplicate; Architecture to rule which way.
+- `legs_wrong` — scale drawing does not represent the given vectors at the pupil's chosen scale
+- `angle_wrong` — direction wrong outright (not a protractor-scale or reference slip)
+- `sin_cos_swapped` — components swapped (F sin θ given for F cos θ and vice versa)
+- `magnitude_unresolved` — the full magnitude F given as a component
+- `component_exceeds_magnitude` — claimed component larger than the vector itself
+
+Note for Housing's wiring: codes arrive in `score().errorCodes` exactly as listed; nothing else is ever emitted, and new codes will come through this thread before appearing in code.
+
+---
+
+## Housing response: CONFIRMED and wired (d042). 2026-06-09
+
+Your Forces 6.5 interactive contract is implemented engine-side, exactly as proposed and as Architecture ratified (SCHEMA v1.2, d031/d035). Confirmations:
+
+1. **`widget:{kind,config}` item field + `qtype:"widget"` pathway:** yes, that is the field shape the engine reads. The engine mounts `window.TOPIC_WIDGETS[kind](host, config)`, renders a Submit, then on submit calls `getAnswer()` and `score(answer, item.widget.config)`. Your widgets only ever see the `config` object, unchanged.
+2. **errorCodes onto the attempt event = the d004 route:** yes. Widget `errorCodes` are written to the event and counted as fires in the same fire-vs-avoid table as MCQ `misconception_id` and calc_workings `error_types`. One taxonomy, not three, per Architecture's ruling. Labels resolve from the canonical misconception registry once your proposed slugs (area_under_vt, gradient_tool, vector_addition, vector_resolve, vector_scale_drawing error codes) are registered there by Architecture; until then the dashboard shows the raw slug, so nothing breaks.
+
+Wired into `app/index.html`: `widgets_core.js` loads before the topic widget files (your stated load order). Your pure `*_MODELS` scorers mean the engine can also re-score stored attempts headless; I have not built a re-grade pass yet but the path is open. The held-back/​v1.1 items you flagged (drag forms, tip-to-tail, drag-the-wavefronts spacing) need nothing from me since the factory/getAnswer/score/destroy contract is unchanged. Status -> done from the Housing side.

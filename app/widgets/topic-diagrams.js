@@ -22,21 +22,15 @@
 (function (root) {
   "use strict";
 
-  var NS = "http://www.w3.org/2000/svg";
-  var doc = (typeof document !== "undefined") ? document : (root && root.document);
-
-  /* ---- theme tokens (with hex fallbacks matching app/index.html) ---- */
-  function tok(name, fallback) { return "var(" + name + ", " + fallback + ")"; }
-  var C = {
-    ink:   tok("--ink",   "#1a1a17"),
-    ink2:  tok("--ink-2", "#4d4943"),
-    muted: tok("--muted", "#8c8579"),
-    paper: tok("--paper", "#fffdf6"),
-    bg:    tok("--bg",    "#faf6ed"),
-    accent:tok("--accent","#b03030"),
-    ok:    tok("--ok",    "#2d6a3f"),
-    line:  tok("--line-2","rgba(26,26,23,.22)")
-  };
+  /* Shared primitives from widgets_core.js (d026 shared core, owned by this
+     general/6.2 widgets seat). Consume el/txt/makeSVG/arrowHead/graph and the
+     token table C from the core rather than keeping private copies. */
+  var CORE = (typeof module !== "undefined" && module.exports && typeof require === "function")
+    ? require("./widgets_core.js")
+    : (typeof window !== "undefined" ? window.WIDGETS_CORE : (root && root.WIDGETS_CORE));
+  if (!CORE) throw new Error("topic-diagrams.js: widgets_core.js must load before this file");
+  var C = CORE.C, el = CORE.el, txt = CORE.txt, makeSVG = CORE.makeSVG,
+      arrowHead = CORE.arrowHead, graph = CORE.graph;
   /* Standard mains/earth colours - literal, the colour carries the meaning. */
   var WIRE = {
     live:        "#6f4a2a",  /* brown  */
@@ -47,94 +41,6 @@
     flesh:       "#d9a878",
     spark:       "#e8a317"
   };
-
-  /* ----------------------------- DOM helpers ----------------------------- */
-  function el(tag, attrs, kids) {
-    var n = doc.createElementNS(NS, tag);
-    if (attrs) for (var k in attrs) if (attrs.hasOwnProperty(k)) {
-      if (k === "text") n.textContent = attrs[k];
-      else n.setAttribute(k, String(attrs[k]));
-    }
-    if (kids) for (var i = 0; i < kids.length; i++) if (kids[i]) n.appendChild(kids[i]);
-    return n;
-  }
-  function txt(x, y, s, attrs) {
-    var a = { x: x, y: y, "font-family": "var(--sans, system-ui, sans-serif)",
-              "font-size": 12, fill: C.ink2 };
-    if (attrs) for (var k in attrs) if (attrs.hasOwnProperty(k)) a[k] = attrs[k];
-    var t = el("text", a); t.textContent = s; return t;
-  }
-  function makeSVG(w, h, label) {
-    var s = el("svg", {
-      xmlns: NS, viewBox: "0 0 " + w + " " + h, width: "100%",
-      preserveAspectRatio: "xMidYMid meet", role: "img",
-      "aria-label": label || "", class: "td-svg"
-    });
-    s.setAttribute("style", "max-width:" + w + "px;height:auto;display:block;font-family:var(--serif, Georgia, serif)");
-    s.appendChild(el("title", { text: label || "" }));
-    return s;
-  }
-  function arrowHead(x, y, ang, size, color) {
-    var a1 = ang + Math.PI * 0.86, a2 = ang - Math.PI * 0.86, f = function (v) { return v.toFixed(1); };
-    return el("path", {
-      d: "M" + f(x) + "," + f(y) +
-         " L" + f(x + size * Math.cos(a1)) + "," + f(y + size * Math.sin(a1)) +
-         " L" + f(x + size * Math.cos(a2)) + "," + f(y + size * Math.sin(a2)) + " Z",
-      fill: color, stroke: "none"
-    });
-  }
-
-  /* ----------------------------- graph frame ----------------------------- */
-  /* cfg: {w,h, xmin,xmax,ymin,ymax, xlabel,ylabel, label} -> {svg, px, py, add} */
-  function graph(cfg) {
-    var w = cfg.w || 340, h = cfg.h || 250;
-    var m = { l: 40, r: 20, t: 20, b: 36 };
-    var svg = makeSVG(w, h, cfg.label);
-    var X0 = m.l, X1 = w - m.r, Y0 = h - m.b, Y1 = m.t;
-    var px = function (x) { return X0 + (x - cfg.xmin) / (cfg.xmax - cfg.xmin) * (X1 - X0); };
-    var py = function (y) { return Y0 - (y - cfg.ymin) / (cfg.ymax - cfg.ymin) * (Y0 - Y1); };
-    var ax = px(Math.max(cfg.xmin, Math.min(cfg.xmax, 0)));   /* x-pixel of value 0 */
-    var ay = py(Math.max(cfg.ymin, Math.min(cfg.ymax, 0)));   /* y-pixel of value 0 */
-
-    var g = el("g");
-    /* horizontal (x) axis at value y=0 */
-    g.appendChild(el("line", { x1: X0, y1: ay, x2: X1, y2: ay, stroke: C.line, "stroke-width": 1.4 }));
-    g.appendChild(arrowHead(X1, ay, 0, 6, C.line));
-    if (cfg.xmin < 0) g.appendChild(arrowHead(X0, ay, Math.PI, 6, C.line));
-    /* vertical (y) axis at value x=0 */
-    g.appendChild(el("line", { x1: ax, y1: Y0, x2: ax, y2: Y1, stroke: C.line, "stroke-width": 1.4 }));
-    g.appendChild(arrowHead(ax, Y1, -Math.PI / 2, 6, C.line));
-    if (cfg.ymin < 0) g.appendChild(arrowHead(ax, Y0, Math.PI / 2, 6, C.line));
-    /* axis labels at the positive arrow tips */
-    g.appendChild(txt(X1 - 2, ay - 8, cfg.xlabel || "", { "text-anchor": "end", fill: C.ink, "font-style": "italic" }));
-    g.appendChild(txt(ax + 7, Y1 + 11, cfg.ylabel || "", { "text-anchor": "start", fill: C.ink, "font-style": "italic" }));
-    if (cfg.xmin < 0 || cfg.ymin < 0) g.appendChild(txt(ax - 4, ay + 12, "0", { "text-anchor": "end", fill: C.muted, "font-size": 10 }));
-    svg.appendChild(g);
-
-    var api = {
-      svg: svg, px: px, py: py,
-      /* sample a pure function f over [a,b] and stroke it */
-      addFn: function (f, a, b, opts) {
-        opts = opts || {};
-        var N = opts.n || 220, d = "", i, x, y, first = true;
-        for (i = 0; i <= N; i++) {
-          x = a + (b - a) * i / N; y = f(x);
-          if (y == null || !isFinite(y)) { first = true; continue; }
-          d += (first ? "M" : "L") + px(x).toFixed(2) + "," + py(y).toFixed(2) + " ";
-          first = false;
-        }
-        svg.appendChild(el("path", {
-          d: d.trim(), fill: "none", stroke: opts.color || C.accent,
-          "stroke-width": opts.width || 2.6, "stroke-linecap": "round", "stroke-linejoin": "round",
-          "stroke-dasharray": opts.dash || "none"
-        }));
-        return api;
-      },
-      add: function (node) { svg.appendChild(node); return api; },
-      note: function (x, y, s, attrs) { svg.appendChild(txt(x, y, s, attrs)); return api; }
-    };
-    return api;
-  }
 
   /* ============================== MODELS ================================= */
   /* Pure maths. Normalised units (axis ~[-1,1] or [0,1]); shape is the point,

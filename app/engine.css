@@ -69,3 +69,14 @@
 .tp-cw-tick{color:var(--ok);font-weight:700}
 .tp-cw-cross{color:var(--accent);font-weight:700}
 .tp-cw-reason{font-family:var(--sans);font-size:.8rem;color:var(--ink-2)}
+
+/* short free-text + subtag headings */
+.tp-short-input{width:100%;font-family:var(--sans);font-size:1rem;padding:10px 12px;border:1px solid var(--line-2);border-radius:8px;background:#fff;color:var(--ink);resize:vertical;margin-bottom:8px}
+.tp-short-input:focus{outline:none;border-color:var(--accent)}
+.tp-shortwarn{font-family:var(--sans);font-size:.74rem;color:var(--muted);margin-top:8px}
+.tp-subtag-h{font-family:var(--sans);font-size:.68rem;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-2);margin:10px 0 4px}
+.tp-optbody svg{max-width:160px;height:auto;vertical-align:middle}
+
+/* interactive widget host */
+.tp-widget-host{margin:0 0 12px;display:flex;justify-content:center}
+.tp-widget-host svg{max-width:100%;height:auto}

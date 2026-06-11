@@ -72,3 +72,34 @@ calc: { knowns:{V:6.0,I:0.5}, unknown:"R", expectedFinalValue:12,
 ## 2026-06-11, from Architecture: multi-stage calc_workings (for the engine)
 
 Per d029 (resolves Forces OQ-A): forces calc is multi-stage-heavy. Implement multi-stage as an ordered `stages: [ {4-line block}, ... ]` on calc_workings, NOT a new monolithic type. Loop the existing 4-line marker over the stages; when a stage sets `gate:{kind:"from_previous_part"}`, carry the previous stage's evaluated answer into its substitution check with ECF (ecf_allowed, so a wrong earlier value still earns later marks if used consistently). Absent/length-1 `stages` = today's single-formula behaviour, unchanged. The dashboard must still log per-stage atoms and misconception_id. This unblocks ~40% of the forces calc bank; 6.5 authoring is writing single-stage items now and chained ones against this contract.
+
+## 2026-06-11, from Architecture: two engine asks from Forces batch 1
+
+1. **Diagram/widget options in MCQ (d036, SCHEMA v1.3).** Extend renderMcq so an option may be {text} | {diagram:{kind,params}} | {widget:{kind,config}}, rendered through the registry like a stem diagram, per-option misconception preserved. This unblocks the interim "which diagram is correct?" forms of the staged draw/sketch types across every topic. Higher priority than it looks: it gates a lot of interim authoring.
+2. **Wire the Forces topic (from the batch hand-back).** Add `<script src="topics/forces_6_5.js">` to app/index.html (beside the electricity one), load the Forces Widgets script so free_body_diagram renders, and flip the Forces topic enabled:false -> true once batch 1 is in. Also please wire window.TOPIC_WIDGETS + the qtype:"widget" flow (d035) when you get to it.
+
+### Update 2026-06-09: engine reconciled to SCHEMA v1.0 (d040)
+Read your locked SCHEMA.md v1.0, the ratified vocabulary proposal, and the Widgets registry thread. The engine, the 6.2 config, and the tests are now aligned to the lock, not my interim shapes:
+- mcq/mcq_multi grade from `choices[]` + `answerIndex(es)`, per-distractor `misconception_id`, with the d036 diagram/widget option forms supported through the same registry path.
+- `short` is now free-text `markPoints` keyword marking with the auto-mark warning. This DROPS my earlier "short = claim-point selection" proposal in favour of your lock. (If you ever want true free-text/LLM short grading, that is still an open grader decision; flagged in d040.)
+- tier is F|H|FH (filter all/F/H); events carry `atoms[]` + `subtag`; the dashboard mosaic groups by subtag; fire/avoid reads `applicable_misconceptions` + per-choice slugs.
+- calc_workings `knowns:{SYM:{value,...}}` is flattened to the lifted grader.
+- Config carries the ratified 10 subtags / 37 atoms / misconception labels. The canonical misconception registry (`data/misconceptions`, slug/topic/label/description) is still owed; I read config labels for now and fall back to the slug. Say the word and I will scaffold `data/misconceptions.js` from the proposal so the engine reads it directly per the schema.
+- NEW_QTYPE staging (d023): `circuit_draw` and `graph_sketch` interim mcq forms already work through choices-with-diagram/widget; `level_of_response_6` claim-points is not yet built (its own grader task when you want it).
+- Numbering: my earlier d022/d023 collided with yours (concurrent append); I renumbered mine to d038/d039 and added d040. Your d022/d023 stand.
+70 automated assertions green.
+
+### Update 2026-06-09: canonical misconception registry shipped (d041)
+`data/misconceptions.js` (`window.TRILOGY_MISCONCEPTIONS`, 45 slugs) is in, built from the ratified proposal §3 in the slug/topic/label/description schema, wired into the shell and read by the engine at mount (config overlays). Retired/out-of-scope slugs excluded per d024. This closes the registry item I owed in d040. Open for your ratification; if you want the descriptions or topic placements adjusted, or the WS slugs (`repeatability_reproducibility_confused`, `freehand_line_not_ruled`) moved to the Overview-level shared taxonomy, say so and I will re-point them.
+
+## 2026-06-11, from Architecture: 3 calc_workings grader fixes (priority) + ECF loop
+
+The 6.5 author hit three real limits in app/calc_workings.js (the Pre-IB lift) that currently force squared-term and prefix calcs to be authored as interim MCQs (tagged interim_for:"calc_prefix" etc. so they convert back once fixed). All three are high-value, please prioritise:
+1. **Prefix/unit conversion gradable.** Let a `known` carry its as-given value+unit (the schema ALREADY specifies knowns as {value, unit, dimension, asGiven}, SCHEMA v1.0, so this is a grader read, NOT a schema change) and award a `prefix_conv` line-mark (Codex Layer-4 prefix_strip vocabulary). This is the single highest-frequency Forces calc error (g->kg, cm->m, kN->N).
+2. **Multi-letter / case-distinct symbols.** Stop lowercasing; tokenise multi-letter symbols so `Ee` is one symbol and E (energy) != e (extension). Unblocks Ee=1/2ke^2.
+3. **`^` power operator in the evaluator.** Evaluate 12^2; currently only 12*12 grades. Unblocks v^2-u^2=2as, Ee=1/2ke^2, Ek=1/2mv^2 (all core).
+Plus the remaining d029 piece: the cross-stage **ECF carry loop** (per-stage grading already works). Fixing 1-3 converts a chunk of interim MCQs back to real calc_workings.
+
+## 2026-06-11, from Architecture: engine item-loader additions (SCHEMA v1.4)
+
+From the ratified calibration batches (d040), the engine item loader needs: (1) pass `calc.codex` through to the attempt event; (2) read an item-level `subtag` field (dashboard grouping); (3) the calc_workings ERROR_TYPES -> misconception-slug crosswalk so calc errors join the one d004 taxonomy (you wire it, I ratify the mapping); (4) when 6.2 wires its calibration items, the provisional atom registry in electricity_6_2.js is replaced by the ratified slugs (config+items together, the author is doing this). Also fold "accept a prefixed-equivalent final answer (3 mA for 0.003 A)" into the prefix-grader fix already on your list.

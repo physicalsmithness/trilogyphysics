@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waves 6.6 interactive widget harness</title>
+<style>
+  :root{--ink:#1a1a17;--ink-2:#4d4943;--muted:#8c8579;--paper:#fffdf6;--bg:#faf6ed;
+        --accent:#b03030;--ok:#2d6a3f;--line-2:rgba(26,26,23,.22);
+        --sans:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--serif:Georgia,serif}
+  body{margin:0;padding:20px;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+  h1{font-size:19px;margin:0 0 4px}p.sub{color:var(--ink-2);margin:0 0 18px;font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px}
+  .card{background:var(--paper);border:1px solid #ddd6c6;border-radius:10px;padding:14px}
+  .card h2{font-size:14px;margin:0 0 8px}.host{min-height:40px}
+  button{margin-top:8px;font:13px var(--sans);padding:6px 14px;border:1px solid var(--ink-2);
+         background:var(--paper);border-radius:6px;cursor:pointer}
+  button:hover{background:#f1ead8}
+  pre{background:#f6f1e4;border:1px solid #e4ddcb;border-radius:6px;padding:8px;font-size:11.5px;
+      overflow:auto;white-space:pre-wrap;margin:8px 0 0;max-height:200px}
+  .status-full{color:var(--ok);font-weight:bold}.status-partial{color:#b07d20;font-weight:bold}
+  .status-none{color:var(--accent);font-weight:bold}
+</style></head>
+<body>
+<h1>Waves 6.6 - interactive widget harness</h1>
+<p class="sub">Each card mounts a <code>window.TOPIC_WIDGETS[kind]</code> instance. Place/drag/select, then
+press <b>Mark</b> to see the exact <code>getAnswer()</code> and <code>score()</code> payloads your engine receives
+(the Housing grading contract, <code>inter_chat/Widgets_Housing_interactive_66.md</code>).</p>
+<div class="grid" id="grid"></div>
+
+<script src="widgets_core.js"></script>
+<script src="waves-diagrams.js"></script>
+<script>
+  var SPECS = [
+    ["wave_train", "wave_train - mark wavelength / amplitude (drag the green line; pick the feature)",
+      { wavelength: 4, amplitude: 1, cycles: 2 }],
+    ["wavefronts", "wavefronts - mark one wavelength", { count: 6, spacing: 1 }],
+    ["longitudinal_wave", "longitudinal_wave - mark wavelength (C-to-C)", { wavelength: 4, cycles: 3 }],
+    ["wave_scenario", "wave_scenario (sonar) - read the depth",
+      { variant: "sonar", quantity: "sonar_depth", speed: 1500, time: 0.4, mark: { time: true, distance: true }, values: { time: "0.4" }, readLabel: "depth:", unit: "m" }],
+    ["ripple_tank", "ripple_tank - wavelength from 5 wavelengths spanning 0.20 m",
+      { waves: 5, quantity: "wavelength_ripple", distance: 0.20, mark: { distance: true }, readLabel: "wavelength:", unit: "m" }],
+    ["standing_wave", "standing_wave - count the nodes",
+      { loops: 3, quantity: "node_count", mark: { nodes: true, antinodes: true }, readLabel: "number of nodes:", unit: "" }],
+    ["em_spectrum", "em_spectrum - which region is at the high-frequency end?",
+      { question: "which_end", attribute: "high_frequency", mark: { frequencyArrow: true, wavelengthArrow: true } }],
+    ["refraction_wavefronts", "refraction_wavefronts - drag the fronts through (set angle) + type the spacing change",
+      { n1: 1, n2: 1.5, theta1: 40 }],
+    ["refraction_ray", "refraction_ray - drag the refracted ray (block n = 1.5, i = 35)",
+      { n1: 1, n2: 1.5, theta1: 35 }]
+  ];
+  var grid = document.getElementById("grid");
+  SPECS.forEach(function (spec) {
+    var kind = spec[0], title = spec[1], cfg = spec[2];
+    var card = document.createElement("div"); card.className = "card";
+    var h = document.createElement("h2"); h.textContent = title; card.appendChild(h);
+    var host = document.createElement("div"); host.className = "host"; card.appendChild(host);
+    var btn = document.createElement("button"); btn.textContent = "Mark"; card.appendChild(btn);
+    var out = document.createElement("pre"); out.textContent = "(place your answer, then press Mark)"; card.appendChild(out);
+    grid.appendChild(card);
+    var factory = window.TOPIC_WIDGETS[kind];
+    if (!factory) { out.textContent = "NO WIDGET for " + kind; return; }
+    var inst = factory(host, cfg);
+    btn.addEventListener("click", function () {
+      var ans = inst.getAnswer();
+      var res = inst.score(ans, cfg);
+      var cls = "status-" + (res.status || "none");
+      out.innerHTML = "getAnswer():\n" + JSON.stringify(ans, null, 2) +
+        "\n\nscore():  <span class='" + cls + "'>" + res.status + " " +
+        res.marksAwarded + "/" + res.marksPossible + "</span>\n" + JSON.stringify(res, null, 2);
+    });
+  });
+</script>
+</body></html>

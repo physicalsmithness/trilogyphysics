@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magnetism 6.7 widget harness - Trilogy Physics</title>
+<style>
+  :root { --ink:#1a1a17; --ink-2:#4d4943; --muted:#8c8579; --paper:#fffdf6;
+          --bg:#faf6ed; --accent:#b03030; --ok:#2d6a3f; --line-2:rgba(26,26,23,.22);
+          --sans: system-ui, sans-serif; --serif: Georgia, serif; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--serif);
+         margin: 0; padding: 24px; }
+  h1 { font-size: 1.3rem; } h2 { font-size: 1.05rem; margin-top: 2rem;
+       border-bottom: 1px solid var(--line-2); padding-bottom: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; }
+  .card { background: var(--paper); border: 1px solid var(--line-2); border-radius: 8px;
+          padding: 12px; }
+  .card .cap { font-family: var(--sans); font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+  .card.distractor { outline: 2px dashed var(--accent); }
+  .card.distractor .cap::before { content: "DISTRACTOR (deliberately wrong): ";
+          color: var(--accent); font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>Magnetism &amp; Electromagnetism 6.7 widget harness</h1>
+<p style="font-family:var(--sans);font-size:13px;color:var(--ink-2)">
+Every <code>kind</code> and named variant rendered with sample params through
+<code>window.TOPIC_DIAGRAMS</code> (item schema form:
+<code>diagram = { kind, params }</code>, engine passes the inner
+<code>params</code>). 3D into/out-of-page uses the dot/cross convention
+throughout. Distractor renders are flagged. Interactive kinds follow the
+Housing contract exchange (inter_chat/Widgets_Housing_interactive_67.md).</p>
+
+<h2>Magnets and fields</h2>
+<div class="grid" id="g1"></div>
+<h2>Solenoid / electromagnet, induced magnetism, materials</h2>
+<div class="grid" id="g2"></div>
+<h2>Compasses, the Earth, field mapping</h2>
+<div class="grid" id="g3"></div>
+<h2>Wire field (end-on), Fleming's LHR, motor effect, d.c. motor (HT)</h2>
+<div class="grid" id="g4"></div>
+
+<script src="widgets_core.js"></script>
+<script src="magnetism-diagrams.js"></script>
+<script>
+(function () {
+  "use strict";
+  var JOBS = {
+    g1: [
+      ["bar_magnet_field", {}, "bar_magnet_field (correct)"],
+      ["bar_magnet_field", { poles: "SN" }, "poles flipped"],
+      ["bar_magnet_field", { variant: "reversed_arrows" }, "arrows S to N", 1],
+      ["bar_magnet_field", { variant: "crossing" }, "lines cross", 1],
+      ["bar_magnet_field", { variant: "through_magnet" }, "lines pass through the magnet", 1],
+      ["bar_magnet_field", { variant: "lopsided" }, "lopsided field", 1],
+      ["bar_magnet_field", { variant: "not_reaching" }, "lines do not reach the magnet", 1],
+      ["uniform_field", {}, "uniform_field (correct)"],
+      ["uniform_field", { variant: "curved" }, "curved lines", 1],
+      ["uniform_field", { variant: "not_parallel" }, "not parallel", 1],
+      ["uniform_field", { variant: "reversed_arrows" }, "arrows reversed", 1],
+      ["two_magnets_field", {}, "two_magnets_field attract (N facing S)"],
+      ["two_magnets_field", { orientation: "repel" }, "repel (N-N), neutral point"],
+      ["two_magnets_field", { orientation: "repel", facing: "SS" }, "repel (S-S)"],
+      ["two_magnets_field", { variant: "wrong_poles" }, "linked lines but like poles", 1],
+      ["two_magnets_field", { variant: "reversed_arrows" }, "arrows reversed", 1]
+    ],
+    g2: [
+      ["solenoid_field", {}, "solenoid_field (dots on top: N right)"],
+      ["solenoid_field", { top_current: "in" }, "current reversed: N left"],
+      ["solenoid_field", { show_poles: "markable" }, "markable poles"],
+      ["solenoid_field", { variant: "wrong_poles" }, "pole labels swapped", 1],
+      ["solenoid_field", { variant: "nonuniform" }, "inside field drawn non-uniform", 1],
+      ["electromagnet", {}, "electromagnet (iron core)"],
+      ["induced_magnetism", {}, "induced_magnetism: nail, N facing"],
+      ["induced_magnetism", { pole: "S" }, "S facing: induced poles swap"],
+      ["induced_magnetism", { variant: "wrong_poles" }, "near pole drawn the same", 1],
+      ["induced_magnetism", { object: "clip_chain" }, "chain of clips, alternating poles"],
+      ["induced_magnetism", { object: "clip_chain", state: "removed" }, "magnet removed: iron clips fall"],
+      ["induced_magnetism", { object: "clip_chain", state: "removed", material: "steel" }, "steel keeps it"],
+      ["magnetic_materials", {}, "magnetic_materials (ask)"],
+      ["magnetic_materials", { show_result: true }, "with the answers shown"]
+    ],
+    g3: [
+      ["compass", {}, "compass: plotting compasses around a magnet"],
+      ["compass", { variant: "reversed" }, "needles reversed", 1],
+      ["compass", { mode: "single" }, "one needle in a field"],
+      ["compass", { mode: "earth" }, "the Earth as a bar magnet"],
+      ["field_mapping", {}, "field_mapping: iron filings"],
+      ["field_mapping", { mode: "compasses" }, "field_mapping: compass grid"]
+    ],
+    g4: [
+      ["wire_field", {}, "wire_field: current out, anticlockwise, spreading circles"],
+      ["wire_field", { current: "in" }, "current in: clockwise"],
+      ["wire_field", { variant: "equal_spacing" }, "equally spaced circles", 1],
+      ["wire_field", { variant: "reversed" }, "circulation reversed", 1],
+      ["flemings_lhr", {}, "flemings_lhr (fully labelled)"],
+      ["flemings_lhr", { blanks: ["thumb"] }, "force blanked: which way?"],
+      ["motor_effect_setup", {}, "motor effect: current out, force up"],
+      ["motor_effect_setup", { current: "in" }, "current in: force down"],
+      ["motor_effect_setup", { variant: "parallel" }, "current parallel to field: F = 0"],
+      ["motor_effect_setup", { variant: "pivot" }, "wire on a pivot"],
+      ["motor_effect_setup", { variant: "balance" }, "magnet on a balance (N3)"],
+      ["motor_effect_setup", { offset: "far" }, "further out: smaller force"],
+      ["motor_effect_setup", { force: "reversed" }, "force arrow reversed", 1],
+      ["motor_effect_setup", { force: "along_field" }, "force drawn along the field", 1],
+      ["dc_motor", {}, "dc_motor: coil horizontal, max turning"],
+      ["dc_motor", { rotation_angle: 45 }, "coil at 45 degrees"],
+      ["dc_motor", { rotation_angle: 90 }, "coil vertical: dead point"],
+      ["dc_motor", { variant: "both_same" }, "both forces the same way", 1],
+      ["dc_motor", { variant: "reversed" }, "forces reversed", 1],
+      ["dc_motor", { rotation_angle: 45, variant: "forces_rotate" }, "forces rotate with the coil", 1]
+    ]
+  };
+  Object.keys(JOBS).forEach(function (gid) {
+    var host = document.getElementById(gid);
+    JOBS[gid].forEach(function (j) {
+      var card = document.createElement("div");
+      card.className = "card" + (j[3] ? " distractor" : "");
+      var r = window.TOPIC_DIAGRAMS[j[0]];
+      card.appendChild(r(j[1]));
+      var cap = document.createElement("div");
+      cap.className = "cap";
+      cap.textContent = j[2] + "   " + JSON.stringify({ kind: j[0], params: j[1] });
+      card.appendChild(cap);
+      host.appendChild(card);
+    });
+  });
+})();
+</script>
+</body>
+</html>
