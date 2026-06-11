@@ -1308,10 +1308,14 @@
       var bx0 = w * 0.28, bx1 = w * 0.72, by0 = 60, by1 = h - 50;
       svg.appendChild(el("rect", { x: bx0, y: by0, width: bx1 - bx0, height: by1 - by0, fill: glassFill, stroke: glassStroke, "stroke-width": 1.4 }));
       /* entry on the top face at point E; normal is vertical there */
-      var E = [w * 0.42, by0], t1r = t1 * D2R, t2 = WavesModels.refractAngle(t1, 1, n), t2r = t2 * D2R;
-      svg.appendChild(rayLine(E[0] - 70 * Math.sin(t1r), E[1] - 70 * Math.cos(t1r), E[0], E[1], { color: C.accent, width: 1.8 }));
-      /* internal ray to the bottom face */
+      var t1r = t1 * D2R, t2 = WavesModels.refractAngle(t1, 1, n), t2r = t2 * D2R;
+      /* internal ray runs (by1-by0)*tan(t2) sideways before reaching the bottom
+         face. Position the ENTRY so the whole path stays inside the block at any
+         angle (centre it horizontally); otherwise a high angle of incidence sends
+         the bottom exit past the right edge and the ray appears to leave outside. */
       var run = (by1 - by0) * Math.tan(t2r);
+      var E = [bx0 + Math.max(8, (bx1 - bx0 - run) / 2), by0];
+      svg.appendChild(rayLine(E[0] - 70 * Math.sin(t1r), E[1] - 70 * Math.cos(t1r), E[0], E[1], { color: C.accent, width: 1.8 }));
       var X = [E[0] + run, by1];
       svg.appendChild(line(E[0], E[1], X[0], X[1], { color: C.accent, width: 1.8 }));
       /* emergent ray: parallel to incident (exit angle = t1) */
