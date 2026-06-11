@@ -30,4 +30,16 @@ The two staged draw/sketch types have immediate MCQ interim forms, so authoring 
 
 ## Cross-references
 - Atom ids and misconception slugs: `review/trilogy_electricity_vocabulary_proposal.md` (ratified) and SCHEMA.md.
-- Calculation tagging vocabulary: the Codex six-layer (formula/substitution/rearrangement/evaluation/prefix/sig-fig/standard-form/unit), per SCHEMA.md calc_workings.
+- Calculation tagging vocabulary: the Codex six-layer (formula/substitution/rearrangement/evaluation/prefix/sig-fig/standard-form/unit
+---
+
+# Forces 6.5 extensions (M1, ratified 2026-06-11, d028-d030)
+
+Builds on the qtype table above. New/changed for Forces:
+
+- **`calc_workings` with `stages`** (d029): multi-stage chains (graph read-off -> formula; delta-v -> a=delta-v/t -> distance; v^2-u^2=2as then F=ma) are an ordered list of 4-line blocks, each graded, linked by `gate:{kind:"from_previous_part"}` with ECF (ecf_allowed). Single-stage = no `stages` (or length 1). The ~40% chained forces calc bank uses this.
+- **`fbd_vector_draw`** (STAGED NEW_QTYPE, d028): resultant free-body diagrams (6.5.1.4) and HT resolution/equilibrium scale-vector diagrams. Interim now: `mcq` "which free-body / vector diagram is correct?" over the `free_body_diagram`, `ramp_fbd`, `vector_addition` widget distractor variants (grades `fbd_labelled_not_arrows`, `resultant_added_not_subtracted`). True drawing/scale-diagram scoring is staged (Widgets interactive + Housing).
+- **`graph_sketch` reused** for force-extension and motion graphs; pick-the-correct-graph and read-off work now as `mcq` over the `motion_graph` / `braking_vt` / `spring_extension` widget variants. The `gradient_tool` and `area_under_vt` interactive read-offs need Housing grading (route through Architecture).
+- **`level_of_response_6`** (staged claim-points): forces is dense with 6-markers, terminal-velocity force balance (often 85% score zero), stopping/braking evaluations, RP18/RP19 method, "explain the motion".
+
+Families specific to Forces: vector/scalar identification; weight vs mass; resultant by force balance (not F=ma when no mass/accel given); Hooke and force-extension graphs; motion descriptors and s=vt; d-t and v-t graph gradient/area; a=delta-v/t and v^2-u^2=2as; Newton's three laws; terminal velocity (qualitative); stopping distance (thinking + braking, speed^2 relationship); momentum p=mv and qualitative conservation (HT). The dominant calc error is `prefix_not_converted` (g->kg, cm->m, kN->N).

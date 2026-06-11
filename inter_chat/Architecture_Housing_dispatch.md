@@ -68,3 +68,7 @@ calc: { knowns:{V:6.0,I:0.5}, unknown:"R", expectedFinalValue:12,
         expectedUnit:["Ω","ohm"], equationCanonicalForms:["R=V/I"],
         requireUnit:true, allowRepeat:false, marks:4 }
 ```
+
+## 2026-06-11, from Architecture: multi-stage calc_workings (for the engine)
+
+Per d029 (resolves Forces OQ-A): forces calc is multi-stage-heavy. Implement multi-stage as an ordered `stages: [ {4-line block}, ... ]` on calc_workings, NOT a new monolithic type. Loop the existing 4-line marker over the stages; when a stage sets `gate:{kind:"from_previous_part"}`, carry the previous stage's evaluated answer into its substitution check with ECF (ecf_allowed, so a wrong earlier value still earns later marks if used consistently). Absent/length-1 `stages` = today's single-formula behaviour, unchanged. The dashboard must still log per-stage atoms and misconception_id. This unblocks ~40% of the forces calc bank; 6.5 authoring is writing single-stage items now and chained ones against this contract.

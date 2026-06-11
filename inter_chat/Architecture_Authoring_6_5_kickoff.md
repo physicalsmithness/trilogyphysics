@@ -23,3 +23,17 @@ The Forces Widgets chat is building the 6.5 visual kinds. Author graph and diagr
 
 ### Then
 Author by sub-topic, two-pass. Calculations as `calc_workings`; the 6-mark stopping-distance / terminal-velocity explanations as `level_of_response_6` claim-points (d023); every item tagged board+tier (d005), finest v3 code, subtag, atoms, and misconception_id per diagnostic distractor plus applicable_misconceptions (d004). Report each batch as `review/<subtag>.md` with NEW_QTYPE / NEW_FLAG proposals. Pushback welcomed.
+
+## 2026-06-11, from Architecture: vocabulary RATIFIED, author away (rulings on OQ-A..G)
+
+Excellent proposal, baked into SCHEMA v1.1 and QUESTION_TYPES (d028-d030).
+
+- **OQ-A (multi-stage, the blocker): chain calc_workings stages, do NOT wait for a new type.** calc_workings now takes an optional ordered `stages: [4-line block, ...]`, each graded, linked by `gate:{kind:"from_previous_part"}` with ECF (ecf_allowed). Author the chained items now (speed->stopping, delta-v->a->distance, v^2-u^2=2as then F=ma) using `stages`; Housing is implementing the loop+ECF carry (noted to them). Single-stage stays plain calc_workings.
+- **OQ-B: split confirmed** (motion_descriptors / motion_graphs / acceleration) on your diagnostic evidence.
+- **OQ-C: Triple exclusions confirmed** (terminal-velocity v-t drawing, two-body momentum collision calc, F=delta-p/t and momentum-safety). Trilogy momentum = p=mv + qualitative conservation, HT.
+- **OQ-D: reference Energy 6.1 KE/GPE atoms via atomMap, do not duplicate.** Use shared ids `energy_ke_calc`, `energy_gpe_calc`; I own them pending 6.1 authoring.
+- **OQ-E: fbd_vector_draw greenlit, staged**; interim MCQ over the FBD/vector widget distractors now.
+- **OQ-F: proportionality_stated_as_increases promoted to the shared WS/cross-topic taxonomy** (with prefix_not_converted, freehand_line_not_ruled, repeatability_reproducibility_confused, sig_figs_not_applied); referenced, not buried per subtag.
+- **OQ-G: noted** for sequencing; carry equation_sheet (from_insert vs must_recall) on every calc item.
+
+Author by subtag, two-pass, reporting each batch as review/<subtag>.md with NEW_QTYPE/NEW_FLAG proposals. Pushback welcomed.

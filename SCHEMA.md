@@ -33,3 +33,12 @@ The contract every item obeys and every chat builds against. Locked by Architect
 
 ## Trilogy scope exclusions (ratified, d024) — do NOT author these for Trilogy
 Parallel-resistance reciprocal calculation (spec 6.2.2 excludes it); resistivity `R=ρL/A`, potential dividers, capacitance (Triple/A-level); `P=V²/R` (not a Trilogy equation; power is `P=VI` and `P=I²R` only); static electricity (Triple-only). Much of ECM's `resistor_combinations`/`resistivity`/`potential_divider` content therefore does NOT port.
+
+---
+
+## v1.1 additions (2026-06-11, d028-d030)
+
+- **calc_workings `stages`** (d029): optional ordered array of 4-line blocks for multi-stage calculations. Each stage carries its own knowns/unknown/equationCanonicalForms/expectedFinalValue/expectedUnit; a stage may set `gate:{kind:"from_previous_part"}` and reference the prior stage's evaluated result for ECF (ecf_allowed). Absent or length-1 = the single-formula case. Per-stage atoms and misconception_id still logged.
+- **qtype `fbd_vector_draw`** (STAGED, d028): free-body / resultant / scale-vector diagrams. Interim form is `mcq` with `free_body_diagram` / `ramp_fbd` / `vector_addition` widget options. Full placement/scale-diagram grading is a Widgets-interactive + Housing milestone.
+- **Cross-topic atoms** (d030): forces items invoking KE (1/2 m v^2) or GPE (mgh) reference the Energy 6.1 atom ids (`energy_ke_calc`, `energy_gpe_calc`) via `atomMap`, not forces-local duplicates. These shared atom ids are Architecture-owned pending 6.1 authoring, like the WS taxonomy.
+- **Shared WS / cross-topic misconceptions** now include `proportionality_stated_as_increases` (promoted from 6.2, d028), joining `prefix_not_converted`, `freehand_line_not_ruled`, `repeatability_reproducibility_confused`, `sig_figs_not_applied` (q-ws-taxonomy, owned at Overview).

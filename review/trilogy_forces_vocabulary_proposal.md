@@ -1,6 +1,6 @@
 # Trilogy Forces 6.5 — vocabulary proposal (Stage 1)
 
-Status: **PROPOSED, awaiting Architecture ratification.** Mirrors the structure of the ratified `trilogy_electricity_vocabulary_proposal.md`.
+Status: **RATIFIED by Architecture, 2026-06-11 (d028-d030).** Rulings on OQ-A..G recorded in DECISIONS and in inter_chat/Architecture_Authoring_6_5_kickoff.md.
 
 From: 6.5 Forces Authoring chat. To: Architecture. Date: 2026-06-11.
 
