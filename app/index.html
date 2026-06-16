@@ -146,6 +146,9 @@
 <script src="engine.js"></script>
 <!-- Per-topic configs (TOPIC_CONFIG pattern). One per topic as they are built. -->
 <script src="topics/electricity_6_2.js"></script>
+<!-- Forces 6.5 (126 items) and Waves 6.6 (109 items), COMPLETE+ratified (d048), wired live by Architecture 2026-06-11. -->
+<script src="topics/forces_6_5.js"></script>
+<script src="topics/waves_6_6.js"></script>
 <!-- Magnetism 6.7: migrated legacy bank (M2 fold), provisional vocab. The topic
      stays greyed in the picker until Architecture ratifies the 6.7 vocabulary and
      flips its enabled flag. -->
@@ -165,8 +168,8 @@
     {id:"6.2", slug:"electricity",   name:"Electricity",       enabled:true },
     {id:"6.3", slug:"particle_model",name:"Particle model",    enabled:false},
     {id:"6.4", slug:"atomic",        name:"Atomic structure",  enabled:false},
-    {id:"6.5", slug:"forces",        name:"Forces",            enabled:false},
-    {id:"6.6", slug:"waves",         name:"Waves",             enabled:false},
+    {id:"6.5", slug:"forces",        name:"Forces",            enabled:true },
+    {id:"6.6", slug:"waves",         name:"Waves",             enabled:false}, // re-disabled: items in stale shape, await migration (d053)
     {id:"6.7", slug:"magnetism",     name:"Magnetism & EM",    enabled:false}
   ];
 

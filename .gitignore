@@ -13,3 +13,6 @@ Thumbs.db
 
 # Scratch / temp
 *.tmp
+
+# editor/script backups
+*.bak
