@@ -69,5 +69,14 @@ window.TRILOGY_MISCONCEPTIONS = [
   // ── cross-topic / working-scientifically (owner placement = Architecture) ──
   { slug: "prefix_not_converted", topic: "cross", label: "SI prefix not converted", description: "Generalised SI-prefix failure (mA→A, kΩ→Ω). Subsumes units_off_by_factor. Codex unit_handling = prefix_strip." },
   { slug: "repeatability_reproducibility_confused", topic: "ws", label: "Repeatability vs reproducibility", description: "WS slug; appears on electricity RP items. Belongs to the shared WS taxonomy (Overview)." },
-  { slug: "freehand_line_not_ruled", topic: "ws", label: "Best-fit line drawn freehand", description: "WS / graph technique; best-fit line drawn freehand. Shared WS taxonomy (Overview)." }
+  { slug: "freehand_line_not_ruled", topic: "ws", label: "Best-fit line drawn freehand", description: "WS / graph technique; best-fit line drawn freehand. Shared WS taxonomy (Overview)." },
+
+  // ── registered post-d041 (added by the 6.2 author at wiring: d040/d047/d048 + corrected ECM ports) ──
+  { slug: "filament_resistance_falls", topic: "iv_characteristics", label: "Filament resistance falls", description: "Thought a filament lamp's resistance falls (or drops to zero) as it heats, rather than rising. NEW_FLAG, registered d040." },
+  { slug: "sensor_direction_reversed", topic: "iv_characteristics", label: "Sensor response direction reversed", description: "Reversed a thermistor/LDR response: said resistance rises as temperature/light rises, when it falls. NEW_FLAG, registered d040." },
+  { slug: "treated_bypass_as_active", topic: "series_parallel", label: "Bypassed component treated as active", description: "Ignored a wire that short-circuits a component, leaving it in the analysis. Qualitative topology; corrected OUT->PORT in the ECM assessment." },
+  { slug: "disguised_parallel_missed", topic: "series_parallel", label: "Disguised parallel missed", description: "Read the topology wrongly when the diagram disguises series vs parallel. Qualitative; corrected OUT->PORT." },
+  { slug: "appliance_energy_confused_power_energy", topic: "energy_appliances", label: "Power vs energy confused", description: "Conflated power (rate, W) with energy (total, J): read a power rating as total energy, or judged energy by power alone ignoring time. NEW_FLAG, registered d047." },
+  { slug: "sensor_stimulus_confused", topic: "circuit_basics", label: "Wrong sensor stimulus", description: "Confused which quantity a sensor responds to: thermistor (temperature) vs LDR (light). NEW_FLAG, registered d048." },
+  { slug: "ac_dc_confused", topic: "mains_ac_dc", label: "a.c./d.c. confused", description: "Conflated alternating and direct supplies: read an a.c. trace as d.c., or thought mains is d.c. like a battery. NEW_FLAG, registered d048." }
 ];

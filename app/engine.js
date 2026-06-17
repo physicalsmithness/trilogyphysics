@@ -1098,8 +1098,9 @@
 
   function renderLor(item, card) {
     const pts = (item.lor && item.lor.points) || [];
+    const mk = item.marks || pts.filter(function (p) { return p.creditworthy; }).length;
     card.appendChild(el("div", "tp-shortlede",
-      "This is a 6-mark answer. Tick the points you would include for a full response."));
+      (mk ? "This is a " + mk + "-mark answer. " : "") + "Tick the points you would include for a full response."));
     DISPLAYED_OPTIONS = shuffle(pts.map(function (pt, i) { return { choice: pt, idx: i }; }));
     SELECTED_IDS = [];
     const opts = el("div", "tp-options");
