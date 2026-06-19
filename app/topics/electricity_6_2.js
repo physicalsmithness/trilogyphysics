@@ -3241,6 +3241,518 @@
           "log_as": "ungraded_self_assessed"
         },
         "marks": 1
+      },
+      {
+        "id": "ch_vir_qit_01",
+        "qtype": "calc_workings",
+        "board": "aqa_trilogy_8464",
+        "tier": "FH",
+        "topic": "6.2",
+        "subtag": "charge_current",
+        "syllabus_codes": [
+          "6.2.1.3.c",
+          "6.2.1.2.b"
+        ],
+        "atoms": [
+          "ohm_law_calc",
+          "charge_flow_calc"
+        ],
+        "prompt": "A 12 V battery is connected across a single 8.0 Ω resistor. Calculate the charge that flows through the resistor in 30 s.\nUse the equations: potential difference = current × resistance; charge flow = current × time.",
+        "marks": 4,
+        "equation_sheet": "from_insert",
+        "source": "authored",
+        "explanation": "Stage 1: I = V/R = 12/8.0 = 1.5 A. Stage 2: Q = It = 1.5 × 30 = 45 C.",
+        "calc": {
+          "stages": [
+            {
+              "knowns": {
+                "V": 12,
+                "R": 8
+              },
+              "unknown": "I",
+              "expectedFinalValue": 1.5,
+              "expectedUnit": [
+                "A",
+                "amp",
+                "amps"
+              ],
+              "equationCanonicalForms": [
+                "I=V/R",
+                "V=I*R"
+              ],
+              "tolerance": 0.01,
+              "requireUnit": false,
+              "marks": 2
+            },
+            {
+              "knowns": {
+                "I": 1.5,
+                "t": 30
+              },
+              "unknown": "Q",
+              "expectedFinalValue": 45,
+              "expectedUnit": [
+                "C",
+                "coulomb",
+                "coulombs"
+              ],
+              "equationCanonicalForms": [
+                "Q=I*t"
+              ],
+              "tolerance": 0.5,
+              "requireUnit": true,
+              "marks": 2,
+              "gate": {
+                "kind": "from_previous_part"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "ch_vir_pvi_ept_02",
+        "qtype": "calc_workings",
+        "board": "aqa_trilogy_8464",
+        "tier": "H",
+        "topic": "6.2",
+        "subtag": "energy_appliances",
+        "syllabus_codes": [
+          "6.2.1.3.c",
+          "6.2.4.1",
+          "6.2.6.2.e"
+        ],
+        "atoms": [
+          "ohm_law_calc",
+          "power_vi_calc",
+          "energy_pt_calc"
+        ],
+        "prompt": "A kettle's heating element has a resistance of 23 Ω and is connected to the 230 V mains. Calculate the energy it transfers in 60 s.\nUse: potential difference = current × resistance; power = potential difference × current; energy transferred = power × time.",
+        "marks": 6,
+        "equation_sheet": "from_insert",
+        "source": "authored",
+        "explanation": "Stage 1: I = V/R = 230/23 = 10 A. Stage 2: P = VI = 230 × 10 = 2300 W. Stage 3: E = Pt = 2300 × 60 = 138 000 J.",
+        "calc": {
+          "stages": [
+            {
+              "knowns": {
+                "V": 230,
+                "R": 23
+              },
+              "unknown": "I",
+              "expectedFinalValue": 10,
+              "expectedUnit": [
+                "A",
+                "amp",
+                "amps"
+              ],
+              "equationCanonicalForms": [
+                "I=V/R",
+                "V=I*R"
+              ],
+              "tolerance": 0.05,
+              "requireUnit": false,
+              "marks": 2
+            },
+            {
+              "knowns": {
+                "V": 230,
+                "I": 10
+              },
+              "unknown": "P",
+              "expectedFinalValue": 2300,
+              "expectedUnit": [
+                "W",
+                "watt",
+                "watts"
+              ],
+              "equationCanonicalForms": [
+                "P=V*I"
+              ],
+              "tolerance": 1,
+              "requireUnit": false,
+              "marks": 2,
+              "gate": {
+                "kind": "from_previous_part"
+              }
+            },
+            {
+              "knowns": {
+                "P": 2300,
+                "t": 60
+              },
+              "unknown": "E",
+              "expectedFinalValue": 138000,
+              "expectedUnit": [
+                "J",
+                "joule",
+                "joules"
+              ],
+              "equationCanonicalForms": [
+                "E=P*t"
+              ],
+              "tolerance": 10,
+              "requireUnit": true,
+              "marks": 2,
+              "gate": {
+                "kind": "from_previous_part"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "ch_qit_eqv_03",
+        "qtype": "calc_workings",
+        "board": "aqa_trilogy_8464",
+        "tier": "H",
+        "topic": "6.2",
+        "subtag": "energy_appliances",
+        "syllabus_codes": [
+          "6.2.1.2.b",
+          "6.2.4.2"
+        ],
+        "atoms": [
+          "charge_flow_calc",
+          "energy_qv_calc"
+        ],
+        "prompt": "A current of 2.0 A flows through a lamp for 30 s. The potential difference across the lamp is 12 V. Calculate the energy transferred to the lamp.\nUse: charge flow = current × time; energy transferred = charge × potential difference.",
+        "marks": 4,
+        "equation_sheet": "from_insert",
+        "source": "authored",
+        "explanation": "Stage 1: Q = It = 2.0 × 30 = 60 C. Stage 2: E = QV = 60 × 12 = 720 J.",
+        "calc": {
+          "stages": [
+            {
+              "knowns": {
+                "I": 2,
+                "t": 30
+              },
+              "unknown": "Q",
+              "expectedFinalValue": 60,
+              "expectedUnit": [
+                "C",
+                "coulomb",
+                "coulombs"
+              ],
+              "equationCanonicalForms": [
+                "Q=I*t"
+              ],
+              "tolerance": 0.5,
+              "requireUnit": false,
+              "marks": 2
+            },
+            {
+              "knowns": {
+                "Q": 60,
+                "V": 12
+              },
+              "unknown": "E",
+              "expectedFinalValue": 720,
+              "expectedUnit": [
+                "J",
+                "joule",
+                "joules"
+              ],
+              "equationCanonicalForms": [
+                "E=Q*V"
+              ],
+              "tolerance": 1,
+              "requireUnit": true,
+              "marks": 2,
+              "gate": {
+                "kind": "from_previous_part"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "ch_potdiv_series_04",
+        "qtype": "calc_workings",
+        "board": "aqa_trilogy_8464",
+        "tier": "H",
+        "topic": "6.2",
+        "subtag": "series_parallel",
+        "syllabus_codes": [
+          "6.2.2.c",
+          "6.2.1.3.c"
+        ],
+        "atoms": [
+          "series_resistance_sum",
+          "ohm_law_calc"
+        ],
+        "prompt": "A 12 V battery is connected in series with a 4.0 Ω resistor and an 8.0 Ω resistor. Calculate the potential difference across the 8.0 Ω resistor.\nUse: total series resistance = R1 + R2; potential difference = current × resistance.",
+        "marks": 6,
+        "equation_sheet": "from_insert",
+        "source": "authored",
+        "explanation": "Stage 1: Rt = R1 + R2 = 4.0 + 8.0 = 12 Ω. Stage 2: I = V/Rt = 12/12 = 1.0 A (series current is the same everywhere). Stage 3: V2 = I × R2 = 1.0 × 8.0 = 8.0 V.",
+        "calc": {
+          "stages": [
+            {
+              "knowns": {
+                "R1": 4,
+                "R2": 8
+              },
+              "unknown": "Rt",
+              "expectedFinalValue": 12,
+              "expectedUnit": [
+                "Ω",
+                "ohm",
+                "ohms"
+              ],
+              "equationCanonicalForms": [
+                "Rt=R1+R2"
+              ],
+              "tolerance": 0.1,
+              "requireUnit": false,
+              "marks": 2
+            },
+            {
+              "knowns": {
+                "V": 12,
+                "Rt": 12
+              },
+              "unknown": "I",
+              "expectedFinalValue": 1,
+              "expectedUnit": [
+                "A",
+                "amp",
+                "amps"
+              ],
+              "equationCanonicalForms": [
+                "I=V/Rt",
+                "V=I*Rt"
+              ],
+              "tolerance": 0.01,
+              "requireUnit": false,
+              "marks": 2,
+              "gate": {
+                "kind": "from_previous_part"
+              }
+            },
+            {
+              "knowns": {
+                "I": 1,
+                "R2": 8
+              },
+              "unknown": "V2",
+              "expectedFinalValue": 8,
+              "expectedUnit": [
+                "V",
+                "volt",
+                "volts"
+              ],
+              "equationCanonicalForms": [
+                "V2=I*R2"
+              ],
+              "tolerance": 0.05,
+              "requireUnit": true,
+              "marks": 2,
+              "gate": {
+                "kind": "from_previous_part"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "sp_series_R_sum_calc",
+        "qtype": "calc_workings",
+        "board": "aqa_trilogy_8464",
+        "tier": "FH",
+        "topic": "6.2",
+        "subtag": "series_parallel",
+        "syllabus_codes": [
+          "6.2.2.c"
+        ],
+        "atoms": [
+          "series_resistance_sum"
+        ],
+        "prompt": "A 4.0 Ω resistor and a 6.0 Ω resistor are connected in series. Calculate their combined resistance.\nUse: total series resistance = R1 + R2.",
+        "marks": 2,
+        "equation_sheet": "must_recall",
+        "source": "authored",
+        "explanation": "Resistances in series add: Rt = R1 + R2 = 4.0 + 6.0 = 10 Ω.",
+        "calc": {
+          "knowns": {
+            "R1": 4,
+            "R2": 6
+          },
+          "unknown": "Rt",
+          "expectedFinalValue": 10,
+          "expectedUnit": [
+            "Ω",
+            "ohm",
+            "ohms"
+          ],
+          "equationCanonicalForms": [
+            "Rt=R1+R2"
+          ],
+          "tolerance": 0.1,
+          "requireUnit": true,
+          "marks": 2
+        }
+      },
+      {
+        "id": "pw_i2r_calc",
+        "qtype": "calc_workings",
+        "board": "aqa_trilogy_8464",
+        "tier": "H",
+        "topic": "6.2",
+        "subtag": "power_electrical",
+        "syllabus_codes": [
+          "6.2.6.1.a"
+        ],
+        "atoms": [
+          "power_i2r_calc"
+        ],
+        "prompt": "A resistor of resistance 5.0 Ω carries a current of 3.0 A. Calculate the power dissipated in the resistor.\nUse the equation: power = (current)² × resistance.",
+        "marks": 3,
+        "equation_sheet": "from_insert",
+        "source": "authored",
+        "explanation": "P = I²R = 3.0² × 5.0 = 9.0 × 5.0 = 45 W.",
+        "calc": {
+          "knowns": {
+            "I": 3,
+            "R": 5
+          },
+          "unknown": "P",
+          "expectedFinalValue": 45,
+          "expectedUnit": [
+            "W",
+            "watt",
+            "watts"
+          ],
+          "equationCanonicalForms": [
+            "P=I^2*R",
+            "P=I*I*R"
+          ],
+          "tolerance": 0.5,
+          "requireUnit": true,
+          "marks": 3
+        }
+      },
+      {
+        "id": "iv_pick_filament_graph",
+        "qtype": "mcq",
+        "board": "aqa_trilogy_8464",
+        "tier": "FH",
+        "topic": "6.2",
+        "subtag": "iv_characteristics",
+        "syllabus_codes": [
+          "6.2.1.4.e"
+        ],
+        "atoms": [
+          "filament_behaviour"
+        ],
+        "prompt": "Which graph shows the I–V characteristic of a filament lamp?",
+        "marks": 1,
+        "source": "authored",
+        "explanation": "A filament lamp's current keeps rising but the gradient falls as it heats (resistance increases): an S-shaped curve through the origin that never goes flat.",
+        "choices": [
+          {
+            "diagram": {
+              "kind": "iv_characteristic",
+              "params": {
+                "device": "filament"
+              }
+            }
+          },
+          {
+            "diagram": {
+              "kind": "iv_characteristic",
+              "params": {
+                "device": "ohmic"
+              }
+            },
+            "misconception_id": "misread_iv_graph_for_ohmic"
+          },
+          {
+            "diagram": {
+              "kind": "iv_characteristic",
+              "params": {
+                "device": "filament",
+                "variant": "plateau"
+              }
+            },
+            "misconception_id": "filament_resistance_falls"
+          },
+          {
+            "diagram": {
+              "kind": "iv_characteristic",
+              "params": {
+                "device": "diode"
+              }
+            },
+            "misconception_id": "misread_iv_graph_for_ohmic"
+          }
+        ],
+        "answerIndex": 0,
+        "applicable_misconceptions": [
+          "misread_iv_graph_for_ohmic",
+          "filament_resistance_falls"
+        ]
+      },
+      {
+        "id": "iv_pick_ohmic_graph",
+        "qtype": "mcq",
+        "board": "aqa_trilogy_8464",
+        "tier": "FH",
+        "topic": "6.2",
+        "subtag": "iv_characteristics",
+        "syllabus_codes": [
+          "6.2.1.4.b"
+        ],
+        "atoms": [
+          "ohmic_sketch"
+        ],
+        "prompt": "Which graph shows the I–V characteristic of an ohmic resistor at constant temperature?",
+        "marks": 1,
+        "source": "authored",
+        "explanation": "An ohmic resistor at constant temperature gives a straight line through the origin, extending into the third quadrant for negative pd.",
+        "choices": [
+          {
+            "diagram": {
+              "kind": "iv_characteristic",
+              "params": {
+                "device": "ohmic"
+              }
+            }
+          },
+          {
+            "diagram": {
+              "kind": "iv_characteristic",
+              "params": {
+                "device": "filament"
+              }
+            },
+            "misconception_id": "drew_lamp_curve_for_ohmic"
+          },
+          {
+            "diagram": {
+              "kind": "iv_characteristic",
+              "params": {
+                "device": "diode"
+              }
+            },
+            "misconception_id": "misread_iv_graph_for_ohmic"
+          },
+          {
+            "diagram": {
+              "kind": "iv_characteristic",
+              "params": {
+                "device": "ohmic",
+                "variant": "negative"
+              }
+            },
+            "misconception_id": "misread_iv_graph_for_ohmic"
+          }
+        ],
+        "answerIndex": 0,
+        "applicable_misconceptions": [
+          "drew_lamp_curve_for_ohmic",
+          "misread_iv_graph_for_ohmic"
+        ]
       }
     ]
   };

@@ -147,7 +147,7 @@ ok("four per-line results shown", host2.querySelectorAll(".tp-cw-result").length
 
 console.log("\nShort (markPoints) renders + marks through the DOM");
 w.TrilogyEngine.unmount();
-const shortCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.qtype === "short") });
+const shortCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.id === "_demo_grid_short") });
 w.TrilogyEngine.mount({ container: w.document.getElementById("host"),
   topic: { id: "6.2", slug: "electricity", name: "Electricity" }, config: shortCfg,
   identity: { anonymous_id: "t", display_name: "T", cohort: "C" }, report: () => {} });
@@ -161,7 +161,7 @@ ok("short scored full (3/3)", !!sh && sh.textContent.indexOf("3/3") !== -1);
 
 console.log("\nMCQ multi renders + grades through the DOM");
 w.TrilogyEngine.unmount();
-const mcqCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.qtype === "mcq_multi") });
+const mcqCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.id === "_demo_parallel_multi") });
 w.TrilogyEngine.mount({ container: w.document.getElementById("host"),
   topic: { id: "6.2", slug: "electricity", name: "Electricity" }, config: mcqCfg,
   identity: { anonymous_id: "t", display_name: "T", cohort: "C" }, report: () => {} });
@@ -258,7 +258,7 @@ ok("graph-select graded correct", !!hg.querySelector(".tp-feedback-correct"));
 
 console.log("\nlevel_of_response_6 renders + marks through the DOM");
 w.TrilogyEngine.unmount();
-const lorCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.qtype === "level_of_response_6") });
+const lorCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.id === "_demo_grid_lor") });
 w.TrilogyEngine.mount({ container: w.document.getElementById("host"),
   topic: { id: "6.2", slug: "electricity", name: "Electricity" }, config: lorCfg,
   identity: { anonymous_id: "t", display_name: "T", cohort: "C" }, report: () => {} });
@@ -278,7 +278,7 @@ w.TOPIC_DIAGRAMS = w.TOPIC_DIAGRAMS || {};
 w.TOPIC_DIAGRAMS.iv_characteristic = w.TOPIC_DIAGRAMS.iv_characteristic || function () {
   return w.document.createElementNS("http://www.w3.org/2000/svg", "svg");
 };
-const fbCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.qtype === "graph_sketch") });
+const fbCfg = Object.assign({}, cfg, { items: cfg.items.filter(it => it.id === "_demo_iv_sketch") });
 w.localStorage.removeItem("trilogy_physics_log_v1");
 w.TrilogyEngine.mount({ container: w.document.getElementById("host"),
   topic: { id: "6.2", slug: "electricity", name: "Electricity" }, config: fbCfg,

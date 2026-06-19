@@ -130,6 +130,17 @@ ok("out-of-scope reciprocal slug absent (forgot_final_reciprocal)", slugs.indexO
 ok("NEW_FLAG present (diode_reverse_current_nonzero)", slugs.indexOf("diode_reverse_current_nonzero") !== -1);
 ok("every entry has slug+label+topic", REG.every(function (m) { return m.slug && m.label && m.topic; }));
 
+console.log("\ncalc_workings evaluator fixes (d047: ^ power, multi-letter/case-distinct)");
+ok("^ power evaluates", (function(){ const a=CW.calcParseEqn("y=12^2"); return CW.calcEval(a.right,{})===144; })());
+ok("^ binds tighter than implicit mult (k e^2 = k*(e^2))", (function(){ const a=CW.calcParseEqn("y=k*e^2"); return CW.calcEval(a.right,{k:3,e:4})===48; })());
+const sq = { knowns:{v:0,u:20,a:-6.25}, unknown:"s", expectedFinalValue:32, expectedUnit:["m"], equationCanonicalForms:["v^2-u^2=2*a*s"], requireUnit:true };
+eq("squared-term SUVAT grades full", CW.markCalcWorkings(sq,{line1:"v^2-u^2=2*a*s",line2:"0^2-20^2=2*-6.25*s",line3:"s=32",line4Value:"32",line4Unit:"m"}).status, "full");
+const epe = { knowns:{k:200,e:0.10}, unknown:"Ee", expectedFinalValue:1, expectedUnit:["J"], equationCanonicalForms:["Ee=0.5*k*e^2"], requireUnit:true };
+const epeRes = CW.markCalcWorkings(epe,{line1:"Ee=0.5*k*e^2",line2:"Ee=0.5*200*0.10^2",line3:"Ee=1",line4Value:"1",line4Unit:"J"});
+eq("multi-letter Ee=1/2ke^2 grades full", epeRes.status, "full");
+eq("multi-letter display maps back (not placeholders)", epeRes.lineResults[0].user, "Ee=0.5*k*e^2");
+ok("E (energy) and e (extension) do not collide", CW.markCalcWorkings({knowns:{m:2,v:3},unknown:"Ek",expectedFinalValue:9,expectedUnit:["J"],equationCanonicalForms:["Ek=0.5*m*v^2"],requireUnit:true},{line1:"Ek=0.5*m*v^2",line2:"Ek=0.5*2*3^2",line3:"Ek=9",line4Value:"9",line4Unit:"J"}).status === "full");
+
 console.log("\nChained multi-stage calc_workings grader (d047, ECF)");
 const chainItem = { marks: 4, calc: { stages: [
   { equation: "P=V*I", knowns: { V: 12, I: 0.5 }, unknown: "P", expectedFinalValue: 6, expectedUnit: ["W"],
@@ -152,6 +163,18 @@ const ecf = [
   { line1: "E=P*t", line2: "E=5*120", line3: "E=600", line4Value: "600", line4Unit: "J" } // consistent with carried 5
 ];
 ok("ECF: consistent stage-2 working on a carried wrong value still earns stage-2 marks", T.markCalcChain(ecf.length?chainItem:chainItem, ecf).stages[1].awarded >= 1);
+
+console.log("\ncalc_workings prefixed-equivalent final answer (d047 fix 3)");
+function l4(expVal, expUnit, v, u) {
+  const q = { knowns:{a:1,b:1}, unknown:"x", expectedFinalValue:expVal, expectedUnit:expUnit, equationCanonicalForms:["x=a*b"], requireUnit:true };
+  return CW.markCalcWorkings(q, { line1:"x=a*b", line2:"x="+v, line3:"x="+v, line4Value:String(v), line4Unit:u }).lineResults[3].ok;
+}
+ok("3 mA accepted for 0.003 A", l4(0.003, ["A"], 3, "mA"));
+ok("450 mA accepted for 0.45 A", l4(0.45, ["A"], 450, "mA"));
+ok("710 g accepted for 0.71 kg (mass base)", l4(0.71, ["kg"], 710, "g"));
+ok("12 kohm accepted for 12000 ohm", l4(12000, ["ohm","\u03a9"], 12, "kohm"));
+ok("does NOT accept 450 A for 0.45 A", !l4(0.45, ["A"], 450, "A"));
+ok("does NOT accept a wrong base unit (mV for A)", !l4(0.003, ["A"], 3, "mV"));
 
 console.log("\nGeneric fallback self-check (d047)");
 T.setPrefsTier("all");

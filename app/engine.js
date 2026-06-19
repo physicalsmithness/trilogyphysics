@@ -322,6 +322,7 @@
       picked_id: Array.isArray(picked) ? picked.join(",") : (picked == null ? "" : String(picked)),
       misconception_id: misconceptionId || null,
       slugs_offered: slugsOffered(item),
+      codex: (item.calc && item.calc.codex) || null,   // SCHEMA v1.4 six-layer block, passthrough
       ts: new Date().toISOString()
     };
   }

@@ -74,7 +74,7 @@
         // Single-character symbol (multi-char treated as separate; physics symbols are one letter)
         tokens.push({ kind: "sym", value: c });
         i++;
-      } else if ("+-*/".indexOf(c) !== -1) {
+      } else if ("+-*/^".indexOf(c) !== -1) {
         tokens.push({ kind: "op", value: c });
         i++;
       } else if (c === "(") { tokens.push({ kind: "lparen" }); i++; }
@@ -91,34 +91,34 @@
       const t = tokens[p];
       if (!t) throw new Error("Unexpected end");
       if (t.kind === "num") return [{ kind: "num", value: t.value }, p + 1];
-      if (t.kind === "sym") {
-        // Implicit multiplication: "IR" is two adjacent syms — treat as I*R
-        let node = { kind: "sym", value: t.value };
-        let p2 = p + 1;
-        while (tokens[p2] && tokens[p2].kind === "sym") {
-          node = { kind: "binop", op: "*", left: node, right: { kind: "sym", value: tokens[p2].value } };
-          p2++;
-        }
-        // Number-then-sym (e.g. "2I"): handle in higher level via primary chain
-        return [node, p2];
-      }
+      if (t.kind === "sym") return [{ kind: "sym", value: t.value }, p + 1];
       if (t.kind === "lparen") {
         const [expr, p2] = parseAddSub(p + 1);
         if (tokens[p2] && tokens[p2].kind === "rparen") return [expr, p2 + 1];
         throw new Error("Missing )");
       }
       if (t.kind === "op" && (t.value === "-" || t.value === "+")) {
-        const [expr, p2] = parsePrimary(p + 1);
+        const [expr, p2] = parsePower(p + 1);
         if (t.value === "-") return [{ kind: "neg", arg: expr }, p2];
         return [expr, p2];
       }
       throw new Error("Unexpected token: " + JSON.stringify(t));
     }
+    // `^` binds tighter than implicit multiplication and is right-associative,
+    // so k e^2 parses as k*(e^2) and 2^3^2 as 2^(3^2).
+    function parsePower(p) {
+      let [base, p2] = parsePrimary(p);
+      if (tokens[p2] && tokens[p2].kind === "op" && tokens[p2].value === "^") {
+        const [exp, p3] = parsePower(p2 + 1);
+        return [{ kind: "binop", op: "^", left: base, right: exp }, p3];
+      }
+      return [base, p2];
+    }
     function parseImplicit(p) {
-      // Handle "2I" as 2*I
-      let [left, p2] = parsePrimary(p);
+      // Implicit multiplication of adjacent factors: "2I", "IR", "k e^2".
+      let [left, p2] = parsePower(p);
       while (tokens[p2] && (tokens[p2].kind === "sym" || tokens[p2].kind === "lparen")) {
-        const [right, p3] = parsePrimary(p2);
+        const [right, p3] = parsePower(p2);
         left = { kind: "binop", op: "*", left: left, right: right };
         p2 = p3;
       }
@@ -179,6 +179,7 @@
       if (ast.op === "-") return l - r;
       if (ast.op === "*") return l * r;
       if (ast.op === "/") return l / r;
+      if (ast.op === "^") return Math.pow(l, r);
     }
     throw new Error("Unknown AST kind: " + ast.kind);
   }
@@ -252,9 +253,87 @@
     return out;
   }
 
+  // SI prefixes, for accepting a prefixed-equivalent final answer (d047 fix 3:
+  // 3 mA == 0.003 A). Authors store knowns in SI, so the prefix work shows up at
+  // the final-answer line, not as a separate asGiven mark.
+  const CALC_PREFIXES = { Y:1e24, Z:1e21, E:1e18, P:1e15, T:1e12, G:1e9, M:1e6,
+    k:1e3, h:1e2, da:1e1, d:1e-1, c:1e-2, m:1e-3, u:1e-6, "\u00b5":1e-6, n:1e-9, p:1e-12, f:1e-15 };
+  // SI-equivalent of value+userUnit when userUnit is a prefixed form of an
+  // expected (SI) unit; null otherwise. Mass base kg/g handled specially.
+  function calcPrefixEquivalentSI(value, userUnit, expectedUnits) {
+    if (!userUnit) return null;
+    for (let i = 0; i < expectedUnits.length; i++) {
+      const base = String(expectedUnits[i]);
+      if (base === "") continue;
+      if (base === "kg") {
+        if (userUnit === "g") return value * 1e-3;
+        if (userUnit.length > 1 && userUnit.slice(-1) === "g") {
+          const pg = userUnit.slice(0, -1);
+          if (CALC_PREFIXES[pg] != null) return value * CALC_PREFIXES[pg] * 1e-3;
+        }
+        continue;
+      }
+      if (userUnit === base) return value;
+      if (userUnit.length > base.length && userUnit.slice(-base.length) === base) {
+        const pfx = userUnit.slice(0, userUnit.length - base.length);
+        if (CALC_PREFIXES[pfx] != null) return value * CALC_PREFIXES[pfx];
+      }
+    }
+    return null;
+  }
+
+  // Multi-letter / case-distinct symbol support (d047 fix 2). The single-letter
+  // case-insensitive core cannot tell E (energy) from e (extension) or read "Ee"
+  // as one symbol. So when a question's symbol set has any multi-letter symbol or
+  // a case collision, remap each symbol to a distinct single-letter placeholder
+  // (avoiding e and x, which the number/normaliser reserve), mark on the remapped
+  // strings, and map the displayed working back.
+  function calcBuildRemap(symbolSet) {
+    const multi = symbolSet.some(function (x) { return String(x).length > 1; });
+    const seen = {}; let collide = false;
+    symbolSet.forEach(function (x) { const l = String(x).toLowerCase(); if (seen[l]) collide = true; seen[l] = true; });
+    if (!multi && !collide) return null;
+    const pool = "abcdfghijklmnopqrstuvwyz".split("");   // excludes e, x
+    const map = {}, inv = {}; let pi = 0;
+    symbolSet.slice().sort(function (a, b) { return String(b).length - String(a).length; }).forEach(function (sym) {
+      if (map[sym] === undefined && pi < pool.length) { const ph = pool[pi++]; map[sym] = ph; inv[ph] = sym; }
+    });
+    return { map: map, inv: inv };
+  }
+  function calcApplyRemap(str, map) {
+    let out = String(str || "");
+    Object.keys(map).sort(function (a, b) { return b.length - a.length; }).forEach(function (orig) {
+      out = out.split(orig).join(map[orig]);
+    });
+    return out;
+  }
+  function calcInvRemap(str, inv) {
+    let out = String(str || "");
+    Object.keys(inv).forEach(function (ph) { out = out.split(ph).join(inv[ph]); });
+    return out;
+  }
+
   // The marker: per-line check, returns marksAwarded out of 4 plus per-line
   // results so the renderer can show which line the student got wrong.
   function markCalcWorkings(q, lines) {
+    // d047 fix 2: remap multi-letter / case-distinct symbols to placeholders.
+    let _rm = null;
+    {
+      const _ss = Object.keys((q && q.knowns) || {});
+      if (q && q.unknown) _ss.push(q.unknown);
+      _rm = calcBuildRemap(_ss);
+      if (_rm) {
+        const nq = {}; Object.keys(q).forEach(function (k) { nq[k] = q[k]; });
+        const nk = {}; Object.keys(q.knowns || {}).forEach(function (k) { nk[_rm.map[k] || k] = q.knowns[k]; });
+        nq.knowns = nk;
+        nq.unknown = _rm.map[q.unknown] || q.unknown;
+        if (Array.isArray(q.equationCanonicalForms)) nq.equationCanonicalForms = q.equationCanonicalForms.map(function (f) { return calcApplyRemap(f, _rm.map); });
+        q = nq;
+        const nl = {}; Object.keys(lines || {}).forEach(function (k) { nl[k] = lines[k]; });
+        ["line1", "line2", "line3", "line4Value"].forEach(function (k) { if (nl[k] != null) nl[k] = calcApplyRemap(String(nl[k]), _rm.map); });
+        lines = nl;
+      }
+    }
     const knowns = (q.knowns && typeof q.knowns === "object") ? q.knowns : {};
     const unknown = q.unknown || "";
     const expectedFinalValue = (typeof q.expectedFinalValue === "number") ? q.expectedFinalValue : null;
@@ -440,9 +519,16 @@
       }
     } else {
       const value = parseFloat(numMatch[0]);
-      const valueOk = isFinite(value) && Math.abs(value - expectedFinalValue) <= tolerance;
       const userUnit = l4Unit.trim();  // v1.5.23: case-sensitive
-      const unitOk = !requireUnit || (userUnit !== "" && expectedUnit.indexOf(userUnit) !== -1);
+      let valueOk = isFinite(value) && Math.abs(value - expectedFinalValue) <= tolerance;
+      let unitOk = !requireUnit || (userUnit !== "" && expectedUnit.indexOf(userUnit) !== -1);
+      // d047 fix 3: accept a prefixed-equivalent final answer (3 mA for 0.003 A).
+      if ((!valueOk || !unitOk) && isFinite(value) && expectedFinalValue !== null && userUnit !== "") {
+        const si = calcPrefixEquivalentSI(value, userUnit, expectedUnit);
+        if (si !== null && Math.abs(si - expectedFinalValue) <= Math.max(Math.abs(expectedFinalValue) * 0.005, tolerance)) {
+          valueOk = true; unitOk = true;
+        }
+      }
       if (valueOk && unitOk) {
         line4Ok = true;
       } else if (!valueOk && !unitOk) {
@@ -475,6 +561,9 @@
     // and Smith's hand-marking taxonomy in project_error_taxonomy.md memory.
     const errorTypes = calcDeriveErrorTypes(lineResults);
 
+    if (_rm) {
+      lineResults.forEach(function (lr) { if (lr.user) lr.user = calcInvRemap(lr.user, _rm.inv); });
+    }
     return {
       marksAwarded: awarded,
       marksPossible: possible,
