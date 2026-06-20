@@ -118,19 +118,6 @@
     return EVENT_LOG.filter(function (e) { return e.topic === topic; });
   }
 
-  // Last-window average for one atom [P-COV-LASTN]. Returns the running mark
-  // fraction over the last COVERAGE_WINDOW graded attempts, how many were in
-  // window (n, for the white-fade), and the all-time graded count (total).
-  function atomAverage(topic, slug) {
-    const graded = eventsForAtom(topic, slug)
-      .filter(function (e) { return e.grading !== "ungraded_self_assessed"; });
-    const recent = graded.slice(-COVERAGE_WINDOW);
-    if (!recent.length) return { avg: null, n: 0, total: graded.length };
-    let w = 0;
-    recent.forEach(function (e) { w += e.status === "correct" ? 1 : e.status === "half" ? 0.5 : 0; });
-    return { avg: w / recent.length, n: recent.length, total: graded.length };
-  }
-
   function greennessBucket(events, window_) {
     const graded = events.filter(function (e) { return e.grading !== "ungraded_self_assessed"; });
     if (!graded.length) return "grey";
@@ -146,30 +133,17 @@
     return "red";
   }
 
-  /* Per-atom mosaic colour: canonical six-band scale [P-COL-BAND6 from the EdTech
-     patterns menu], verbatim hexes shared estate-wide so one legend serves every
-     coverage surface. Cuts at .25/.50/.70/.90; untried is parchment. Each band
-     carries a `text` foreground so labels stay legible on the fill. (Widened from
-     the previous coarse 4-band per d062.) */
-  const BAND = {
-    untried:  { min: null, fill: "#ece4d2", text: "#5b5340" },
-    red:      { min: 0.00, fill: "#b03030", text: "#ffffff" },
-    orange:   { min: 0.25, fill: "#c17034", text: "#ffffff" },
-    yellow:   { min: 0.50, fill: "#d6a847", text: "#3a2f12" },
-    midgreen: { min: 0.70, fill: "#5a9a5a", text: "#ffffff" },
-    green:    { min: 0.90, fill: "#2d6a3f", text: "#ffffff" }
-  };
-  const BAND_LEGEND = [
-    ["untried", "untried"], ["red", "<25%"], ["orange", "25\u201350%"],
-    ["yellow", "50\u201370%"], ["midgreen", "70\u201390%"], ["green", "\u226590%"]
+  /* Per-atom mosaic colour bands. Lifted (via ECM) from the Pre-IB engine. */
+  const BAND = [
+    { min: 0.8,  fill: "#2d6a3f" },   // green
+    { min: 0.5,  fill: "#b9912b" },   // amber
+    { min: 0.0,  fill: "#b03030" },   // red
+    { min: null, fill: "#d8d2c4" }    // grey: no attempts
   ];
   function bandKeyForAverage(avg) {
-    if (avg == null) return BAND.untried;
-    if (avg >= 0.90) return BAND.green;
-    if (avg >= 0.70) return BAND.midgreen;
-    if (avg >= 0.50) return BAND.yellow;
-    if (avg >= 0.25) return BAND.orange;
-    return BAND.red;
+    if (avg == null) return BAND[3];
+    for (let i = 0; i < 3; i++) if (avg >= BAND[i].min) return BAND[i];
+    return BAND[2];
   }
   function mixWithWhite(hex, t) {
     // t in [0,1]; 0 = full colour, 1 = white. Fades low-evidence cells.
@@ -189,20 +163,14 @@
     if (t === "higher") return "H";
     return "FH";   // "both" / unspecified -> shared
   }
-  function emptyFocus() { return { atom: null, subtag: null, slug: null }; }
-  function defaultPrefs() { return { tier: "all", focus: emptyFocus(), collapsed: {} }; }   // tier: all|F|H
+  function defaultPrefs() { return { tier: "all" }; }   // all | F | H
   function loadPrefs() {
     try {
       const raw = localStorage.getItem(PREFS_KEY);
       if (!raw) return defaultPrefs();
-      const p = JSON.parse(raw) || {};
-      const t = (p.tier === "F" || p.tier === "H") ? p.tier : "all";
-      const f = p.focus || {};
-      return {
-        tier: t,
-        focus: { atom: f.atom || null, subtag: f.subtag || null, slug: f.slug || null },
-        collapsed: (p.collapsed && typeof p.collapsed === "object") ? p.collapsed : {}
-      };
+      const p = JSON.parse(raw);
+      const t = p && p.tier;
+      return { tier: (t === "F" || t === "H") ? t : "all" };
     } catch (e) { return defaultPrefs(); }
   }
   let PREFS = loadPrefs();
@@ -226,39 +194,11 @@
     if (!item || typeof item !== "object") return false;
     if (!KNOWN_QTYPES[item.qtype] && !item.fallback) return false;   // d047 fallback self-check
     if (!tierMatches(item)) return false;
-    if (!focusMatches(item)) return false;   // d062 dashboard drill filter
-    return true;
-  }
-  function itemAtoms(item) {
-    if (Array.isArray(item.atoms) && item.atoms.length) return item.atoms;
-    return item.atom ? [item.atom] : [];
-  }
-  // Dashboard drill filter [P-MIS-MISTAKEROUTING]: narrow the pool to items
-  // carrying the focused atom / subtag / misconception slug.
-  function focusMatches(item) {
-    const f = (PREFS && PREFS.focus) || {};
-    if (f.atom && itemAtoms(item).indexOf(f.atom) === -1) return false;
-    if (f.subtag && (item.subtag || itemAtoms(item)[0] || "") !== f.subtag) return false;
-    if (f.slug && slugsOffered(item).indexOf(f.slug) === -1) return false;
     return true;
   }
   function buildPool() {
     const items = (M && M.config && Array.isArray(M.config.items)) ? M.config.items : [];
     POOL = items.filter(isServable);
-  }
-  // Apply a focus change: persist, reserve a fresh question from the narrowed
-  // pool, and repaint the dashboard chips. Clearing resets all three axes.
-  function setFocus(patch) {
-    PREFS.focus = Object.assign(emptyFocus(), PREFS.focus || {}, patch);
-    persistPrefs(); nextQuestion(); renderDashboard();
-  }
-  function clearFocus() {
-    PREFS.focus = emptyFocus();
-    persistPrefs(); nextQuestion(); renderDashboard();
-  }
-  function subtagLabel(subtags, slug) {
-    for (let i = 0; i < subtags.length; i++) if (subtags[i].slug === slug) return subtags[i].label || slug;
-    return slug;
   }
 
   /* ──────────────────────────────────────────────────────────────────────────
@@ -1005,9 +945,8 @@
     const next = pickNext();
     if (!next) {
       const card = document.getElementById("tp-qcard");
-      if (card) card.innerHTML = '<p class="tp-prompt">No questions match the current filters. ' +
-        'Remove a filter chip or use \u201CClear all\u201D in the panel, switch the tier, ' +
-        'or this topic is still being authored.</p>';
+      if (card) card.innerHTML = '<p class="tp-prompt">No items available for this tier. ' +
+        'Switch the tier filter, or this topic is still being authored.</p>';
       return;
     }
     renderItem(next);
@@ -1025,9 +964,7 @@
     const root = document.getElementById("tp-dashboard");
     if (!root || !M) return;
     const topic = M.topic.id;
-    const atoms = (M.config && M.config.atoms) || [];   // [{slug,label,subtag}]
-    const subtags = (M.config && M.config.subtags) || [];
-    const f = (PREFS && PREFS.focus) || { atom: null, subtag: null, slug: null };
+    const atoms = (M.config && M.config.atoms) || [];   // [{slug,label}]
     root.innerHTML = "";
 
     // Tier control.
@@ -1043,130 +980,46 @@
     });
     root.appendChild(tierBox);
 
-    // Active-filters strip [P-EXC-ACTIVEFILTER]: every focus filter renders a
-    // removable chip plus Clear all, so a persisted filter can never silently
-    // strand the pupil in a tiny pool.
-    const chips = [];
-    if (f.atom)   chips.push(["Atom: " + (LABELS_ATOM[f.atom] || f.atom), function () { setFocus({ atom: null }); }]);
-    if (f.subtag) chips.push(["Group: " + subtagLabel(subtags, f.subtag), function () { setFocus({ subtag: null }); }]);
-    if (f.slug)   chips.push(["Mistake: " + (LABELS_MISC[f.slug] || f.slug), function () { setFocus({ slug: null }); }]);
-    if (chips.length) {
-      const strip = el("div", "tp-filterstrip");
-      chips.forEach(function (c) {
-        const chip = el("button", "tp-filterchip", escapeHtml(c[0]) + ' <span class="tp-chipx">×</span>');
-        chip.type = "button"; chip.title = "Remove this filter";
-        chip.addEventListener("click", c[1]);
-        strip.appendChild(chip);
-      });
-      const clear = el("button", "tp-filterclear", "Clear all");
-      clear.type = "button";
-      clear.addEventListener("click", clearFocus);
-      strip.appendChild(clear);
-      root.appendChild(strip);
-      root.appendChild(el("div", "tp-filternote",
-        POOL.length + " question" + (POOL.length === 1 ? "" : "s") + " match the filters"));
-    }
-
-    // Atom coverage. Grouped by subtag [P-LVL-TREE roll-up + P-LVL-ATOM grain];
-    // each group collapses, its header carries a roll-up swatch you can drill,
-    // and each atom cell drills the pool to items carrying that atom
-    // [P-MIS-MISTAKEROUTING]. Colour lives only at the atom and roll-up level.
+    // Per-atom mastery mosaic, grouped by subtag (SCHEMA v1.0). Cells colour by
+    // running average of the last COVERAGE_WINDOW attempts on items carrying the atom.
+    const subtags = (M.config && M.config.subtags) || [];
     const block = el("div", "tp-atomblock");
     block.appendChild(el("div", "tp-atomblock-h", "Atom coverage"));
-
     function atomCell(a) {
-      const r = atomAverage(topic, a.slug);
-      const band = bandKeyForAverage(r.avg);
-      const fade = r.n ? Math.min(0.7, (COVERAGE_WINDOW - r.n) / COVERAGE_WINDOW) : 0;
-      const cell = el("button", "tp-atomcell" + (f.atom === a.slug ? " is-focused" : ""));
-      cell.type = "button";
-      cell.style.background = r.avg == null ? band.fill : mixWithWhite(band.fill, fade);
-      cell.style.color = band.text;
-      cell.title = (a.label || a.slug) + " — " + (r.total
-        ? (r.total + " attempt" + (r.total === 1 ? "" : "s") +
-           (r.avg != null ? ", last " + r.n + ": " + Math.round(r.avg * 100) + "%" : ""))
-        : "not attempted") + " (click to drill)";
+      const ev = eventsForAtom(topic, a.slug);
+      const graded = ev.filter(function (e) { return e.grading !== "ungraded_self_assessed"; });
+      const recent = graded.slice(-COVERAGE_WINDOW);
+      let avg = null;
+      if (recent.length) {
+        let w = 0;
+        recent.forEach(function (e) { w += e.status === "correct" ? 1 : e.status === "half" ? 0.5 : 0; });
+        avg = w / recent.length;
+      }
+      const band = bandKeyForAverage(avg);
+      const fade = recent.length ? Math.max(0, (COVERAGE_WINDOW - recent.length) / COVERAGE_WINDOW * 0.7) : 1;
+      const cell = el("div", "tp-atomcell");
+      cell.style.background = avg == null ? band.fill : mixWithWhite(band.fill, fade);
+      cell.title = (a.label || a.slug) + " \u2014 " + (ev.length ? ev.length + " attempts" : "not attempted");
       cell.appendChild(el("span", "tp-atomcell-lab", escapeHtml(a.label || a.slug)));
-      cell.addEventListener("click", function () {
-        setFocus({ atom: f.atom === a.slug ? null : a.slug, subtag: null, slug: null });
-      });
       return cell;
     }
-
-    function subtagRollup(stSlug) {
-      const mine = atoms.filter(function (a) { return a.subtag === stSlug; });
-      const avgs = [];
-      mine.forEach(function (a) { const r = atomAverage(topic, a.slug); if (r.avg != null) avgs.push(r.avg); });
-      if (!avgs.length) return { avg: null, band: BAND.untried, done: 0, total: mine.length };
-      const avg = avgs.reduce(function (s, x) { return s + x; }, 0) / avgs.length;
-      return { avg: avg, band: bandKeyForAverage(avg), done: avgs.length, total: mine.length };
-    }
-
-    function groupBlock(stSlug, label) {
-      const mine = atoms.filter(function (a) { return a.subtag === stSlug; });
-      if (!mine.length) return;
-      const collapsed = !!(PREFS.collapsed && PREFS.collapsed[stSlug]);
-      const ru = subtagRollup(stSlug);
-      const head = el("div", "tp-subtag-row");
-      const caret = el("button", "tp-subtag-toggle",
-        (collapsed ? "▸ " : "▾ ") + escapeHtml(label));
-      caret.type = "button";
-      caret.addEventListener("click", function () {
-        PREFS.collapsed = PREFS.collapsed || {};
-        PREFS.collapsed[stSlug] = !collapsed; persistPrefs(); renderDashboard();
-      });
-      const sw = el("button", "tp-subtag-swatch" + (f.subtag === stSlug ? " is-focused" : ""));
-      sw.type = "button";
-      sw.style.background = ru.band.fill;
-      sw.title = "Group roll-up: " + (ru.avg == null ? "untried"
-        : Math.round(ru.avg * 100) + "% across " + ru.done + "/" + ru.total + " atoms tried") +
-        " (click to drill this group)";
-      sw.addEventListener("click", function () {
-        setFocus({ subtag: f.subtag === stSlug ? null : stSlug, atom: null, slug: null });
-      });
-      head.appendChild(caret);
-      head.appendChild(sw);
-      block.appendChild(head);
-      if (!collapsed) {
-        const grid = el("div", "tp-atomgrid");
-        mine.forEach(function (a) { grid.appendChild(atomCell(a)); });
-        block.appendChild(grid);
-      }
-    }
-
     if (subtags.length) {
-      subtags.forEach(function (st) { groupBlock(st.slug, st.label || st.slug); });
-      const known = {};
-      subtags.forEach(function (st) { known[st.slug] = true; });
-      const orphans = atoms.filter(function (a) { return !known[a.subtag]; });
-      if (orphans.length) {
-        block.appendChild(el("div", "tp-subtag-row",
-          '<span class="tp-subtag-toggle" style="cursor:default">Other</span>'));
+      subtags.forEach(function (st) {
+        const group = atoms.filter(function (a) { return a.subtag === st.slug; });
+        if (!group.length) return;
+        block.appendChild(el("div", "tp-subtag-h", escapeHtml(st.label || st.slug)));
         const grid = el("div", "tp-atomgrid");
-        orphans.forEach(function (a) { grid.appendChild(atomCell(a)); });
+        group.forEach(function (a) { grid.appendChild(atomCell(a)); });
         block.appendChild(grid);
-      }
+      });
     } else {
       const grid = el("div", "tp-atomgrid");
       atoms.forEach(function (a) { grid.appendChild(atomCell(a)); });
       block.appendChild(grid);
     }
-
-    // Legend [P-SLI-COVERAGEMAP keeps the legend visible or the colours are mute].
-    const legend = el("div", "tp-legend");
-    BAND_LEGEND.forEach(function (pair) {
-      const it = el("span", "tp-legend-item");
-      const sw = el("span", "tp-legend-sw"); sw.style.background = BAND[pair[0]].fill;
-      it.appendChild(sw); it.appendChild(el("span", "tp-legend-lab", pair[1]));
-      legend.appendChild(it);
-    });
-    block.appendChild(legend);
-    block.appendChild(el("div", "tp-legend-note",
-      "Colour = average of your last " + COVERAGE_WINDOW + " attempts on that atom. Paler = fewer attempts."));
     root.appendChild(block);
 
-    // Per-misconception fire vs avoid (principle 1). Each row drills the pool to
-    // items that can trigger that misconception [P-MIS-MISTAKEROUTING].
+    // Per-misconception fire vs avoid (the principle-1 "fired 3, avoided 60").
     const misc = computeMisconceptionTable(topic);
     if (misc.length) {
       const mblock = el("div", "tp-miscblock");
@@ -1174,16 +1027,11 @@
       misc.forEach(function (m) {
         const total = m.fired + m.avoided;
         const pctAvoid = total ? Math.round(100 * m.avoided / total) : 0;
-        const row = el("button", "tp-miscrow" + (f.slug === m.slug ? " is-focused" : ""));
-        row.type = "button";
-        row.title = "Drill questions that can trigger this";
+        const row = el("div", "tp-miscrow");
         row.innerHTML =
           '<span class="tp-miscname">' + escapeHtml(LABELS_MISC[m.slug] || m.slug) + '</span>' +
           '<span class="tp-miscbar"><span class="tp-miscbar-fill" style="width:' + pctAvoid + '%"></span></span>' +
           '<span class="tp-miscnums">avoided ' + m.avoided + ' · fired ' + m.fired + '</span>';
-        row.addEventListener("click", function () {
-          setFocus({ slug: f.slug === m.slug ? null : m.slug, atom: null, subtag: null });
-        });
         mblock.appendChild(row);
       });
       root.appendChild(mblock);

@@ -202,3 +202,23 @@ Bisect the engine.js render/reveal path against your most recent edit; the integ
 
 ### Update 2026-06-17: d055 resolved — it was a TEST-FIXTURE collision, not an engine regression (d058)
 Bisected. The engine did not regress: all 31 real level_of_response_6 items (6.2:5, 6.5:16, 6.6:10) grade `full` on their creditworthy sets, and all 13 real mcq_multi items (6.2:1, 6.5:7, 6.6:5) grade `correct` and reject a wrong pick. The 6 failures came from MY demo fixtures living inside electricity_6_2.js: the dedicated tests picked items by qtype, and once the 6.2 author populated the bank those filters caught real authored items (a 4-point LOR where the test wanted the 8-point demo). Fixed at the root: extracted the 8 demo items into `test/fixtures_6_2.js` (test-only), so the shipped config is now pure authored content (83 items, all servable, zero `_demo`) and the integration suite runs against its own fixtures, decoupled from authored items. This also removes the demo clutter from Authoring's file. Release gate GREEN: integration 58/58 deterministic, smoke 75/75. LOR and mcq_multi were never broken for pupils; the enabled topics are trustworthy. Re-run when you like; flag if you see anything.
+
+## 2026-06-19, from Architecture: playtest fixes (d060; log review/PLAYTEST_FEEDBACK_2026-06-19.md)
+From Smith's live 6.2 drill, engine items for you (priority order):
+- **H1 calc_workings feedback specificity + leniency (top):** "the two sides don't agree" is too vague and a wrong-quantity substitution + prefix error (450 vs 0.45) was not diagnosed. Feedback must name the error (substituted current where resistance belongs; un-converted prefix). This is the real case to adopt the asGiven prefix shape (d057 left it moot) so prefix slips are caught and marked.
+- **H4 line semantics:** "rearrange and evaluate" on one line over-accepts (wrong-way formula and wrong-way substitution passed). Separate rearrange from evaluate where a real rearrangement exists (5th line / per-item flag) and tighten line-1/2 acceptance. Architecture ruled the design (d060); you implement.
+- **H2 shuffled deck:** no-repeat-until-exhausted per session (fuse-draw repeated within 15 Q).
+- **H3 tier surfacing + filter** (items carry tier F/H/FH).
+- **H5 dashboard colour update legibility**, and clearer marked/not-marked state on circuit_draw self-checks.
+- **W2 circuit layout variety** (Circuit Builder embed is yours): vary placement, switches/batteries on side walls, occasional horizontal layout - the DSL has the +/-/++ and "left," modifiers.
+
+## 2026-06-19, from Architecture: calc_workings line-structure ruling CORRECTED (d061, amends d060 H4)
+Scrap the "5th line where appropriate" idea - a conditional line signals whether a rearrangement is needed (information leak). Instead: FIXED line structure on every calc_workings item (rearrange line always present; pupil repeats it when no rearrangement is needed, allowRepeat). When a combined rearrange+evaluate step is wrong in a way you cannot localise, dock BOTH marks ("ping both"), do not guess. Still tighten line-1 (reject wrong-way-round equation) and line-2 (reject wrong-quantity substitution) per d060 H1/H4.
+
+---
+
+## 2026-06-20 — Architecture: atom dashboard v2 landed (d062), FYI to Housing
+
+Heads-up, no action required. I implemented the atom-dashboard rebuild Smith asked for directly in `app/engine.js` and `app/engine.css` (d062), sourced from the EdTech Overview Patterns Menu. Summary: six-band P-COL-BAND6 colour + capped white-fade + legend; collapsible subtag groups with a drillable roll-up swatch (P-LVL-TREE/P-LVL-ATOM); click-to-drill on atoms, group swatches and misconception rows feeding a focus filter through `isServable` (P-MIS-MISTAKEROUTING) with a removable filter-chip strip + Clear all + live match-count (P-EXC-ACTIVEFILTER). PREFS now carries `focus` and `collapsed`. Both test suites stay green (75/58). Backups at `app/*.bak.d062`.
+
+If you pick up further dashboard work: the focus filter is the natural hook for any future "wrong-only re-drill" [P-EXC-REDRILL] and for the deck-cap shuffle [P-EXC-DECKCAP]; both would compose with `PREFS.focus` rather than fight it. Open tuning questions left for Smith: exact band cuts, default collapse state, and whether focus should persist across sessions (currently yes, guarded by the chip strip).
