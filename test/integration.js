@@ -29,6 +29,7 @@ w.eval(read("../data/misconceptions.js"));
 w.eval(read("widgets/widgets_core.js"));
 try { w.eval(read("widgets/forces-diagrams.js")); } catch(e){ console.log("note: forces widgets not loaded:", e.message); }
 w.eval(read("topics/electricity_6_2.js"));
+w.eval(read("../test/fixtures_6_2.js"));
 try { w.eval(read("widgets/topic-diagrams.js")); } catch (e) { console.log("note: widgets catalogue not loaded:", e.message); }
 
 let pass = 0, fail = 0;
@@ -38,8 +39,8 @@ console.log("\nGlobals present");
 ok("CircuitBuilder loaded", typeof w.CircuitBuilder === "object" && typeof w.CircuitBuilder.renderDSL === "function");
 ok("TrilogyEngine loaded", typeof w.TrilogyEngine === "object");
 ok("TRILOGY_TOPICS 6.2 loaded", !!(w.TRILOGY_TOPICS && w.TRILOGY_TOPICS["6.2"]));
-const cfg = w.TRILOGY_TOPICS["6.2"];
-ok("demo items loaded via ?demo=1", (cfg.items || []).length >= 4);
+const cfg = Object.assign({}, w.TRILOGY_TOPICS["6.2"], { items: w.TRILOGY_TEST_FIXTURES });
+ok("test fixtures loaded (one per qtype/path)", (cfg.items || []).length >= 8);
 
 console.log("\nCircuit kind renders SVG");
 const svg = w.TrilogyDiagrams.render({ kind: "circuit", dsl: "2cb,sc,r,r" });
