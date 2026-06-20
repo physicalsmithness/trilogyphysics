@@ -137,7 +137,27 @@
             "ohms"
           ],
           "requireUnit": true,
-          "marks": 3
+          "marks": 3,
+          "codex": {
+            "formula": "FORMULA.OHM",
+            "sources": [
+              {
+                "sym": "V",
+                "category": "direct"
+              },
+              {
+                "sym": "I",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation",
+              "unit"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 3,
         "equation_sheet": "from_insert"
@@ -175,7 +195,30 @@
             "ohms"
           ],
           "requireUnit": true,
-          "marks": 4
+          "marks": 4,
+          "codex": {
+            "formula": "FORMULA.OHM",
+            "sources": [
+              {
+                "sym": "V",
+                "category": "direct"
+              },
+              {
+                "sym": "I",
+                "category": "prefix_strip"
+              }
+            ],
+            "unit_actions": [
+              "prefix_strip"
+            ],
+            "mark_categories": [
+              "prefix_conv",
+              "substitution",
+              "evaluation",
+              "unit"
+            ],
+            "ecf": "ecf_allowed"
+          }
         },
         "marks": 4,
         "equation_sheet": "from_insert"
@@ -212,7 +255,27 @@
             "volts"
           ],
           "requireUnit": true,
-          "marks": 3
+          "marks": 3,
+          "codex": {
+            "formula": "FORMULA.OHM",
+            "sources": [
+              {
+                "sym": "I",
+                "category": "direct"
+              },
+              {
+                "sym": "R",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation",
+              "unit"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 3,
         "equation_sheet": "from_insert"
@@ -252,7 +315,27 @@
           ],
           "tolerance": 1e-7,
           "requireUnit": true,
-          "marks": 3
+          "marks": 3,
+          "codex": {
+            "formula": "FORMULA.OHM",
+            "sources": [
+              {
+                "sym": "V",
+                "category": "direct"
+              },
+              {
+                "sym": "R",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "rearrangement",
+              "evaluation",
+              "unit"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 3,
         "equation_sheet": "from_insert"
@@ -289,7 +372,26 @@
             "coulombs"
           ],
           "requireUnit": true,
-          "marks": 2
+          "marks": 2,
+          "codex": {
+            "formula": "FORMULA.CHARGE_IT",
+            "sources": [
+              {
+                "sym": "I",
+                "category": "direct"
+              },
+              {
+                "sym": "t",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 2,
         "equation_sheet": "from_insert"
@@ -328,7 +430,27 @@
             "ampere"
           ],
           "requireUnit": true,
-          "marks": 3
+          "marks": 3,
+          "codex": {
+            "formula": "FORMULA.CHARGE_IT",
+            "sources": [
+              {
+                "sym": "Q",
+                "category": "direct"
+              },
+              {
+                "sym": "t",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "rearrangement",
+              "substitution",
+              "evaluation"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 3,
         "equation_sheet": "from_insert"
@@ -1739,7 +1861,27 @@
             "watts"
           ],
           "requireUnit": true,
-          "marks": 3
+          "marks": 3,
+          "codex": {
+            "formula": "FORMULA.POWER_VI",
+            "sources": [
+              {
+                "sym": "V",
+                "category": "direct"
+              },
+              {
+                "sym": "I",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation",
+              "unit"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 3,
         "equation_sheet": "from_insert"
@@ -1779,7 +1921,27 @@
             "ampere"
           ],
           "requireUnit": true,
-          "marks": 4
+          "marks": 4,
+          "codex": {
+            "formula": "FORMULA.POWER_VI",
+            "sources": [
+              {
+                "sym": "P",
+                "category": "direct"
+              },
+              {
+                "sym": "V",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "rearrangement",
+              "evaluation",
+              "unit"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 4,
         "equation_sheet": "from_insert"
@@ -1816,7 +1978,26 @@
             "joules"
           ],
           "requireUnit": true,
-          "marks": 2
+          "marks": 2,
+          "codex": {
+            "formula": "FORMULA.ENERGY_PT",
+            "sources": [
+              {
+                "sym": "P",
+                "category": "direct"
+              },
+              {
+                "sym": "t",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 2,
         "equation_sheet": "from_insert"
@@ -1854,7 +2035,26 @@
             "watts"
           ],
           "requireUnit": true,
-          "marks": 2
+          "marks": 2,
+          "codex": {
+            "formula": "FORMULA.ENERGY_PT",
+            "sources": [
+              {
+                "sym": "E",
+                "category": "direct"
+              },
+              {
+                "sym": "t",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "rearrangement",
+              "evaluation"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 2,
         "equation_sheet": "from_insert"
@@ -1891,7 +2091,26 @@
             "joules"
           ],
           "requireUnit": true,
-          "marks": 2
+          "marks": 2,
+          "codex": {
+            "formula": "FORMULA.ENERGY_QV",
+            "sources": [
+              {
+                "sym": "Q",
+                "category": "direct"
+              },
+              {
+                "sym": "V",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 2,
         "equation_sheet": "from_insert"
@@ -1930,7 +2149,29 @@
             "volts"
           ],
           "requireUnit": true,
-          "marks": 3
+          "marks": 3,
+          "codex": {
+            "formula": "FORMULA.ENERGY_QV",
+            "sources": [
+              {
+                "sym": "E",
+                "category": "std_form_input"
+              },
+              {
+                "sym": "Q",
+                "category": "std_form_input"
+              }
+            ],
+            "unit_actions": [
+              "std_form_input"
+            ],
+            "mark_categories": [
+              "rearrangement",
+              "evaluation",
+              "unit"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         },
         "marks": 3,
         "equation_sheet": "from_insert"
@@ -3306,7 +3547,39 @@
                 "kind": "from_previous_part"
               }
             }
-          ]
+          ],
+          "codex": {
+            "formula": [
+              "FORMULA.OHM",
+              "FORMULA.CHARGE_IT"
+            ],
+            "sources": [
+              {
+                "sym": "V",
+                "category": "direct"
+              },
+              {
+                "sym": "R",
+                "category": "direct"
+              },
+              {
+                "sym": "I",
+                "category": "from_previous_part"
+              },
+              {
+                "sym": "t",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "rearrangement",
+              "evaluation",
+              "substitution",
+              "evaluation"
+            ],
+            "ecf": "from_previous_part"
+          }
         }
       },
       {
@@ -3397,7 +3670,46 @@
                 "kind": "from_previous_part"
               }
             }
-          ]
+          ],
+          "codex": {
+            "formula": [
+              "FORMULA.OHM",
+              "FORMULA.POWER_VI",
+              "FORMULA.ENERGY_PT"
+            ],
+            "sources": [
+              {
+                "sym": "V",
+                "category": "direct"
+              },
+              {
+                "sym": "R",
+                "category": "direct"
+              },
+              {
+                "sym": "I",
+                "category": "from_previous_part"
+              },
+              {
+                "sym": "P",
+                "category": "from_previous_part"
+              },
+              {
+                "sym": "t",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "rearrangement",
+              "evaluation",
+              "substitution",
+              "evaluation",
+              "substitution",
+              "evaluation"
+            ],
+            "ecf": "from_previous_part"
+          }
         }
       },
       {
@@ -3463,7 +3775,39 @@
                 "kind": "from_previous_part"
               }
             }
-          ]
+          ],
+          "codex": {
+            "formula": [
+              "FORMULA.CHARGE_IT",
+              "FORMULA.ENERGY_QV"
+            ],
+            "sources": [
+              {
+                "sym": "I",
+                "category": "direct"
+              },
+              {
+                "sym": "t",
+                "category": "direct"
+              },
+              {
+                "sym": "Q",
+                "category": "from_previous_part"
+              },
+              {
+                "sym": "V",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation",
+              "substitution",
+              "evaluation"
+            ],
+            "ecf": "from_previous_part"
+          }
         }
       },
       {
@@ -3552,7 +3896,46 @@
                 "kind": "from_previous_part"
               }
             }
-          ]
+          ],
+          "codex": {
+            "formula": [
+              "RELATION.SERIES_RESISTANCE_SUM",
+              "FORMULA.OHM",
+              "FORMULA.OHM"
+            ],
+            "sources": [
+              {
+                "sym": "R1",
+                "category": "direct"
+              },
+              {
+                "sym": "R2",
+                "category": "direct"
+              },
+              {
+                "sym": "Rt",
+                "category": "from_previous_part"
+              },
+              {
+                "sym": "V",
+                "category": "direct"
+              },
+              {
+                "sym": "I",
+                "category": "from_previous_part"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation",
+              "rearrangement",
+              "evaluation",
+              "substitution",
+              "evaluation"
+            ],
+            "ecf": "from_previous_part"
+          }
         }
       },
       {
@@ -3590,7 +3973,27 @@
           ],
           "tolerance": 0.1,
           "requireUnit": true,
-          "marks": 2
+          "marks": 2,
+          "codex": {
+            "formula": "RELATION.SERIES_RESISTANCE_SUM",
+            "sources": [
+              {
+                "sym": "R1",
+                "category": "direct"
+              },
+              {
+                "sym": "R2",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation",
+              "unit"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         }
       },
       {
@@ -3629,7 +4032,27 @@
           ],
           "tolerance": 0.5,
           "requireUnit": true,
-          "marks": 3
+          "marks": 3,
+          "codex": {
+            "formula": "FORMULA.POWER_I2R",
+            "sources": [
+              {
+                "sym": "I",
+                "category": "direct"
+              },
+              {
+                "sym": "R",
+                "category": "direct"
+              }
+            ],
+            "unit_actions": [],
+            "mark_categories": [
+              "substitution",
+              "evaluation",
+              "unit"
+            ],
+            "ecf": "no_ecf_gating"
+          }
         }
       },
       {
