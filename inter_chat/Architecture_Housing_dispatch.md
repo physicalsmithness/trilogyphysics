@@ -222,3 +222,9 @@ Scrap the "5th line where appropriate" idea - a conditional line signals whether
 Heads-up, no action required. I implemented the atom-dashboard rebuild Smith asked for directly in `app/engine.js` and `app/engine.css` (d062), sourced from the EdTech Overview Patterns Menu. Summary: six-band P-COL-BAND6 colour + capped white-fade + legend; collapsible subtag groups with a drillable roll-up swatch (P-LVL-TREE/P-LVL-ATOM); click-to-drill on atoms, group swatches and misconception rows feeding a focus filter through `isServable` (P-MIS-MISTAKEROUTING) with a removable filter-chip strip + Clear all + live match-count (P-EXC-ACTIVEFILTER). PREFS now carries `focus` and `collapsed`. Both test suites stay green (75/58). Backups at `app/*.bak.d062`.
 
 If you pick up further dashboard work: the focus filter is the natural hook for any future "wrong-only re-drill" [P-EXC-REDRILL] and for the deck-cap shuffle [P-EXC-DECKCAP]; both would compose with `PREFS.focus` rather than fight it. Open tuning questions left for Smith: exact band cuts, default collapse state, and whether focus should persist across sessions (currently yes, guarded by the chip strip).
+
+---
+
+## 2026-06-22 — Architecture: units driller wired into sign-in + tracking (d063), FYI
+
+The standalone `physics_skill_driller_units_v4_1.html` now reads the shell's shared-origin identity (`trilogy_physics_identity_v1`) and reports each attempt to the same Apps Script `/exec` in the shell's payload schema (topic tag `units_driller_v4_1`, qtype = prefixes|units, item_id = mode:targetId). Hook is in its `updateStats`. A sign-in banner and a picker link card were added. jsdom-verified. No engine change. If a future "tools" section grows (other standalone drillers: 1_Energy, 7_Magnetism), the same three-line reporter shim is the pattern to copy. Watch item for whoever owns the Apps Script: confirm the sheet groups the new `units_driller_v4_1` topic tag sensibly alongside the 6.x topics.

@@ -105,15 +105,6 @@
   <section id="topicPicker">
     <div class="pick-h">Choose a topic to practise. More are being built.</div>
     <div class="topic-grid" id="topicGrid"></div>
-
-    <div style="font-family:var(--sans);font-size:.9rem;color:var(--ink-2);margin:24px 0 10px">Maths &amp; units practice</div>
-    <div class="topic-grid">
-      <a class="topic-card" href="../physics_skill_driller_units_v4_1.html" style="text-decoration:none;color:inherit;display:block">
-        <div class="tc-code">Skills</div>
-        <div class="tc-name">Prefixes &amp; units</div>
-        <div class="tc-state">Practise now</div>
-      </a>
-    </div>
   </section>
 
   <!-- The blended engine mounts into this panel (TrilogyEngine.mount). -->
