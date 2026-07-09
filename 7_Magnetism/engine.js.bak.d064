@@ -1204,7 +1204,6 @@ renderKPIs();
     if(outcome.checked){
       answered.set(q._instanceId, {checked:true, status: outcome.status, score: outcome.score, max: outcome.max ?? qMaxMarksSafe(q), auto: !!outcome.auto});
       updateOverallForInstance(q._instanceId, q.id, outcome.score, outcome.max ?? qMaxMarksSafe(q));
-      if(window.TrilogyDrillerReport){ try{ window.TrilogyDrillerReport({ item_id:q.id, qtype:q.type||"", status: outcome.status==="full"?"correct":(outcome.status==="partial"?"half":"wrong"), mode:(Number(outcome.score)||0)+"/"+(outcome.max??"") }); }catch(e){} }
       renderKPIs();
     }
   }

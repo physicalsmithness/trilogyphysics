@@ -228,3 +228,9 @@ If you pick up further dashboard work: the focus filter is the natural hook for 
 ## 2026-06-22 — Architecture: units driller wired into sign-in + tracking (d063), FYI
 
 The standalone `physics_skill_driller_units_v4_1.html` now reads the shell's shared-origin identity (`trilogy_physics_identity_v1`) and reports each attempt to the same Apps Script `/exec` in the shell's payload schema (topic tag `units_driller_v4_1`, qtype = prefixes|units, item_id = mode:targetId). Hook is in its `updateStats`. A sign-in banner and a picker link card were added. jsdom-verified. No engine change. If a future "tools" section grows (other standalone drillers: 1_Energy, 7_Magnetism), the same three-line reporter shim is the pattern to copy. Watch item for whoever owns the Apps Script: confirm the sheet groups the new `units_driller_v4_1` topic tag sensibly alongside the 6.x topics.
+
+---
+
+## 2026-07-06 — Architecture: legacy Energy + Magnetism drillers wired (d064), FYI
+
+Extending d063: `1_Energy` and `7_Magnetism` standalone drillers now report to the shared Apps Script endpoint via `window.TrilogyDrillerReport` (topic tags `energy_driller`, `magnetism_driller`), hooked at `saveOutcome` and `checkAndShow` respectively. Shell picker lists all three standalone drillers. jsdom-verified. Whoever owns the Apps Script sheet: expect three new topic tags (`units_driller_v4_1`, `energy_driller`, `magnetism_driller`) alongside the 6.x engine topics; `magnetism_driller` will coexist with future `6.7_magnetism` rows once that topic is authored, so group/report on the topic column deliberately.

@@ -306,7 +306,6 @@
     };
     pushRecent(progress, {baseId, status: outcome.status, t: Date.now()}, !!replaceLastSame);
     saveProgress(progress);
-    if(window.TrilogyDrillerReport){ try{ window.TrilogyDrillerReport({ item_id:baseId, status: outcome.status==="full"?"correct":(outcome.status==="partial"?"half":"wrong"), mode:(Number(outcome.score)||0)+"/"+(Number(outcome.max)||0) }); }catch(e){} }
   }
   function saveSkip(baseId){
     const progress = loadProgress();
